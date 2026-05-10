@@ -45,6 +45,7 @@ YOUTUBE_TITLE_SUFFIXES: tuple[str, ...] = (
     "Official Music Video",
     "Official Video",
     "Official Visualizer",
+    "Performance Music Video",
     "HD Remaster",
     "4K",
     "EXPLICIT",
@@ -114,9 +115,9 @@ def resolve_identity(
 
     conflict_reasons = _detect_conflicts(
         tag_artist=None if tag_artist_deprioritized else normalized_tag_artist,
-        tag_title=_clean_youtube_title_suffixes(tag_title),
+        tag_title=None if tag_artist_deprioritized else _clean_title(tag_title),
         filename_artist=normalized_filename_artist,
-        filename_title=_clean_youtube_title_suffixes(filename_title),
+        filename_title=_clean_title(filename_title),
     )
 
     selected_artist_source = None
@@ -137,8 +138,10 @@ def resolve_identity(
     else:
         probable_artist = None
 
-    cleaned_tag_title = _clean_youtube_title_suffixes(tag_title)
-    cleaned_filename_title = _clean_youtube_title_suffixes(filename_title)
+    cleaned_tag_title = _clean_title(tag_title, probable_artist=probable_artist)
+    cleaned_filename_title = _clean_title(
+        filename_title, probable_artist=probable_artist
+    )
 
     if tag_artist_deprioritized and cleaned_filename_title:
         probable_title = cleaned_filename_title
@@ -441,22 +444,43 @@ def _normalize_title(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", value.lower())
 
 
-def _clean_youtube_title_suffixes(value: str | None) -> str | None:
+def _clean_title(value: str | None, *, probable_artist: str | None = None) -> str | None:
     if value is None:
         return None
 
     cleaned = value
+    cleaned = _remove_duplicate_artist_prefix(cleaned, probable_artist=probable_artist)
     suffix_pattern = "|".join(re.escape(suffix) for suffix in YOUTUBE_TITLE_SUFFIXES)
     bracketed_suffix = re.compile(
         rf"\s*(?:\((?:{suffix_pattern})\)|\[(?:{suffix_pattern})\])\s*$",
         re.IGNORECASE,
     )
+    bare_suffix = re.compile(rf"\s*[-–—:]?\s*(?:{suffix_pattern})\s*$", re.IGNORECASE)
+    video_id_suffix = re.compile(r"\s*\[[A-Za-z0-9_-]{11}\]\s*$")
     while True:
         next_cleaned = bracketed_suffix.sub("", cleaned).strip()
+        next_cleaned = bare_suffix.sub("", next_cleaned).strip()
+        next_cleaned = video_id_suffix.sub("", next_cleaned).strip()
         if next_cleaned == cleaned:
             break
         cleaned = next_cleaned
     return _clean(cleaned)
+
+
+def _remove_duplicate_artist_prefix(
+    value: str, *, probable_artist: str | None
+) -> str:
+    if probable_artist is None:
+        return value
+
+    match = re.match(r"^\s*(?P<prefix>.+?)\s+-\s+(?P<title>.+)$", value)
+    if not match:
+        return value
+    if normalize_artist_name(match.group("prefix")) != normalize_artist_name(
+        probable_artist
+    ):
+        return value
+    return match.group("title")
 
 
 def _clean(value: str | None) -> str | None:

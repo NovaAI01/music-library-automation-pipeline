@@ -103,6 +103,36 @@ def test_uploader_tag_artist_with_filename_seed_artist_resolves_identified():
     assert result.evidence["deprioritized_reason"] == "uploader_or_label_metadata"
 
 
+def test_uploader_metadata_deprioritized_sets_identified_status():
+    result = resolve_identity(
+        tag_artist="Warner Records",
+        tag_title="Warner Records",
+        filename_artist="Deftones",
+        filename_title="Be Quiet And Drive",
+    )
+
+    assert result.identity_status == "identified"
+    assert result.identity_confidence == 0.85
+    assert result.probable_artist == "Deftones"
+    assert result.probable_title == "Be Quiet And Drive"
+    assert result.evidence["conflict_reasons"] == []
+    assert result.evidence["tag_artist_deprioritized"] is True
+
+
+def test_conflict_reasons_do_not_force_conflict_for_deprioritized_tag_artist():
+    result = resolve_identity(
+        tag_artist="Better Noise Music",
+        tag_title="Better Noise Music",
+        filename_artist="Nothing More",
+        filename_title="Jenny",
+    )
+
+    assert result.identity_status == "identified"
+    assert result.identity_confidence == 0.85
+    assert result.evidence["conflict_reasons"] == []
+    assert result.evidence["tag_artist_deprioritized"] is True
+
+
 def test_label_tag_artist_with_filename_seed_artist_resolves_identified():
     result = resolve_identity(
         tag_artist="Roadrunner Records",
@@ -150,6 +180,22 @@ def test_different_valid_seed_artists_still_conflict():
     ]
 
 
+def test_valid_seed_artist_vs_different_valid_seed_artist_remains_conflicting():
+    result = resolve_identity(
+        tag_artist="Flyleaf",
+        tag_title="Fully Alive",
+        filename_artist="Deftones",
+        filename_title="Fully Alive",
+    )
+
+    assert result.identity_status == "conflicting"
+    assert result.identity_confidence == 0.40
+    assert result.evidence["conflict_reasons"] == [
+        "tag_artist_conflicts_with_filename_artist"
+    ]
+    assert "tag_artist_deprioritized" not in result.evidence
+
+
 def test_youtube_title_suffixes_are_removed():
     result = resolve_identity(
         filename_artist="Deftones",
@@ -157,6 +203,36 @@ def test_youtube_title_suffixes_are_removed():
     )
 
     assert result.probable_title == "Be Quiet and Drive"
+    assert result.identity_status == "identified"
+
+
+def test_title_removes_video_id_bracket():
+    result = resolve_identity(
+        filename_artist="Deftones",
+        filename_title="Be Quiet And Drive [KvknOXGPzCQ]",
+    )
+
+    assert result.probable_title == "Be Quiet And Drive"
+    assert result.identity_status == "identified"
+
+
+def test_title_removes_duplicate_artist_prefix():
+    result = resolve_identity(
+        filename_artist="Deftones",
+        filename_title="Deftones - Be Quiet And Drive",
+    )
+
+    assert result.probable_title == "Be Quiet And Drive"
+    assert result.identity_status == "identified"
+
+
+def test_title_removes_bare_official_music_video_suffix():
+    result = resolve_identity(
+        filename_artist="Deftones",
+        filename_title="Be Quiet And Drive Official Music Video",
+    )
+
+    assert result.probable_title == "Be Quiet And Drive"
     assert result.identity_status == "identified"
 
 
@@ -176,6 +252,22 @@ def test_better_noise_music_nothing_more_resolves_nothing_more():
     assert result.evidence["deprioritized_reason"] == "uploader_or_label_metadata"
 
 
+def test_real_better_noise_music_example_plans_clean_identity():
+    result = resolve_identity(
+        tag_artist="Better Noise Music",
+        tag_title="Official Music Video",
+        filename_artist="NOTHING MORE",
+        filename_title="NOTHING MORE - Jenny [Official Video] [KvknOXGPzCQ]",
+    )
+
+    assert result.identity_status == "identified"
+    assert result.identity_confidence == 0.85
+    assert result.probable_artist == "Nothing More"
+    assert result.probable_title == "Jenny"
+    assert result.evidence["conflict_reasons"] == []
+    assert result.evidence["tag_artist_deprioritized"] is True
+
+
 def test_deftones_filename_remains_deftones_and_title_cleans():
     result = resolve_identity(
         tag_artist="Warner Records",
@@ -189,6 +281,22 @@ def test_deftones_filename_remains_deftones_and_title_cleans():
     assert result.probable_title == "My Own Summer"
     assert result.evidence["selected_artist_source"] == "filename"
     assert result.evidence["selected_title_source"] == "filename"
+
+
+def test_real_deftones_example_plans_clean_identity():
+    result = resolve_identity(
+        tag_artist="Warner Records",
+        tag_title="Official Music Video",
+        filename_artist="Deftones",
+        filename_title="Deftones - Be Quiet And Drive (Official Music Video) [KvknOXGPzCQ]",
+    )
+
+    assert result.identity_status == "identified"
+    assert result.identity_confidence == 0.85
+    assert result.probable_artist == "Deftones"
+    assert result.probable_title == "Be Quiet And Drive"
+    assert result.evidence["conflict_reasons"] == []
+    assert result.evidence["tag_artist_deprioritized"] is True
 
 
 def test_parent_folder_treated_as_weak_evidence():

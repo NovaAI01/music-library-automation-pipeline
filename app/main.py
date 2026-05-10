@@ -9,6 +9,7 @@ from app import db
 from app.classifier import classify_scan_run
 from app.identity_engine import identify_scan_run
 from app.intake import run_intake
+from app.pipeline import run_intake_pipeline
 from app.purchase_gateway import (
     add_purchase_option,
     attach_purchase_proof,
@@ -96,6 +97,12 @@ def build_parser() -> argparse.ArgumentParser:
     intake_parser.add_argument("--purchase-request-id", required=True, type=int)
     intake_parser.add_argument("--source", required=True)
     intake_parser.add_argument("--dest", required=True)
+
+    pipeline_parser = subparsers.add_parser(
+        "pipeline-run", help="Scan, identify, and classify an intake batch."
+    )
+    pipeline_parser.add_argument("--intake-batch-id", required=True, type=int)
+    pipeline_parser.add_argument("--rerun", action="store_true")
 
     return parser
 
@@ -218,6 +225,21 @@ def main(argv: list[str] | None = None) -> int:
         print(f"audio_files_copied={result.audio_files_copied}")
         print(f"skipped_files={result.skipped_files}")
         print(f"duplicate_files={result.duplicate_files}")
+        return 0
+
+    if args.command == "pipeline-run":
+        result = run_intake_pipeline(
+            args.intake_batch_id,
+            rerun=args.rerun,
+            db_path=db_path,
+        )
+        print(f"pipeline_run_id={result.pipeline_run_id}")
+        print(f"intake_batch_id={result.intake_batch_id}")
+        print(f"scan_run_id={result.scan_run_id}")
+        print(f"scan_status={result.scan_status}")
+        print(f"identity_status={result.identity_status}")
+        print(f"classification_status={result.classification_status}")
+        print(f"pipeline_status={result.pipeline_status}")
         return 0
 
     parser.error(f"unknown command: {args.command}")

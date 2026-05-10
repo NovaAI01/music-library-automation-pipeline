@@ -58,6 +58,13 @@ Copy unlocked local purchases into the controlled intake area:
 python -m app.main intake --purchase-request-id 1 --source ~/Downloads/PurchasedMusic --dest ~/Music/Library_Intake
 ```
 
+Run scan, identity, and classification for an intake batch:
+
+```bash
+python -m app.main pipeline-run --intake-batch-id 1
+python -m app.main pipeline-run --intake-batch-id 1 --rerun
+```
+
 Use `--db PATH` before the subcommand to select a different SQLite database:
 
 ```bash
@@ -99,3 +106,10 @@ files automatically.
 area only when the purchase request has an `intake_unlocks` row. It preserves
 relative folder structure, skips unsupported files, records duplicate SHA-256
 files inside a batch, and never overwrites an existing destination file.
+
+## Intake Pipeline Bridge
+
+`app/pipeline.py` bridges an intake batch into the existing scan, identity, and
+classification stages. It records stage status in `pipeline_runs`, blocks
+duplicate runs unless `--rerun` is passed, and does not organize folders, move
+source files, convert audio, generate playlists, or download music.

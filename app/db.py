@@ -184,6 +184,19 @@ CREATE TABLE IF NOT EXISTS intake_files (
     created_at TEXT NOT NULL,
     FOREIGN KEY (intake_batch_id) REFERENCES intake_batches(id)
 );
+
+CREATE TABLE IF NOT EXISTS pipeline_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    intake_batch_id INTEGER NOT NULL,
+    scan_run_id INTEGER,
+    pipeline_status TEXT NOT NULL,
+    scan_status TEXT,
+    identity_status TEXT,
+    classification_status TEXT,
+    created_at TEXT NOT NULL,
+    completed_at TEXT,
+    error_message TEXT
+);
 """
 
 

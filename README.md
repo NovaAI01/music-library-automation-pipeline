@@ -42,6 +42,16 @@ Classify identified tracks for a scan run:
 python -m app.main classify --scan-run-id 1
 ```
 
+Create and manage purchase gateway records:
+
+```bash
+python -m app.main purchase-request --artist "Deftones" --title "Change"
+python -m app.main purchase-option-add --request-id 1 --provider "Bandcamp" --url "https://example.com" --type digital_download --price 1.29 --currency GBP --scope "private DJ use"
+python -m app.main purchase-proof-add --option-id 1 --proof ~/Receipts/deftones-change.pdf --status user_declared
+python -m app.main purchase-unlock --request-id 1
+python -m app.main purchase-report
+```
+
 Use `--db PATH` before the subcommand to select a different SQLite database:
 
 ```bash
@@ -68,3 +78,11 @@ generate playlists.
 and embedded genre metadata second. It records deterministic classification
 evidence in `classification_results` and does not organize folders, deduplicate,
 move files, convert audio, or expand the artist seed list.
+
+## Artist Purchase Gateway
+
+`app/purchase_gateway.py` records purchase requests, manually supplied purchase
+URLs, user proof metadata, and intake unlock decisions for artists already in
+the baseline seed list. It does not download files, automate checkout, store
+payment credentials, bypass DRM, scrape protected audio, or ingest purchased
+files automatically.

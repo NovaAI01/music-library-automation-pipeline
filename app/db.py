@@ -110,6 +110,52 @@ CREATE TABLE IF NOT EXISTS classification_results (
     created_at TEXT NOT NULL,
     FOREIGN KEY (observed_file_id) REFERENCES observed_files(id)
 );
+
+CREATE TABLE IF NOT EXISTS purchase_requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    artist TEXT NOT NULL,
+    title TEXT NOT NULL,
+    album TEXT,
+    request_status TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS purchase_options (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    purchase_request_id INTEGER NOT NULL,
+    provider_name TEXT NOT NULL,
+    provider_url TEXT NOT NULL,
+    purchase_type TEXT NOT NULL,
+    price REAL,
+    currency TEXT,
+    format_notes TEXT,
+    usage_scope TEXT,
+    option_status TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (purchase_request_id) REFERENCES purchase_requests(id)
+);
+
+CREATE TABLE IF NOT EXISTS purchase_proofs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    purchase_option_id INTEGER NOT NULL,
+    proof_path TEXT NOT NULL,
+    proof_type TEXT NOT NULL,
+    proof_status TEXT NOT NULL,
+    notes TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (purchase_option_id) REFERENCES purchase_options(id)
+);
+
+CREATE TABLE IF NOT EXISTS intake_unlocks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    purchase_request_id INTEGER NOT NULL,
+    proof_id INTEGER NOT NULL,
+    unlock_status TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    UNIQUE (purchase_request_id),
+    FOREIGN KEY (purchase_request_id) REFERENCES purchase_requests(id),
+    FOREIGN KEY (proof_id) REFERENCES purchase_proofs(id)
+);
 """
 
 

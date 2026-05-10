@@ -71,6 +71,12 @@ Plan output placement for a scan run:
 python -m app.main plan-placement --scan-run-id 1
 ```
 
+Generate review reports from placement plans:
+
+```bash
+python -m app.main review-report --scan-run-id 1 --out reports
+```
+
 Use `--db PATH` before the subcommand to select a different SQLite database:
 
 ```bash
@@ -126,3 +132,10 @@ source files, convert audio, generate playlists, or download music.
 identity and classification evidence using `Primary Genre/Subgenre/Artist` and
 `Artist - Title.ext`. It writes only `placement_plans` rows and does not copy,
 move, convert, delete, or mutate music files.
+
+## Review Reports
+
+`app/review_report.py` exports placement plans into stable JSON and CSV files
+under `reports/scan_<SCAN_RUN_ID>/` for review before any execution step exists.
+It records generated report metadata in `review_reports` and does not modify
+music files or placement plans.

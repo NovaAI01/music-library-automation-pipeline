@@ -18,6 +18,7 @@ from app.purchase_gateway import (
     create_purchase_request,
     unlock_intake,
 )
+from app.review_report import generate_review_report
 from app.scanner import scan
 
 
@@ -109,6 +110,12 @@ def build_parser() -> argparse.ArgumentParser:
         "plan-placement", help="Create deterministic placement plans for a scan run."
     )
     placement_parser.add_argument("--scan-run-id", required=True, type=int)
+
+    review_parser = subparsers.add_parser(
+        "review-report", help="Export reviewable reports for placement plans."
+    )
+    review_parser.add_argument("--scan-run-id", required=True, type=int)
+    review_parser.add_argument("--out", default="reports")
 
     return parser
 
@@ -259,6 +266,20 @@ def main(argv: list[str] | None = None) -> int:
             f"{summary.blocked_unknown_classification}"
         )
         print(f"conflict={summary.conflict}")
+        return 0
+
+    if args.command == "review-report":
+        result = generate_review_report(
+            scan_run_id=args.scan_run_id,
+            out_dir=args.out,
+            db_path=db_path,
+        )
+        print(f"report_path={result.report_path}")
+        print(f"total_plans={result.total_plans}")
+        print(f"planned={result.planned_count}")
+        print(f"needs_review={result.needs_review_count}")
+        print(f"blocked={result.blocked_count}")
+        print(f"conflicts={result.conflict_count}")
         return 0
 
     parser.error(f"unknown command: {args.command}")

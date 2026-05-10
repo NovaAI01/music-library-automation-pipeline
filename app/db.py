@@ -215,6 +215,19 @@ CREATE TABLE IF NOT EXISTS placement_plans (
     FOREIGN KEY (observed_file_id) REFERENCES observed_files(id),
     FOREIGN KEY (scan_run_id) REFERENCES scan_runs(id)
 );
+
+CREATE TABLE IF NOT EXISTS review_reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    scan_run_id INTEGER NOT NULL,
+    report_path TEXT NOT NULL,
+    total_plans INTEGER NOT NULL,
+    planned_count INTEGER NOT NULL,
+    needs_review_count INTEGER NOT NULL,
+    blocked_count INTEGER NOT NULL,
+    conflict_count INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (scan_run_id) REFERENCES scan_runs(id)
+);
 """
 
 

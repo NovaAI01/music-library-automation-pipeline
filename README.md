@@ -36,6 +36,12 @@ Resolve probable track identity for a scan run:
 python -m app.main identify --scan-run-id 1
 ```
 
+Classify identified tracks for a scan run:
+
+```bash
+python -m app.main classify --scan-run-id 1
+```
+
 Use `--db PATH` before the subcommand to select a different SQLite database:
 
 ```bash
@@ -55,3 +61,10 @@ from observed tags, filename evidence, parent folder names, and artist seed
 matches. It records identity evidence only in the `track_identity` table and
 does not classify genres, organize folders, move files, convert audio, or
 generate playlists.
+
+## Classification Engine
+
+`app/classifier.py` classifies identified tracks from artist seed matches first
+and embedded genre metadata second. It records deterministic classification
+evidence in `classification_results` and does not organize folders, deduplicate,
+move files, convert audio, or expand the artist seed list.

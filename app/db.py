@@ -95,6 +95,21 @@ CREATE TABLE IF NOT EXISTS track_identity (
     created_at TEXT NOT NULL,
     FOREIGN KEY (observed_file_id) REFERENCES observed_files(id)
 );
+
+CREATE TABLE IF NOT EXISTS classification_results (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    observed_file_id INTEGER NOT NULL,
+    primary_genre TEXT,
+    subgenre TEXT,
+    energy_level TEXT,
+    vocal_style TEXT,
+    mood_json TEXT NOT NULL,
+    classification_confidence REAL NOT NULL,
+    classification_status TEXT NOT NULL,
+    evidence_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (observed_file_id) REFERENCES observed_files(id)
+);
 """
 
 

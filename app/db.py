@@ -80,6 +80,21 @@ CREATE TABLE IF NOT EXISTS filename_observations (
     parser_confidence REAL NOT NULL,
     FOREIGN KEY (observed_file_id) REFERENCES observed_files(id)
 );
+
+CREATE TABLE IF NOT EXISTS track_identity (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    observed_file_id INTEGER NOT NULL,
+    probable_artist TEXT,
+    probable_title TEXT,
+    probable_album TEXT,
+    probable_year TEXT,
+    probable_mix TEXT,
+    identity_confidence REAL NOT NULL,
+    identity_status TEXT NOT NULL,
+    evidence_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (observed_file_id) REFERENCES observed_files(id)
+);
 """
 
 

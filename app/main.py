@@ -6,6 +6,7 @@ import argparse
 from pathlib import Path
 
 from app import db
+from app.identity_engine import identify_scan_run
 from app.scanner import scan
 
 
@@ -32,6 +33,11 @@ def build_parser() -> argparse.ArgumentParser:
         "summary", help="Print scan-run summary counts."
     )
     summary_parser.add_argument("--scan-run-id", required=True, type=int)
+
+    identify_parser = subparsers.add_parser(
+        "identify", help="Resolve probable track identity for a scan run."
+    )
+    identify_parser.add_argument("--scan-run-id", required=True, type=int)
 
     return parser
 
@@ -61,6 +67,15 @@ def main(argv: list[str] | None = None) -> int:
             parser.error(f"scan run not found: {args.scan_run_id}")
         for key in summary.keys():
             print(f"{key}={summary[key]}")
+        return 0
+
+    if args.command == "identify":
+        summary = identify_scan_run(args.scan_run_id, db_path)
+        print(f"total={summary.total}")
+        print(f"identified={summary.identified}")
+        print(f"partial={summary.partial}")
+        print(f"conflicting={summary.conflicting}")
+        print(f"unknown={summary.unknown}")
         return 0
 
     parser.error(f"unknown command: {args.command}")

@@ -97,6 +97,12 @@ matches. It records identity evidence only in the `track_identity` table and
 does not classify genres, organize folders, move files, convert audio, or
 generate playlists.
 
+When filename artist evidence matches a controlled artist seed, the identity
+engine deprioritizes embedded tag artists that look like uploader, channel, or
+label metadata instead of treating them as stronger artist evidence. Common
+YouTube title suffixes such as `[Official Video]`, `(Official Audio)`, `[4K]`,
+and `[EXPLICIT]` are removed from probable titles.
+
 ## Classification Engine
 
 `app/classifier.py` classifies identified tracks from artist seed matches first

@@ -29,6 +29,27 @@ REQUIRED_EVIDENCE_FIELDS: tuple[str, ...] = (
     "conflict_reasons",
 )
 
+CONTAMINATED_TAG_ARTIST_TERMS: tuple[str, ...] = (
+    "records",
+    "music",
+    "official",
+    "channel",
+    "vevo",
+    "topic",
+    "label",
+    "entertainment",
+)
+
+YOUTUBE_TITLE_SUFFIXES: tuple[str, ...] = (
+    "Official Audio",
+    "Official Music Video",
+    "Official Video",
+    "Official Visualizer",
+    "HD Remaster",
+    "4K",
+    "EXPLICIT",
+)
+
 
 @dataclass(frozen=True)
 class IdentityResolution:
@@ -75,21 +96,36 @@ def resolve_identity(
     filename_mix = _clean(filename_mix)
     parent_folder = _clean(parent_folder)
 
-    normalized_tag_artist = _normalize_artist_with_seed(tag_artist)
-    normalized_filename_artist = _normalize_artist_with_seed(filename_artist)
+    tag_artist_seed = match_seed_artist(tag_artist) if tag_artist else None
+    filename_artist_seed = match_seed_artist(filename_artist) if filename_artist else None
+    normalized_tag_artist = tag_artist_seed.artist if tag_artist_seed else tag_artist
+    normalized_filename_artist = (
+        filename_artist_seed.artist if filename_artist_seed else filename_artist
+    )
     parent_artist = _parent_folder_artist(parent_folder)
+    tag_artist_deprioritized = _is_contaminated_tag_artist(
+        tag_artist=tag_artist,
+        tag_artist_seed_matched=tag_artist_seed is not None,
+        filename_artist_seed_matched=filename_artist_seed is not None,
+    )
+    deprioritized_reason = (
+        "uploader_or_label_metadata" if tag_artist_deprioritized else None
+    )
 
     conflict_reasons = _detect_conflicts(
-        tag_artist=normalized_tag_artist,
-        tag_title=tag_title,
+        tag_artist=None if tag_artist_deprioritized else normalized_tag_artist,
+        tag_title=_clean_youtube_title_suffixes(tag_title),
         filename_artist=normalized_filename_artist,
-        filename_title=filename_title,
+        filename_title=_clean_youtube_title_suffixes(filename_title),
     )
 
     selected_artist_source = None
     selected_title_source = None
 
-    if normalized_tag_artist:
+    if tag_artist_deprioritized and normalized_filename_artist:
+        probable_artist = normalized_filename_artist
+        selected_artist_source = "filename"
+    elif normalized_tag_artist:
         probable_artist = normalized_tag_artist
         selected_artist_source = "tag"
     elif normalized_filename_artist:
@@ -101,11 +137,17 @@ def resolve_identity(
     else:
         probable_artist = None
 
-    if tag_title:
-        probable_title = tag_title
+    cleaned_tag_title = _clean_youtube_title_suffixes(tag_title)
+    cleaned_filename_title = _clean_youtube_title_suffixes(filename_title)
+
+    if tag_artist_deprioritized and cleaned_filename_title:
+        probable_title = cleaned_filename_title
+        selected_title_source = "filename"
+    elif cleaned_tag_title:
+        probable_title = cleaned_tag_title
         selected_title_source = "tag"
-    elif filename_title:
-        probable_title = filename_title
+    elif cleaned_filename_title:
+        probable_title = cleaned_filename_title
         selected_title_source = "filename"
     else:
         probable_title = None
@@ -134,6 +176,8 @@ def resolve_identity(
         parent_folder=parent_folder,
         artist_seed_matched=artist_seed_matched,
         conflict_reasons=conflict_reasons,
+        tag_artist_deprioritized=tag_artist_deprioritized,
+        deprioritized_reason=deprioritized_reason,
     )
 
     confidence = calculate_identity_confidence(
@@ -215,10 +259,12 @@ def build_identity_evidence(
     parent_folder: str | None,
     artist_seed_matched: str | None,
     conflict_reasons: list[str],
+    tag_artist_deprioritized: bool = False,
+    deprioritized_reason: str | None = None,
 ) -> dict[str, Any]:
     """Build the required evidence JSON payload."""
 
-    return {
+    evidence = {
         "selected_artist_source": selected_artist_source,
         "selected_title_source": selected_title_source,
         "tag_artist": tag_artist,
@@ -229,6 +275,10 @@ def build_identity_evidence(
         "artist_seed_matched": artist_seed_matched,
         "conflict_reasons": list(conflict_reasons),
     }
+    if tag_artist_deprioritized:
+        evidence["tag_artist_deprioritized"] = True
+        evidence["deprioritized_reason"] = deprioritized_reason
+    return evidence
 
 
 def identify_scan_run(
@@ -353,6 +403,21 @@ def _normalize_artist_with_seed(value: str | None) -> str | None:
     return seed.artist if seed else value
 
 
+def _is_contaminated_tag_artist(
+    *,
+    tag_artist: str | None,
+    tag_artist_seed_matched: bool,
+    filename_artist_seed_matched: bool,
+) -> bool:
+    if not tag_artist or tag_artist_seed_matched or not filename_artist_seed_matched:
+        return False
+
+    normalized_tag_artist = tag_artist.lower()
+    if any(term in normalized_tag_artist for term in CONTAMINATED_TAG_ARTIST_TERMS):
+        return True
+    return True
+
+
 def _parent_folder_artist(parent_folder: str | None) -> str | None:
     if parent_folder is None:
         return None
@@ -374,6 +439,24 @@ def _extract_year(value: str | None) -> str | None:
 
 def _normalize_title(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", value.lower())
+
+
+def _clean_youtube_title_suffixes(value: str | None) -> str | None:
+    if value is None:
+        return None
+
+    cleaned = value
+    suffix_pattern = "|".join(re.escape(suffix) for suffix in YOUTUBE_TITLE_SUFFIXES)
+    bracketed_suffix = re.compile(
+        rf"\s*(?:\((?:{suffix_pattern})\)|\[(?:{suffix_pattern})\])\s*$",
+        re.IGNORECASE,
+    )
+    while True:
+        next_cleaned = bracketed_suffix.sub("", cleaned).strip()
+        if next_cleaned == cleaned:
+            break
+        cleaned = next_cleaned
+    return _clean(cleaned)
 
 
 def _clean(value: str | None) -> str | None:

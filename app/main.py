@@ -8,6 +8,7 @@ from pathlib import Path
 from app import db
 from app.classifier import classify_scan_run
 from app.identity_engine import identify_scan_run
+from app.intake import run_intake
 from app.purchase_gateway import (
     add_purchase_option,
     attach_purchase_proof,
@@ -88,6 +89,13 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser(
         "purchase-report", help="Print purchase request counts grouped by status."
     )
+
+    intake_parser = subparsers.add_parser(
+        "intake", help="Copy unlocked local files into the controlled intake area."
+    )
+    intake_parser.add_argument("--purchase-request-id", required=True, type=int)
+    intake_parser.add_argument("--source", required=True)
+    intake_parser.add_argument("--dest", required=True)
 
     return parser
 
@@ -195,6 +203,21 @@ def main(argv: list[str] | None = None) -> int:
         print(f"total={report['total']}")
         for status, count in report["by_status"].items():
             print(f"{status}={count}")
+        return 0
+
+    if args.command == "intake":
+        result = run_intake(
+            purchase_request_id=args.purchase_request_id,
+            source_path=args.source,
+            intake_root=args.dest,
+            db_path=db_path,
+        )
+        print(f"intake_batch_id={result.intake_batch_id}")
+        print(f"batch_status={result.batch_status}")
+        print(f"total_files_seen={result.total_files_seen}")
+        print(f"audio_files_copied={result.audio_files_copied}")
+        print(f"skipped_files={result.skipped_files}")
+        print(f"duplicate_files={result.duplicate_files}")
         return 0
 
     parser.error(f"unknown command: {args.command}")

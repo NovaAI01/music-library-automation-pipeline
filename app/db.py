@@ -156,6 +156,34 @@ CREATE TABLE IF NOT EXISTS intake_unlocks (
     FOREIGN KEY (purchase_request_id) REFERENCES purchase_requests(id),
     FOREIGN KEY (proof_id) REFERENCES purchase_proofs(id)
 );
+
+CREATE TABLE IF NOT EXISTS intake_batches (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    purchase_request_id INTEGER NOT NULL,
+    source_path TEXT NOT NULL,
+    intake_root TEXT NOT NULL,
+    batch_status TEXT NOT NULL,
+    total_files_seen INTEGER NOT NULL,
+    audio_files_copied INTEGER NOT NULL,
+    skipped_files INTEGER NOT NULL,
+    duplicate_files INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (purchase_request_id) REFERENCES purchase_requests(id)
+);
+
+CREATE TABLE IF NOT EXISTS intake_files (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    intake_batch_id INTEGER NOT NULL,
+    original_path TEXT NOT NULL,
+    intake_path TEXT,
+    sha256 TEXT,
+    extension TEXT NOT NULL,
+    file_size_bytes INTEGER NOT NULL,
+    file_status TEXT NOT NULL,
+    reason TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (intake_batch_id) REFERENCES intake_batches(id)
+);
 """
 
 

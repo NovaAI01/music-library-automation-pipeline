@@ -52,6 +52,12 @@ python -m app.main purchase-unlock --request-id 1
 python -m app.main purchase-report
 ```
 
+Copy unlocked local purchases into the controlled intake area:
+
+```bash
+python -m app.main intake --purchase-request-id 1 --source ~/Downloads/PurchasedMusic --dest ~/Music/Library_Intake
+```
+
 Use `--db PATH` before the subcommand to select a different SQLite database:
 
 ```bash
@@ -86,3 +92,10 @@ URLs, user proof metadata, and intake unlock decisions for artists already in
 the baseline seed list. It does not download files, automate checkout, store
 payment credentials, bypass DRM, scrape protected audio, or ingest purchased
 files automatically.
+
+## Local File Intake
+
+`app/intake.py` copies legally obtained local files into a controlled intake
+area only when the purchase request has an `intake_unlocks` row. It preserves
+relative folder structure, skips unsupported files, records duplicate SHA-256
+files inside a batch, and never overwrites an existing destination file.

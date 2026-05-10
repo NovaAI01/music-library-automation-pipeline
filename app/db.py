@@ -197,6 +197,24 @@ CREATE TABLE IF NOT EXISTS pipeline_runs (
     completed_at TEXT,
     error_message TEXT
 );
+
+CREATE TABLE IF NOT EXISTS placement_plans (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    observed_file_id INTEGER NOT NULL,
+    scan_run_id INTEGER NOT NULL,
+    source_path TEXT NOT NULL,
+    planned_relative_path TEXT,
+    planned_artist TEXT,
+    planned_title TEXT,
+    planned_primary_genre TEXT,
+    planned_subgenre TEXT,
+    placement_confidence REAL NOT NULL,
+    placement_status TEXT NOT NULL,
+    reason_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (observed_file_id) REFERENCES observed_files(id),
+    FOREIGN KEY (scan_run_id) REFERENCES scan_runs(id)
+);
 """
 
 

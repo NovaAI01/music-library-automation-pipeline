@@ -10,6 +10,7 @@ from app.classifier import classify_scan_run
 from app.identity_engine import identify_scan_run
 from app.intake import run_intake
 from app.pipeline import run_intake_pipeline
+from app.placement_planner import plan_scan_run_placements
 from app.purchase_gateway import (
     add_purchase_option,
     attach_purchase_proof,
@@ -103,6 +104,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     pipeline_parser.add_argument("--intake-batch-id", required=True, type=int)
     pipeline_parser.add_argument("--rerun", action="store_true")
+
+    placement_parser = subparsers.add_parser(
+        "plan-placement", help="Create deterministic placement plans for a scan run."
+    )
+    placement_parser.add_argument("--scan-run-id", required=True, type=int)
 
     return parser
 
@@ -240,6 +246,19 @@ def main(argv: list[str] | None = None) -> int:
         print(f"identity_status={result.identity_status}")
         print(f"classification_status={result.classification_status}")
         print(f"pipeline_status={result.pipeline_status}")
+        return 0
+
+    if args.command == "plan-placement":
+        summary = plan_scan_run_placements(args.scan_run_id, db_path)
+        print(f"total={summary.total}")
+        print(f"planned={summary.planned}")
+        print(f"needs_review={summary.needs_review}")
+        print(f"blocked_unknown_identity={summary.blocked_unknown_identity}")
+        print(
+            "blocked_unknown_classification="
+            f"{summary.blocked_unknown_classification}"
+        )
+        print(f"conflict={summary.conflict}")
         return 0
 
     parser.error(f"unknown command: {args.command}")

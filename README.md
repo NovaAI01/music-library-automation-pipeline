@@ -65,6 +65,12 @@ python -m app.main pipeline-run --intake-batch-id 1
 python -m app.main pipeline-run --intake-batch-id 1 --rerun
 ```
 
+Plan output placement for a scan run:
+
+```bash
+python -m app.main plan-placement --scan-run-id 1
+```
+
 Use `--db PATH` before the subcommand to select a different SQLite database:
 
 ```bash
@@ -113,3 +119,10 @@ files inside a batch, and never overwrites an existing destination file.
 classification stages. It records stage status in `pipeline_runs`, blocks
 duplicate runs unless `--rerun` is passed, and does not organize folders, move
 source files, convert audio, generate playlists, or download music.
+
+## Placement Planner
+
+`app/placement_planner.py` creates deterministic relative placement plans from
+identity and classification evidence using `Primary Genre/Subgenre/Artist` and
+`Artist - Title.ext`. It writes only `placement_plans` rows and does not copy,
+move, convert, delete, or mutate music files.

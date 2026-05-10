@@ -102,11 +102,14 @@ engine deprioritizes embedded tag artists that look like uploader, channel, or
 label metadata instead of treating them as stronger artist evidence. These
 deprioritized uploader or label tags do not force a conflicting identity when
 the filename artist is a seed match; the row remains identified with filename
-artist and title evidence. Common YouTube title suffixes such as
+artist and title evidence. Parent-folder seed artist matches provide the same
+support when filename artist evidence is missing. Conflicts are preserved when
+tag and filename evidence contain two different controlled seed artists. Common
+YouTube title suffixes such as
 `[Official Video]`, `(Official Audio)`, `[4K]`, `[KvknOXGPzCQ]`, and
 `[EXPLICIT]` are removed from probable titles, and repeated filename artist
-prefixes such as `Deftones - Be Quiet And Drive` are trimmed when they match
-the resolved artist.
+prefixes such as `Deftones - Be Quiet And Drive`, `Deftones – Risk`, and
+`Deftones — Tempest` are trimmed when they match the resolved artist.
 
 ## Classification Engine
 

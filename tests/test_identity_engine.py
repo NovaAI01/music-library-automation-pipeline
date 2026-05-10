@@ -72,9 +72,9 @@ def test_conflicting_artist_detection():
 
 def test_conflicting_title_detection():
     result = resolve_identity(
-        tag_artist="Deftones",
+        tag_artist="Unknown Band",
         tag_title="Change",
-        filename_artist="Deftones",
+        filename_artist="Unknown Band",
         filename_title="Digital Bath",
     )
 
@@ -226,6 +226,16 @@ def test_title_removes_duplicate_artist_prefix():
     assert result.identity_status == "identified"
 
 
+def test_deftones_en_dash_title_removes_artist_prefix():
+    result = resolve_identity(
+        filename_artist="Deftones",
+        filename_title="Deftones – Risk",
+    )
+
+    assert result.probable_title == "Risk"
+    assert result.identity_status == "identified"
+
+
 def test_title_removes_bare_official_music_video_suffix():
     result = resolve_identity(
         filename_artist="Deftones",
@@ -297,6 +307,80 @@ def test_real_deftones_example_plans_clean_identity():
     assert result.probable_title == "Be Quiet And Drive"
     assert result.evidence["conflict_reasons"] == []
     assert result.evidence["tag_artist_deprioritized"] is True
+
+
+def test_deftones_official_video_title_becomes_identified():
+    result = resolve_identity(
+        tag_artist="Warner Records",
+        tag_title="Official Music Video",
+        filename_artist="Deftones",
+        filename_title=(
+            "Deftones - Change (In The House Of Flies) "
+            "[Official Music Video] [ar_ytmdYy2s]"
+        ),
+    )
+
+    assert result.identity_status == "identified"
+    assert result.probable_artist == "Deftones"
+    assert result.probable_title == "Change (In The House Of Flies)"
+    assert result.evidence["conflict_reasons"] == []
+
+
+def test_flyleaf_all_around_me_filename_seed_becomes_identified():
+    result = resolve_identity(
+        tag_artist="FlyleafVEVO",
+        tag_title="Official Video",
+        filename_artist="Flyleaf",
+        filename_title="Flyleaf - All Around Me (Official Music Video)",
+    )
+
+    assert result.identity_status == "identified"
+    assert result.probable_artist == "Flyleaf"
+    assert result.probable_title == "All Around Me"
+    assert result.evidence["conflict_reasons"] == []
+
+
+def test_nothing_more_freefall_removes_video_id_and_official_suffix():
+    result = resolve_identity(
+        tag_artist="Better Noise Music",
+        tag_title="Official Music Video",
+        filename_artist="Nothing More",
+        filename_title="Nothing More - FREEFALL (Official Audio) [_xmdbuPfN3U]",
+    )
+
+    assert result.identity_status == "identified"
+    assert result.probable_artist == "Nothing More"
+    assert result.probable_title == "FREEFALL"
+    assert result.evidence["conflict_reasons"] == []
+
+
+def test_parent_folder_seed_artist_supports_identification():
+    result = resolve_identity(
+        tag_artist="Some Upload Channel",
+        tag_title="Official Video",
+        filename_title="All Around Me",
+        parent_folder="Incoming/Flyleaf",
+    )
+
+    assert result.identity_status == "identified"
+    assert result.probable_artist == "Flyleaf"
+    assert result.probable_title == "All Around Me"
+    assert result.evidence["selected_artist_source"] == "parent_folder"
+    assert result.evidence["conflict_reasons"] == []
+
+
+def test_non_seed_uploader_tag_cannot_create_conflict_with_filename_seed_artist():
+    result = resolve_identity(
+        tag_artist="Roadrunner Records",
+        tag_title="Official Audio",
+        filename_artist="Deftones",
+        filename_title="Deftones — Tempest [-1mH96_bVM0]",
+    )
+
+    assert result.identity_status == "identified"
+    assert result.probable_artist == "Deftones"
+    assert result.probable_title == "Tempest"
+    assert result.evidence["conflict_reasons"] == []
 
 
 def test_parent_folder_treated_as_weak_evidence():

@@ -104,20 +104,16 @@ def resolve_identity(
         filename_artist_seed.artist if filename_artist_seed else filename_artist
     )
     parent_artist = _parent_folder_artist(parent_folder)
+    parent_artist_seed_matched = parent_artist is not None
     tag_artist_deprioritized = _is_contaminated_tag_artist(
         tag_artist=tag_artist,
         tag_artist_seed_matched=tag_artist_seed is not None,
-        filename_artist_seed_matched=filename_artist_seed is not None,
+        seed_artist_available=(
+            filename_artist_seed is not None or parent_artist_seed_matched
+        ),
     )
     deprioritized_reason = (
         "uploader_or_label_metadata" if tag_artist_deprioritized else None
-    )
-
-    conflict_reasons = _detect_conflicts(
-        tag_artist=None if tag_artist_deprioritized else normalized_tag_artist,
-        tag_title=None if tag_artist_deprioritized else _clean_title(tag_title),
-        filename_artist=normalized_filename_artist,
-        filename_title=_clean_title(filename_title),
     )
 
     selected_artist_source = None
@@ -126,6 +122,9 @@ def resolve_identity(
     if tag_artist_deprioritized and normalized_filename_artist:
         probable_artist = normalized_filename_artist
         selected_artist_source = "filename"
+    elif tag_artist_deprioritized and parent_artist:
+        probable_artist = parent_artist
+        selected_artist_source = "parent_folder"
     elif normalized_tag_artist:
         probable_artist = normalized_tag_artist
         selected_artist_source = "tag"
@@ -154,6 +153,17 @@ def resolve_identity(
         selected_title_source = "filename"
     else:
         probable_title = None
+
+    conflict_reasons = _detect_conflicts(
+        tag_artist=None if tag_artist_deprioritized else normalized_tag_artist,
+        tag_title=None if _has_seed_artist_support(
+            probable_artist=probable_artist,
+            filename_artist=normalized_filename_artist,
+            parent_artist=parent_artist,
+        ) else _clean_title(tag_title, probable_artist=probable_artist),
+        filename_artist=normalized_filename_artist,
+        filename_title=cleaned_filename_title,
+    )
 
     if conflict_reasons:
         identity_status = "conflicting"
@@ -391,7 +401,14 @@ def _detect_conflicts(
 ) -> list[str]:
     reasons: list[str] = []
     if tag_artist and filename_artist:
-        if normalize_artist_name(tag_artist) != normalize_artist_name(filename_artist):
+        tag_seed = match_seed_artist(tag_artist)
+        filename_seed = match_seed_artist(filename_artist)
+        if (
+            tag_seed
+            and filename_seed
+            and normalize_artist_name(tag_seed.artist)
+            != normalize_artist_name(filename_seed.artist)
+        ):
             reasons.append("tag_artist_conflicts_with_filename_artist")
     if tag_title and filename_title:
         if _normalize_title(tag_title) != _normalize_title(filename_title):
@@ -410,15 +427,34 @@ def _is_contaminated_tag_artist(
     *,
     tag_artist: str | None,
     tag_artist_seed_matched: bool,
-    filename_artist_seed_matched: bool,
+    seed_artist_available: bool,
 ) -> bool:
-    if not tag_artist or tag_artist_seed_matched or not filename_artist_seed_matched:
+    if not tag_artist or tag_artist_seed_matched or not seed_artist_available:
         return False
 
     normalized_tag_artist = tag_artist.lower()
     if any(term in normalized_tag_artist for term in CONTAMINATED_TAG_ARTIST_TERMS):
         return True
     return True
+
+
+def _has_seed_artist_support(
+    *,
+    probable_artist: str | None,
+    filename_artist: str | None,
+    parent_artist: str | None,
+) -> bool:
+    probable_seed = match_seed_artist(probable_artist) if probable_artist else None
+    if probable_seed is None:
+        return False
+
+    for candidate in (filename_artist, parent_artist):
+        candidate_seed = match_seed_artist(candidate) if candidate else None
+        if candidate_seed and normalize_artist_name(candidate_seed.artist) == (
+            normalize_artist_name(probable_seed.artist)
+        ):
+            return True
+    return False
 
 
 def _parent_folder_artist(parent_folder: str | None) -> str | None:
@@ -473,7 +509,7 @@ def _remove_duplicate_artist_prefix(
     if probable_artist is None:
         return value
 
-    match = re.match(r"^\s*(?P<prefix>.+?)\s+-\s+(?P<title>.+)$", value)
+    match = re.match(r"^\s*(?P<prefix>.+?)\s*[-–—]\s+(?P<title>.+)$", value)
     if not match:
         return value
     if normalize_artist_name(match.group("prefix")) != normalize_artist_name(

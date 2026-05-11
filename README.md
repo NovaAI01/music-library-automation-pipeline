@@ -26,7 +26,9 @@ review where appropriate, and preserve recovery information.
 - [Architecture](docs/architecture.md)
 - [Operational workflow](docs/operational-workflow.md)
 - [Demo workflow](docs/demo-workflow.md)
+- [Demo script](docs/demo-script.md)
 - [Normalization rules](docs/normalization-rules.md)
+- [Sample outputs](docs/sample-outputs/)
 
 ## 2. Problem Statement
 
@@ -138,6 +140,15 @@ Evidence is represented in generated report artifacts under:
 - FLAC metadata audit and proposed normalization plan generation.
 - Read-only web reporting views for generated report data.
 
+## Operational Characteristics
+
+- Deterministic workflows based on local files, local rules, and SQLite records.
+- Dry-run support for quarantine and restore review.
+- Quarantine instead of deletion for duplicate remediation.
+- Restore capability backed by recorded quarantine ledger entries.
+- Human approval boundaries between report generation, planning, and execution.
+- Audit-first workflow for duplicate, metadata, QA, and remediation decisions.
+
 ## 7. CLI Workflow
 
 Initialize the local ledger:
@@ -232,6 +243,23 @@ Available routes include:
 Set `MUSIC_LIBRARY_REPORTS_DIR` before startup to read reports from a directory
 other than `reports`.
 
+## Sample Outputs
+
+Sanitized excerpts from generated reports are available under
+[docs/sample-outputs/](docs/sample-outputs/):
+
+- [Metadata summary](docs/sample-outputs/sample_metadata_summary.json)
+- [Duplicate summary](docs/sample-outputs/sample_duplicate_summary.json)
+- [Library QA summary](docs/sample-outputs/sample_library_qa_summary.json)
+- [Metadata plan excerpt](docs/sample-outputs/sample_metadata_plan_excerpt.csv)
+- [Duplicate review excerpt](docs/sample-outputs/sample_duplicate_review_excerpt.csv)
+
+## Demo Workflow
+
+Use [docs/demo-workflow.md](docs/demo-workflow.md) for the reproducible CLI
+walkthrough and [docs/demo-script.md](docs/demo-script.md) for a concise
+60-90 second recording script.
+
 ## 9. Metadata Audit + Normalization Plan
 
 The metadata audit inspects FLAC files with `mutagen` and reports tag quality
@@ -320,12 +348,12 @@ docs/
 
 Screenshot placeholders:
 
-- `docs/screenshots/01_reports_dashboard.png`
-- `docs/screenshots/02_artists.png`
-- `docs/screenshots/03_genres.png`
-- `docs/screenshots/04_quarantine.png`
-- `docs/screenshots/05_duplicates.png`
-- `docs/screenshots/06_manual_review.png`
+![Reports dashboard](docs/screenshots/01_reports_dashboard.png)
+![Artists report](docs/screenshots/02_artists.png)
+![Genres report](docs/screenshots/03_genres.png)
+![Quarantine report](docs/screenshots/04_quarantine.png)
+![Duplicate report](docs/screenshots/05_duplicates.png)
+![Manual review](docs/screenshots/06_manual_review.png)
 
 ## 15. Roadmap
 

@@ -1,0 +1,17 @@
+{
+  "counts_by_issue_type": {
+    "duplicate_whitespace": 5,
+    "missing_tag": 1715,
+    "probable_junk_suffix": 225,
+    "separator_symbol": 450,
+    "trailing_space": 2
+  },
+  "inconsistent_artist_group_count": 4,
+  "inconsistent_title_group_count": 0,
+  "library_root": "<library_root>",
+  "malformed_tag_count": 682,
+  "missing_tag_count": 1715,
+  "readable_flac_files": 627,
+  "total_flac_files": 627,
+  "unreadable_flac_files": 0
+}

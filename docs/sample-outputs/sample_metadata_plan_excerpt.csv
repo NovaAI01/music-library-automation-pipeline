@@ -1,0 +1,7 @@
+path,field,current_value,proposed_value,reason
+Alternative Metal/Alt-Metal/10 Years/10 Years - Cut The Cord (Official Audio) (Violent Allies).flac,album_artist,,10 Years,album_artist should equal artist
+Alternative Metal/Alt-Metal/10 Years/10 Years - Cut The Cord (Official Audio) (Violent Allies).flac,genre,Music,Alternative Metal,top-level genre folder
+Alternative Metal/Alt-Metal/10 Years/10 Years - Cut The Cord (Official Audio) (Violent Allies).flac,title,"10 Years - ""Cut The Cord"" (Official Audio) (Violent Allies)",Cut The Cord (Official Audio) (Violent Allies),filename
+Alternative Metal/Alt-Metal/10 Years/10 Years - Fix Me.flac,album_artist,,10 Years,album_artist should equal artist
+Alternative Metal/Alt-Metal/10 Years/10 Years - Fix Me.flac,genre,Music,Alternative Metal,top-level genre folder
+Alternative Metal/Alt-Metal/10 Years/10 Years - Fix Me.flac,title,10 Years - Fix Me,Fix Me,filename

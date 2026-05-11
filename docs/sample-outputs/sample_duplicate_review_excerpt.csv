@@ -1,0 +1,7 @@
+duplicate_group_key,file_path,decision,reason
+probable_variant:halestorm:i miss the misery,<library_root>/Hard Rock/Melodic Hard Rock/Halestorm/Halestorm - I Miss The Misery.flac,keep_candidate,best_ranked_by_suffix_size_cleanliness_path
+probable_variant:halestorm:i miss the misery,<library_root>/Hard Rock/Melodic Hard Rock/Halestorm/Halestorm - I Miss the Misery (2012).flac,remove_candidate,lower_ranked_than_keeper:<library_root>/Hard Rock/Melodic Hard Rock/Halestorm/Halestorm - I Miss The Misery.flac
+same_artist_title:audioslave:i am the highway,<library_root>/Alternative Rock/Melodic Hard Rock/Audioslave/Audioslave - I Am the Highway (2).flac,remove_candidate,lower_ranked_than_keeper:<library_root>/Alternative Rock/Melodic Hard Rock/Audioslave/Audioslave - I Am the Highway.flac
+same_artist_title:audioslave:i am the highway,<library_root>/Alternative Rock/Melodic Hard Rock/Audioslave/Audioslave - I Am the Highway.flac,keep_candidate,best_ranked_by_suffix_size_cleanliness_path
+same_artist_title:audioslave:like a stone,<library_root>/Alternative Rock/Melodic Hard Rock/Audioslave/Audioslave - Like a Stone.flac,remove_candidate,lower_ranked_than_keeper:<library_root>/Alternative Rock/Melodic Hard Rock/Audioslave/Audioslave - Like a stone.flac
+same_artist_title:audioslave:like a stone,<library_root>/Alternative Rock/Melodic Hard Rock/Audioslave/Audioslave - Like a stone.flac,keep_candidate,best_ranked_by_suffix_size_cleanliness_path

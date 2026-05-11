@@ -103,13 +103,19 @@ label metadata instead of treating them as stronger artist evidence. These
 deprioritized uploader or label tags do not force a conflicting identity when
 the filename artist is a seed match; the row remains identified with filename
 artist and title evidence. Parent-folder seed artist matches provide the same
-support when filename artist evidence is missing. Conflicts are preserved when
-tag and filename evidence contain two different controlled seed artists. Common
-YouTube title suffixes such as
-`[Official Video]`, `(Official Audio)`, `[4K]`, `[KvknOXGPzCQ]`, and
-`[EXPLICIT]` are removed from probable titles, and repeated filename artist
-prefixes such as `Deftones - Be Quiet And Drive`, `Deftones – Risk`, and
-`Deftones — Tempest` are trimmed when they match the resolved artist.
+support when filename artist evidence is missing. Seed artists embedded in title
+text are also used when they appear as an artist prefix, artist suffix, first
+artist in a collaboration or feature prefix, or whitespace-separated artist
+prefix, such as `Static-X - Push It`, `3 Libras - A Perfect Circle`,
+`Loathe & Teenage Wrist - Is It Really You`, and `Spiritbox   Holy Roller`.
+Conflicts are preserved when separate primary artist evidence contains two
+different controlled seed artists. Common YouTube title suffixes and source
+markers such as `[Official Video]`, `(Official Audio)`, `(Official Audio
+Stream)`, `(HD)`, `[Full Dynamic Range Edition]`, `| Warner Vault`,
+`[KvknOXGPzCQ]`, and `[EXPLICIT]` are removed from probable titles, and
+repeated filename artist prefixes such as `Deftones - Be Quiet And Drive`,
+`Deftones – Risk`, and `Deftones — Tempest` are trimmed when they match the
+resolved artist.
 
 ## Classification Engine
 

@@ -354,6 +354,140 @@ def test_nothing_more_freefall_removes_video_id_and_official_suffix():
     assert result.evidence["conflict_reasons"] == []
 
 
+def test_title_artist_prefix_hyphen_resolves_seed_artist_and_title():
+    result = resolve_identity(
+        tag_artist="Uploader Channel",
+        filename_title="Static-X - Push It",
+    )
+
+    assert result.identity_status == "identified"
+    assert result.probable_artist == "Static-X"
+    assert result.probable_title == "Push It"
+
+
+def test_title_artist_prefix_colon_resolves_seed_artist_and_title():
+    result = resolve_identity(
+        tag_artist="Uploader Channel",
+        filename_title="Static-X: Push It",
+    )
+
+    assert result.identity_status == "identified"
+    assert result.probable_artist == "Static-X"
+    assert result.probable_title == "Push It"
+
+
+def test_title_artist_suffix_hyphen_resolves_seed_artist_and_title():
+    result = resolve_identity(
+        tag_artist="Uploader Channel",
+        filename_title="3 Libras - A Perfect Circle",
+    )
+
+    assert result.identity_status == "identified"
+    assert result.probable_artist == "A Perfect Circle"
+    assert result.probable_title == "3 Libras"
+
+
+def test_title_artist_suffix_removes_explicit_marker():
+    result = resolve_identity(
+        tag_artist="Uploader Channel",
+        filename_title="Last Resort (explicit) - Papa Roach",
+    )
+
+    assert result.identity_status == "identified"
+    assert result.probable_artist == "Papa Roach"
+    assert result.probable_title == "Last Resort"
+
+
+def test_collaboration_prefix_uses_first_seed_artist_as_primary():
+    result = resolve_identity(
+        tag_artist="Uploader Channel",
+        filename_title="Loathe & Teenage Wrist - Is It Really You",
+    )
+
+    assert result.identity_status == "identified"
+    assert result.probable_artist == "Loathe"
+    assert result.probable_title == "Is It Really You"
+
+
+def test_x_collaboration_prefix_uses_first_seed_artist_as_primary():
+    result = resolve_identity(
+        tag_artist="Uploader Channel",
+        filename_title="BAD OMENS x ERRA - ANYTHING ＞ HUMAN",
+    )
+
+    assert result.identity_status == "identified"
+    assert result.probable_artist == "Bad Omens"
+    assert result.probable_title == "ANYTHING > HUMAN"
+
+
+def test_feature_prefix_uses_main_seed_artist_as_primary():
+    result = resolve_identity(
+        tag_artist="Uploader Channel",
+        filename_title=(
+            "From Ashes To New ft. Chrissy from Against The Current "
+            "- Barely Breathing"
+        ),
+    )
+
+    assert result.identity_status == "identified"
+    assert result.probable_artist == "From Ashes to New"
+    assert result.probable_title == "Barely Breathing"
+
+
+def test_seed_artist_prefix_en_dash_resolves_canonical_artist_case():
+    result = resolve_identity(
+        tag_artist="Uploader Channel",
+        filename_title="Fit For A King – Slave To Nothing",
+    )
+
+    assert result.identity_status == "identified"
+    assert result.probable_artist == "Fit for a King"
+    assert result.probable_title == "Slave To Nothing"
+
+
+def test_whitespace_only_seed_artist_prefix_resolves_title():
+    result = resolve_identity(
+        tag_artist="Uploader Channel",
+        filename_title="Spiritbox   Holy Roller",
+    )
+
+    assert result.identity_status == "identified"
+    assert result.probable_artist == "Spiritbox"
+    assert result.probable_title == "Holy Roller"
+
+
+def test_seed_artist_prefix_en_dash_beartooth_resolves_title():
+    result = resolve_identity(
+        tag_artist="Uploader Channel",
+        filename_title="Beartooth – The Lines",
+    )
+
+    assert result.identity_status == "identified"
+    assert result.probable_artist == "Beartooth"
+    assert result.probable_title == "The Lines"
+
+
+def test_non_seed_phrase_does_not_resolve_red_seed_artist():
+    result = resolve_identity(filename_title="girl in red")
+
+    assert result.probable_artist is None
+    assert result.probable_title == "girl in red"
+    assert result.identity_status == "partial"
+
+
+def test_different_seed_tag_artist_and_title_primary_still_conflicts():
+    result = resolve_identity(
+        tag_artist="Deftones",
+        filename_title="Korn - Freak on a Leash",
+    )
+
+    assert result.identity_status == "conflicting"
+    assert result.probable_artist == "Deftones"
+    assert "tag_artist_conflicts_with_title_artist" in result.evidence[
+        "conflict_reasons"
+    ]
+
+
 def test_parent_folder_seed_artist_supports_identification():
     result = resolve_identity(
         tag_artist="Some Upload Channel",

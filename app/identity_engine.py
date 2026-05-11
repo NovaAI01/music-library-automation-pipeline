@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from app import db
-from app.artist_seeds import match_seed_artist, normalize_artist_name
+from app.artist_seeds import list_seed_artists, match_seed_artist, normalize_artist_name
 
 
 IDENTITY_STATUSES: frozenset[str] = frozenset(
@@ -42,14 +42,33 @@ CONTAMINATED_TAG_ARTIST_TERMS: tuple[str, ...] = (
 
 YOUTUBE_TITLE_SUFFIXES: tuple[str, ...] = (
     "Official Audio",
+    "Official Audio Stream",
     "Official Music Video",
     "Official Video",
     "Official Visualizer",
     "Performance Music Video",
     "HD Remaster",
+    "Audio",
     "4K",
+    "HD",
     "EXPLICIT",
 )
+
+TITLE_REMOVAL_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"\s*\[Full Dynamic Range Edition\]\s*", re.IGNORECASE),
+    re.compile(r"\s*\|\s*Warner Vault\s*$", re.IGNORECASE),
+)
+
+FULL_WIDTH_PUNCTUATION = str.maketrans(
+    {
+        "：": ":",
+        "＞": ">",
+        "＂": '"',
+        "？": "?",
+    }
+)
+
+TITLE_ARTIST_SEPARATORS = re.compile(r"\s+[-–—]\s+|:\s+")
 
 
 @dataclass(frozen=True)
@@ -74,6 +93,13 @@ class IdentifySummary:
     unknown: int
 
 
+@dataclass(frozen=True)
+class TitleArtistEvidence:
+    artist: str
+    title: str
+    source: str
+
+
 def resolve_identity(
     *,
     observed_file_id: int | None = None,
@@ -87,6 +113,9 @@ def resolve_identity(
     parent_folder: str | None = None,
 ) -> IdentityResolution:
     """Resolve probable track identity without guessing missing data."""
+
+    raw_tag_title = tag_title
+    raw_filename_title = filename_title
 
     tag_artist = _clean(tag_artist)
     tag_title = _clean(tag_title)
@@ -105,11 +134,16 @@ def resolve_identity(
     )
     parent_artist = _parent_folder_artist(parent_folder)
     parent_artist_seed_matched = parent_artist is not None
+    title_artist_evidence = _title_artist_evidence(
+        filename_title=raw_filename_title,
+        tag_title=raw_tag_title,
+    )
     tag_artist_deprioritized = _is_contaminated_tag_artist(
         tag_artist=tag_artist,
         tag_artist_seed_matched=tag_artist_seed is not None,
         seed_artist_available=(
             filename_artist_seed is not None or parent_artist_seed_matched
+            or title_artist_evidence is not None
         ),
     )
     deprioritized_reason = (
@@ -122,6 +156,9 @@ def resolve_identity(
     if tag_artist_deprioritized and normalized_filename_artist:
         probable_artist = normalized_filename_artist
         selected_artist_source = "filename"
+    elif tag_artist_deprioritized and title_artist_evidence:
+        probable_artist = title_artist_evidence.artist
+        selected_artist_source = title_artist_evidence.source
     elif tag_artist_deprioritized and parent_artist:
         probable_artist = parent_artist
         selected_artist_source = "parent_folder"
@@ -142,7 +179,10 @@ def resolve_identity(
         filename_title, probable_artist=probable_artist
     )
 
-    if tag_artist_deprioritized and cleaned_filename_title:
+    if title_artist_evidence and probable_artist == title_artist_evidence.artist:
+        probable_title = title_artist_evidence.title
+        selected_title_source = title_artist_evidence.source
+    elif tag_artist_deprioritized and cleaned_filename_title:
         probable_title = cleaned_filename_title
         selected_title_source = "filename"
     elif cleaned_tag_title:
@@ -160,9 +200,13 @@ def resolve_identity(
             probable_artist=probable_artist,
             filename_artist=normalized_filename_artist,
             parent_artist=parent_artist,
+            title_artist=title_artist_evidence.artist
+            if title_artist_evidence
+            else None,
         ) else _clean_title(tag_title, probable_artist=probable_artist),
         filename_artist=normalized_filename_artist,
         filename_title=cleaned_filename_title,
+        title_artist=title_artist_evidence.artist if title_artist_evidence else None,
     )
 
     if conflict_reasons:
@@ -251,6 +295,20 @@ def calculate_identity_confidence(
         and artist_seed_matched
         and selected_artist_source == "filename"
         and selected_title_source == "filename"
+    ):
+        return 0.85
+    if (
+        identity_status == "identified"
+        and artist_seed_matched
+        and selected_artist_source in {"filename_title", "tag_title"}
+        and selected_title_source == selected_artist_source
+    ):
+        return 0.85
+    if (
+        identity_status == "identified"
+        and artist_seed_matched
+        and selected_artist_source == "filename"
+        and selected_title_source == "filename_title"
     ):
         return 0.85
     if identity_status == "identified" and filename_artist and filename_title:
@@ -398,6 +456,7 @@ def _detect_conflicts(
     tag_title: str | None,
     filename_artist: str | None,
     filename_title: str | None,
+    title_artist: str | None = None,
 ) -> list[str]:
     reasons: list[str] = []
     if tag_artist and filename_artist:
@@ -410,6 +469,26 @@ def _detect_conflicts(
             != normalize_artist_name(filename_seed.artist)
         ):
             reasons.append("tag_artist_conflicts_with_filename_artist")
+    if tag_artist and title_artist:
+        tag_seed = match_seed_artist(tag_artist)
+        title_seed = match_seed_artist(title_artist)
+        if (
+            tag_seed
+            and title_seed
+            and normalize_artist_name(tag_seed.artist)
+            != normalize_artist_name(title_seed.artist)
+        ):
+            reasons.append("tag_artist_conflicts_with_title_artist")
+    if filename_artist and title_artist:
+        filename_seed = match_seed_artist(filename_artist)
+        title_seed = match_seed_artist(title_artist)
+        if (
+            filename_seed
+            and title_seed
+            and normalize_artist_name(filename_seed.artist)
+            != normalize_artist_name(title_seed.artist)
+        ):
+            reasons.append("filename_artist_conflicts_with_title_artist")
     if tag_title and filename_title:
         if _normalize_title(tag_title) != _normalize_title(filename_title):
             reasons.append("tag_title_conflicts_with_filename_title")
@@ -443,12 +522,13 @@ def _has_seed_artist_support(
     probable_artist: str | None,
     filename_artist: str | None,
     parent_artist: str | None,
+    title_artist: str | None = None,
 ) -> bool:
     probable_seed = match_seed_artist(probable_artist) if probable_artist else None
     if probable_seed is None:
         return False
 
-    for candidate in (filename_artist, parent_artist):
+    for candidate in (filename_artist, parent_artist, title_artist):
         candidate_seed = match_seed_artist(candidate) if candidate else None
         if candidate_seed and normalize_artist_name(candidate_seed.artist) == (
             normalize_artist_name(probable_seed.artist)
@@ -484,8 +564,10 @@ def _clean_title(value: str | None, *, probable_artist: str | None = None) -> st
     if value is None:
         return None
 
-    cleaned = value
+    cleaned = _normalize_punctuation(value)
     cleaned = _remove_duplicate_artist_prefix(cleaned, probable_artist=probable_artist)
+    for removal_pattern in TITLE_REMOVAL_PATTERNS:
+        cleaned = removal_pattern.sub(" ", cleaned)
     suffix_pattern = "|".join(re.escape(suffix) for suffix in YOUTUBE_TITLE_SUFFIXES)
     bracketed_suffix = re.compile(
         rf"\s*(?:\((?:{suffix_pattern})\)|\[(?:{suffix_pattern})\])\s*$",
@@ -501,6 +583,119 @@ def _clean_title(value: str | None, *, probable_artist: str | None = None) -> st
             break
         cleaned = next_cleaned
     return _clean(cleaned)
+
+
+def _title_artist_evidence(
+    *,
+    filename_title: str | None,
+    tag_title: str | None,
+) -> TitleArtistEvidence | None:
+    for source, value in (
+        ("filename_title", filename_title),
+        ("tag_title", tag_title),
+    ):
+        evidence = _extract_title_artist(value, source=source)
+        if evidence:
+            return evidence
+    return None
+
+
+def _extract_title_artist(
+    value: str | None, *, source: str
+) -> TitleArtistEvidence | None:
+    if value is None:
+        return None
+
+    normalized_value = _normalize_punctuation(value).strip()
+    if not normalized_value:
+        return None
+
+    whitespace_evidence = _extract_whitespace_title_artist(
+        normalized_value, source=source
+    )
+    if whitespace_evidence:
+        return whitespace_evidence
+
+    separator_match = TITLE_ARTIST_SEPARATORS.search(normalized_value)
+    if separator_match is None:
+        return None
+
+    left = normalized_value[: separator_match.start()].strip()
+    right = normalized_value[separator_match.end() :].strip()
+    if not left or not right:
+        return None
+
+    left_seed = _primary_seed_from_artist_phrase(left)
+    if left_seed:
+        cleaned_title = _clean_title(right, probable_artist=left_seed.artist)
+        if cleaned_title:
+            return TitleArtistEvidence(
+                artist=left_seed.artist,
+                title=cleaned_title,
+                source=source,
+            )
+
+    right_seed = match_seed_artist(_strip_title_noise(right))
+    if right_seed:
+        cleaned_title = _clean_title(left, probable_artist=right_seed.artist)
+        if cleaned_title:
+            return TitleArtistEvidence(
+                artist=right_seed.artist,
+                title=cleaned_title,
+                source=source,
+            )
+
+    return None
+
+
+def _extract_whitespace_title_artist(
+    value: str, *, source: str
+) -> TitleArtistEvidence | None:
+    for seed in sorted(list_seed_artists(), key=lambda item: len(item.artist), reverse=True):
+        match = re.match(
+            rf"^\s*{re.escape(seed.artist)}\s{{2,}}(?P<title>.+)$",
+            value,
+            re.IGNORECASE,
+        )
+        if not match:
+            continue
+        cleaned_title = _clean_title(match.group("title"), probable_artist=seed.artist)
+        if cleaned_title:
+            return TitleArtistEvidence(
+                artist=seed.artist,
+                title=cleaned_title,
+                source=source,
+            )
+    return None
+
+
+def _primary_seed_from_artist_phrase(value: str):
+    phrase = _strip_title_noise(value)
+    seed = match_seed_artist(phrase)
+    if seed:
+        return seed
+
+    first_feature = re.split(
+        r"\s+(?:ft\.?|feat\.?|featuring)\s+", phrase, maxsplit=1, flags=re.IGNORECASE
+    )[0]
+    first_collaborator = re.split(
+        r"\s*(?:&|\+|,|\bx\b)\s*",
+        first_feature,
+        maxsplit=1,
+        flags=re.IGNORECASE,
+    )[0]
+    return match_seed_artist(first_collaborator)
+
+
+def _strip_title_noise(value: str) -> str:
+    stripped = _normalize_punctuation(value)
+    for removal_pattern in TITLE_REMOVAL_PATTERNS:
+        stripped = removal_pattern.sub(" ", stripped)
+    return _clean(stripped) or ""
+
+
+def _normalize_punctuation(value: str) -> str:
+    return value.translate(FULL_WIDTH_PUNCTUATION)
 
 
 def _remove_duplicate_artist_prefix(
@@ -522,5 +717,5 @@ def _remove_duplicate_artist_prefix(
 def _clean(value: str | None) -> str | None:
     if value is None:
         return None
-    cleaned = re.sub(r"\s+", " ", value).strip()
+    cleaned = re.sub(r"\s+", " ", _normalize_punctuation(value)).strip()
     return cleaned or None

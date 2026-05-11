@@ -21,6 +21,13 @@ The system favors explicit stages. Most commands inspect data and write reports
 or ledger records. Commands that can change files are narrow, support dry-run
 review where appropriate, and preserve recovery information.
 
+## Documentation
+
+- [Architecture](docs/architecture.md)
+- [Operational workflow](docs/operational-workflow.md)
+- [Demo workflow](docs/demo-workflow.md)
+- [Normalization rules](docs/normalization-rules.md)
+
 ## 2. Problem Statement
 
 Personal media libraries often grow through years of inconsistent naming,

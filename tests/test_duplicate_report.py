@@ -228,6 +228,41 @@ def test_does_not_delete_or_move_files(tmp_path):
     assert after == before
 
 
+def test_report_uses_live_files_under_library_root(tmp_path):
+    db_path = tmp_path / "ledger.sqlite3"
+    library_root = tmp_path / "library"
+    quarantine_root = tmp_path / "quarantine"
+    scan_run_id = _insert_duplicate_fixture(
+        db_path,
+        [
+            {"artist": "Deftones", "title": "Change", "sha256": "hash-1"},
+            {"artist": "Deftones", "title": "Change", "sha256": "hash-2"},
+        ],
+        library_root=library_root,
+    )
+    duplicate_file = library_root / "Deftones" / "Deftones - Change - 2.flac"
+    quarantine_file = quarantine_root / duplicate_file.relative_to(library_root)
+    quarantine_file.parent.mkdir(parents=True)
+    duplicate_file.replace(quarantine_file)
+
+    result = generate_duplicate_report(
+        scan_run_id=scan_run_id,
+        library_root=library_root,
+        out_dir=tmp_path / "reports",
+        db_path=db_path,
+    )
+
+    assert result.total_files_checked == 1
+    assert result.same_artist_title_groups == 0
+    rows = _read_csv(
+        tmp_path
+        / "reports"
+        / f"duplicates_scan_{scan_run_id}"
+        / "same_artist_title_duplicates.csv"
+    )
+    assert rows == []
+
+
 def test_cli_creates_report(tmp_path, capsys):
     db_path = tmp_path / "ledger.sqlite3"
     library_root = tmp_path / "library"
@@ -268,7 +303,7 @@ def _insert_duplicate_fixture(
     tracks,
     *,
     library_root=None,
-    create_files=False,
+    create_files=True,
 ):
     db.init_db(db_path)
     library_root = library_root or db_path.parent / "library"

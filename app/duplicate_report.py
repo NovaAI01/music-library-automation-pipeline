@@ -69,7 +69,11 @@ def generate_duplicate_report(
     """Export duplicate candidate reports without modifying library files."""
 
     db.init_db(db_path)
-    rows = _load_destination_rows(scan_run_id, db_path)
+    library_root_path = Path(library_root).expanduser()
+    rows = _live_library_rows(
+        _load_destination_rows(scan_run_id, db_path),
+        library_root_path,
+    )
     report_dir = Path(out_dir).expanduser() / f"duplicates_scan_{scan_run_id}"
     report_dir.mkdir(parents=True, exist_ok=True)
 
@@ -79,7 +83,7 @@ def generate_duplicate_report(
 
     summary = {
         "scan_run_id": scan_run_id,
-        "library_root": str(Path(library_root).expanduser()),
+        "library_root": str(library_root_path),
         "report_path": str(report_dir),
         "total_files_checked": len(rows),
         "exact_hash_groups": _group_count(exact_hash_candidates),
@@ -168,6 +172,23 @@ def _load_destination_rows(scan_run_id: int, db_path: str | Path) -> list[Any]:
             """,
             (scan_run_id,),
         ).fetchall()
+
+
+def _live_library_rows(rows: list[Any], library_root: Path) -> list[Any]:
+    root = library_root.resolve(strict=False)
+    live_rows: list[Any] = []
+    for row in rows:
+        destination_path = Path(row["destination_path"]).expanduser()
+        if not destination_path.is_absolute():
+            destination_path = library_root / destination_path
+        if not destination_path.is_file():
+            continue
+        try:
+            destination_path.resolve(strict=True).relative_to(root)
+        except ValueError:
+            continue
+        live_rows.append(row)
+    return live_rows
 
 
 def _exact_hash_candidates(rows: list[Any]) -> list[DuplicateCandidate]:

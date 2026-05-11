@@ -1,264 +1,213 @@
 # Media Library Automation Pipeline
 
-A local, SQLite-backed automation pipeline for observing, organizing, auditing,
-and safely maintaining a FLAC-based media library.
+A local-first media ingestion, audit, deduplication, quarantine, reporting, and
+metadata normalization planning system.
 
-This project is positioned around library operations: intake control, identity
-resolution, deterministic classification, placement planning, duplicate review,
-quarantine, restore, metadata audit, and report UI surfaces.
+Media Library Automation Pipeline is designed for controlled library operations:
+observe files, record evidence, plan changes, review reports, quarantine known
+duplicate candidates, and restore from an audit trail. The project is built
+around deterministic rules and local SQLite state rather than remote services or
+opaque automation.
 
-## Problem Statement
+## 1. Overview
 
-Large personal media libraries often accumulate inconsistent filenames,
-partial tags, repeated files, stale placement records, and unclear review
-state. Manual cleanup is risky because a single mistaken move, overwrite, or
-metadata rewrite can damage a curated collection.
+This repository contains a Python application for maintaining a FLAC-focused
+local media library. It provides a command-line workflow for scanning and
+organizing files, detecting duplicate candidates, producing quality reports,
+planning metadata normalization, and safely moving duplicate review outcomes
+into quarantine.
 
-This system solves that operational problem by separating observation,
-planning, execution, reporting, and restore into auditable stages. Most stages
-are read-only. Mutating stages are narrow, ledger-backed, and designed to avoid
-overwriting or deleting files.
+The system favors explicit stages. Most commands inspect data and write reports
+or ledger records. Commands that can change files are narrow, support dry-run
+review where appropriate, and preserve recovery information.
 
-## Current Library Snapshot
+## 2. Problem Statement
 
-Generated reports in this repository currently show:
+Personal media libraries often grow through years of inconsistent naming,
+partial tags, repeated files, manual folder changes, and uncertain cleanup
+history. Once a library reaches hundreds or thousands of files, direct manual
+maintenance becomes risky because mistakes can overwrite curated files, remove
+the wrong copy, or leave no clear record of what changed.
 
-- 627 clean library files, all represented as readable FLAC files
-- 0 active duplicate groups in the live organized library
-- 52 quarantined duplicate files
-- 627 readable files in the metadata audit
-- 2,063 proposed metadata updates in the metadata normalization plan
-- 222 passing pytest tests in the documented project baseline
-- Latest local verification on 2026-05-11: 232 passed
+This project addresses that operational problem by separating observation,
+planning, execution, audit, quarantine, and restore into inspectable steps.
 
-Evidence sources:
+## 3. What the System Does
 
-- `reports/library_qa/library_qa_summary.json`
-- `reports/duplicates_scan_1/duplicate_summary.json`
-- `reports/metadata_audit/metadata_summary.json`
-- `reports/metadata_plan/metadata_plan_summary.json`
+- Scans local audio files and records observations in SQLite.
+- Resolves probable track identity from tags, filenames, parent folders, and
+  controlled artist seed data.
+- Classifies files using deterministic artist and genre rules.
+- Plans organized placement paths before copying files.
+- Generates library QA, duplicate, metadata audit, and metadata normalization
+  reports.
+- Produces duplicate review plans and quarantines selected remove candidates.
+- Restores quarantined files from recorded ledger information.
+- Serves read-only FastAPI/Jinja2 report screens over generated reports.
 
-## What The System Does
+The project does not claim AI recognition, audio fingerprinting, automatic tag
+writing, or unsupervised destructive cleanup.
 
-The pipeline creates a durable observation ledger for local audio files and
-generates reviewable outputs before any file-changing operation is available.
-
-Core responsibilities:
-
-- Scan local folders and record file observations, hashes, metadata, and probe
-  results in SQLite.
-- Resolve probable track identity from tags, filenames, parent folders, and a
-  controlled artist seed list.
-- Classify identified tracks with deterministic artist-seed and genre metadata
-  rules.
-- Plan organized placement paths without touching files.
-- Copy planned files into an organized output root when explicitly executed.
-- Export review reports for placement, blocked items, conflicts, duplicates,
-  library QA, and metadata quality.
-- Generate duplicate review plans and move selected duplicate candidates into
-  quarantine.
-- Restore quarantined files from ledger records.
-- Provide read-only FastAPI/Jinja2 views over generated reports.
-- Build read-only metadata audit and metadata normalization plans for FLAC
-  libraries.
-
-The system does not claim AI-driven recognition, audio fingerprinting,
-automatic metadata writing, or automatic destructive cleanup. Identity and
-classification are deterministic and evidence-based.
-
-## Architecture Flow
+## 4. Architecture Flow
 
 ```text
-Local files
+Local media files
   |
   v
 Scanner
-  - observes supported audio files
-  - records hashes, paths, metadata, probe status
+  - records file paths, hashes, tags, and probe results
   |
   v
 SQLite observation ledger
   |
   +--> Identity engine
-  |      - probable artist/title/album/year/mix
-  |      - preserves conflicts and unknowns
+  |      - probable artist, title, album, year, and mix
+  |      - conflict and unknown states retained for review
   |
   +--> Classification engine
-  |      - artist seed rules first
-  |      - embedded genre metadata second
+  |      - controlled artist seed rules
+  |      - embedded genre metadata fallback
   |
   v
 Placement planner
-  - creates reviewable relative paths
-  - writes plans only
-  |
-  +--> Review reports
-  |      - JSON/CSV summaries
-  |      - conflicts and blocked items
+  - creates reviewable destination paths
+  - writes plans before file movement
   |
   v
 Placement executor
-  - copies planned files to an organized root
-  - never overwrites existing destinations
+  - copies planned files into an organized library root
+  - avoids overwriting existing destinations
   |
   v
-Duplicate reports and review plans
-  - exact hash, same artist/title, probable variants
-  - keep/remove/manual-review recommendations
+QA, duplicate, metadata audit, and metadata plan reports
+  |
+  v
+Duplicate review
+  - keep, remove-candidate, and manual-review outcomes
   |
   v
 Quarantine and restore
-  - move selected remove candidates to quarantine
-  - restore from recorded original paths
+  - ledger-backed movement and recovery
   |
   v
-Library QA, metadata audit, metadata plan, report UI
+Read-only reporting UI
 ```
 
-## Current Capabilities
+## 5. Current Evidence / Metrics
 
-### Observation Ledger
+Current generated evidence shows:
 
-- Initializes and uses a local SQLite database.
-- Scans supported audio extensions: `.mp3`, `.wav`, `.flac`, `.m4a`, `.aac`,
-  `.ogg`, `.aiff`, and `.webm`.
-- Uses `ffprobe` when available and records probe failures instead of stopping
-  the run.
-- Supports alternate database paths with `--db`.
+- 627 organised FLAC files
+- 52 quarantined duplicates
+- 0 active duplicate groups
+- 0 unresolved missing files
+- 627 readable FLAC files in metadata audit
+- 2063 proposed metadata updates
+- 232 passing tests
 
-### Identity And Classification
+Evidence is represented in generated report artifacts under:
 
-- Resolves probable artist, title, album, year, and mix from observed tags,
-  filenames, folders, and artist seed matches.
-- Deprioritizes tag artists that look like uploader, channel, or label metadata
-  when stronger filename or folder seed evidence exists.
-- Preserves conflicting, partial, and unknown identities for review.
-- Classifies with deterministic rules from controlled artist seeds and embedded
-  genre metadata.
+- `reports/library_qa/`
+- `reports/duplicates_scan_1/`
+- `reports/metadata_audit/`
+- `reports/metadata_plan/`
 
-### Intake And Placement
+## 6. Core Capabilities
 
-- Records purchase/intake gateway state for baseline artists using manually
-  supplied metadata and proof paths.
-- Copies unlocked local files into a controlled intake area.
-- Plans deterministic organized paths shaped around genre, subgenre, artist,
-  and filename evidence.
-- Executes placement by copying planned files into a destination root.
+- Local SQLite observation ledger for repeatable file processing.
+- Audio scanning for common local media formats, with `ffprobe` results recorded
+  when available.
+- Identity resolution from available local evidence without remote lookups.
+- Deterministic genre and subgenre classification from local rules.
+- Placement planning and copy execution for organized library output.
+- Library QA summaries for organized files, quarantine state, missing files, and
+  duplicate status.
+- Duplicate report generation for exact hashes, same artist/title groups, and
+  probable variants.
+- Duplicate review planning with explicit keep, remove-candidate, and manual
+  review outcomes.
+- Quarantine movement for selected duplicate remove candidates.
+- Restore workflow based on recorded quarantine items.
+- FLAC metadata audit and proposed normalization plan generation.
+- Read-only web reporting views for generated report data.
 
-### Reports And UI
+## 7. CLI Workflow
 
-- Placement review reports under `reports/scan_<SCAN_RUN_ID>/`.
-- Duplicate reports under `reports/duplicates_scan_<SCAN_RUN_ID>/`.
-- Duplicate review plans under
-  `reports/duplicate_review_scan_<SCAN_RUN_ID>/`.
-- Library QA reports under `reports/library_qa/`.
-- Metadata audit reports under `reports/metadata_audit/`.
-- Metadata normalization plans under `reports/metadata_plan/`.
-- Read-only FastAPI routes for report and manual review screens.
-
-### Duplicate Handling
-
-- Exports duplicate candidates without modifying the library.
-- Separates active live-library duplicate groups from historical duplicate
-  records.
-- Moves only `remove_candidate` rows from a duplicate review plan into
-  quarantine.
-- Supports dry-run quarantine and restore.
-
-### Metadata Review
-
-- Audits FLAC tags with `mutagen`.
-- Checks for missing tags, malformed track numbers, trailing whitespace,
-  duplicate whitespace, separator inconsistencies, probable source suffixes,
-  capitalization inconsistencies, and artist/title variant groups.
-- Generates a review plan for tag updates inferred from organized library paths.
-- Does not write metadata tags.
-
-## CLI Examples
-
-Initialize the ledger:
+Initialize the local ledger:
 
 ```bash
 python -m app.main init-db
 ```
 
-Scan a local media folder:
+Scan, identify, classify, and plan placement:
 
 ```bash
 python -m app.main scan --source ~/Music/Library_Intake
-python -m app.main summary --scan-run-id 1
-```
-
-Resolve identity and classification:
-
-```bash
 python -m app.main identify --scan-run-id 1
 python -m app.main classify --scan-run-id 1
-```
-
-Plan, review, and execute placement:
-
-```bash
 python -m app.main plan-placement --scan-run-id 1
+```
+
+Generate core review and QA reports:
+
+Core command forms:
+
+```bash
+python -m app.main library-qa ...
+python -m app.main metadata-audit ...
+python -m app.main metadata-plan ...
+python -m app.main duplicate-report ...
+python -m app.main duplicate-review ...
+python -m app.main quarantine-duplicates --dry-run
+python -m app.main restore-quarantine --dry-run
+```
+
+Example report commands:
+
+```bash
 python -m app.main review-report --scan-run-id 1 --out reports
-python -m app.main execute-placement --scan-run-id 1 --dest ~/Music/Organised_Library
-```
-
-Generate duplicate reports and review plans:
-
-```bash
-python -m app.main duplicate-report \
-  --scan-run-id 1 \
-  --library-root ~/Music/Organised_Library \
-  --out reports
-
-python -m app.main duplicate-review --duplicate-report-id 1 --out reports
-```
-
-Quarantine duplicate remove candidates:
-
-```bash
-python -m app.main quarantine-duplicates \
-  --review-plan-id 1 \
-  --quarantine-root ~/Music/Quarantine_Duplicates \
-  --dry-run
-
-python -m app.main quarantine-duplicates \
-  --review-plan-id 1 \
-  --quarantine-root ~/Music/Quarantine_Duplicates
-```
-
-Restore a quarantine run:
-
-```bash
-python -m app.main restore-quarantine --quarantine-run-id 1 --dry-run
-python -m app.main restore-quarantine --quarantine-run-id 1
-```
-
-Generate QA and metadata reports:
-
-```bash
 python -m app.main library-qa \
   --library-root ~/Music/Organised_Library \
   --quarantine-root ~/Music/Quarantine_Duplicates \
   --out reports
-
 python -m app.main metadata-audit \
   --library-root ~/Music/Organised_Library \
   --out reports
-
 python -m app.main metadata-plan \
   --library-root ~/Music/Organised_Library \
   --out reports
+python -m app.main duplicate-report \
+  --scan-run-id 1 \
+  --library-root ~/Music/Organised_Library \
+  --out reports
+python -m app.main duplicate-review --duplicate-report-id 1 --out reports
 ```
 
-Run the report UI:
+Run duplicate quarantine and restore in dry-run mode:
+
+```bash
+python -m app.main quarantine-duplicates --dry-run
+python -m app.main restore-quarantine --dry-run
+```
+
+Use a separate SQLite database:
+
+```bash
+python -m app.main --db /tmp/media_library.sqlite3 scan --source ~/Music/Library_Intake
+```
+
+## 8. Reporting UI
+
+The report UI is a read-only FastAPI/Jinja2 interface over generated reports. It
+does not mutate media files, apply duplicate decisions, or write metadata.
+
+Run the UI:
 
 ```bash
 uvicorn app.main:app --reload
 ```
 
-Available UI routes:
+Available routes include:
 
 ```text
 /reports
@@ -273,155 +222,112 @@ Available UI routes:
 /review/blocked
 ```
 
-Set `MUSIC_LIBRARY_REPORTS_DIR` before starting the server to read reports from
-a directory other than `reports`.
+Set `MUSIC_LIBRARY_REPORTS_DIR` before startup to read reports from a directory
+other than `reports`.
 
-Use a separate SQLite database:
+## 9. Metadata Audit + Normalization Plan
 
-```bash
-python -m app.main --db /tmp/media_library.sqlite3 scan --source ~/Music/Library_Intake
-```
+The metadata audit inspects FLAC files with `mutagen` and reports tag quality
+issues without writing changes. The normalization plan proposes updates inferred
+from organized library paths and observed metadata.
 
-## UI Screenshots
+Current metadata evidence:
 
-Screenshot placeholders are intentionally kept as documentation targets. The UI
-reads generated report files and does not generate reports or mutate library
-state.
+- 627 readable FLAC files in metadata audit
+- 2063 proposed metadata updates
 
-![Reports dashboard placeholder](docs/screenshots/reports-dashboard.png)
+The plan is intentionally review-oriented. It documents candidate updates; it
+does not save tags to media files.
 
-![Duplicate report placeholder](docs/screenshots/duplicates.png)
+## 10. Duplicate Detection + Quarantine Safety
 
-![Manual review quarantine placeholder](docs/screenshots/manual-review-quarantine.png)
+Duplicate handling is staged:
 
-![File health placeholder](docs/screenshots/file-health.png)
+- `duplicate-report` exports duplicate candidates without changing files.
+- `duplicate-review` converts duplicate evidence into reviewable decisions.
+- `quarantine-duplicates` moves only rows marked as remove candidates.
+- Dry-run mode is available before quarantine execution.
 
-## Example Outputs
+Current duplicate evidence:
 
-Library QA snapshot:
+- 0 active duplicate groups
+- 52 quarantined duplicates
 
-```text
-report_path=reports/library_qa
-total_library_files=627
-total_quarantine_files=52
-genre_count=9
-subgenre_count=22
-artist_count=49
-active_duplicate_group_count=0
-historical_duplicate_group_count=46
-quarantined_duplicate_file_count=52
-missing_file_count=52
-unresolved_missing_file_count=0
-```
+The system distinguishes live duplicate state from historical quarantine state,
+so previously quarantined files do not appear as active unresolved duplicate
+groups.
 
-Duplicate report snapshot:
+## 11. Restore / Recovery Model
 
-```text
-report_path=reports/duplicates_scan_1
-total_files_checked=627
-exact_hash_groups=0
-same_artist_title_groups=0
-probable_variant_groups=0
-```
+Quarantine and restore operations are ledger-backed. The database records source
+paths, quarantine paths, run IDs, per-file outcomes, and restore attempts.
 
-Metadata audit snapshot:
+Restore uses recorded quarantine items instead of guessing from the filesystem.
+It supports dry-run mode and avoids overwriting existing restore targets.
 
-```text
-report_path=reports/metadata_audit
-total_flac_files=627
-readable_flac_files=627
-unreadable_flac_files=0
-missing_tag_count=1715
-malformed_tag_count=682
-inconsistent_artist_group_count=4
-inconsistent_title_group_count=0
-```
+## 12. Testing
 
-Metadata normalization plan snapshot:
-
-```text
-report_path=reports/metadata_plan
-total_flac_files=627
-readable_flac_files=627
-unreadable_flac_files=0
-proposed_update_count=2063
-```
-
-## Safety Model
-
-The pipeline is designed around staged, inspectable operations:
-
-- Scanning, identity resolution, classification, placement planning, duplicate
-  reporting, duplicate review planning, library QA, metadata audit, metadata
-  planning, and UI views are read-only with respect to media files.
-- Placement execution copies files only from planned rows and never overwrites
-  an existing destination.
-- Duplicate quarantine moves only rows marked `remove_candidate` in a stored
-  duplicate review plan.
-- Quarantine and restore support dry-run mode.
-- Restore skips missing quarantine files and existing restore targets.
-- Path validation rejects absolute or traversing planned paths during
-  placement execution.
-- Metadata audit and metadata plans do not save tags or mutate audio.
-- The UI reads generated reports only and does not execute cleanup actions.
-
-## Audit And Restore Model
-
-State-changing operations write ledger rows before and after execution so the
-system can explain what happened:
-
-- `placement_executions` and `placement_execution_files` record placement
-  execution runs and per-file outcomes.
-- `duplicate_reports` and `duplicate_candidates` preserve duplicate detection
-  evidence.
-- `duplicate_review_plans` and `duplicate_review_items` preserve keep/remove
-  recommendations.
-- `duplicate_quarantine_runs` and `duplicate_quarantine_items` record
-  quarantine decisions, source paths, quarantine paths, and outcomes.
-- `quarantine_restore_runs` and `quarantine_restore_items` record restore
-  attempts and outcomes.
-
-Restore is intentionally based on recorded quarantine items, not filesystem
-guesswork. When the original library root is known, restore validates the
-library boundary and avoids overwriting existing files.
-
-## Testing Status
-
-The repository has focused tests for scanner behavior, identity resolution,
-classification, intake, placement planning/execution, reports, duplicate
-review, quarantine, restore, metadata audit, metadata planning, report UI, and
-manual review UI.
-
-Documented baseline:
-
-```text
-pytest: 222 passed
-```
-
-Latest local verification:
-
-```text
-232 passed in 6.89s
-```
+The test suite covers scanner behavior, identity resolution, classification,
+intake, placement planning and execution, reporting, duplicate review,
+quarantine, restore, metadata audit, metadata planning, and report UI behavior.
 
 Run tests:
 
 ```bash
-python -m pytest
+python -m pytest -q
 ```
 
-## Roadmap
+Current result:
 
-Planned work should preserve the same safety posture: observe first, plan
-second, mutate only through explicit and auditable commands.
+```text
+232 passed
+```
 
-- Add screenshot assets for the report and manual review UI placeholders.
-- Expand report fixtures so documentation examples can be regenerated from a
-  scripted demo dataset.
-- Add explicit CLI documentation for each command's output contract.
-- Add optional export bundles for sharing QA snapshots without exposing local
-  absolute paths.
-- Add review workflow affordances for metadata plan approval while keeping tag
-  writing separate from audit and plan generation.
-- Add more edge-case tests around malformed media files, interrupted
-  quarantine runs, and restore boundary validation.
+## 13. Repository Structure
+
+```text
+app/
+  main.py                 CLI entry point and report UI app
+  scanner.py              Local media observation
+  identity_engine.py      Deterministic identity resolution
+  classifier.py           Classification rules
+  placement.py            Placement planning and execution
+  duplicate_*.py          Duplicate reporting, review, quarantine, restore
+  metadata_*.py           FLAC audit and normalization planning
+  report_*.py             Report generation and UI helpers
+
+reports/
+  library_qa/             Library health reports
+  duplicates_scan_1/      Duplicate report outputs
+  metadata_audit/         Metadata audit outputs
+  metadata_plan/          Metadata normalization plan outputs
+
+tests/
+  test_*.py               Focused pytest coverage for pipeline behavior
+
+docs/
+  screenshots/            Portfolio screenshot targets
+```
+
+## 14. Screenshots
+
+Screenshot placeholders:
+
+- `docs/screenshots/01_reports_dashboard.png`
+- `docs/screenshots/02_artists.png`
+- `docs/screenshots/03_genres.png`
+- `docs/screenshots/04_quarantine.png`
+- `docs/screenshots/05_duplicates.png`
+- `docs/screenshots/06_manual_review.png`
+
+## 15. Roadmap
+
+- Add real UI screenshots for the documented report and review screens.
+- Add a scripted demo dataset so portfolio metrics can be regenerated
+  reproducibly.
+- Expand command documentation with input and output contracts.
+- Add portable report bundles that avoid exposing local absolute paths.
+- Improve metadata plan review workflow while keeping tag writing separate from
+  audit and planning.
+- Add more failure-mode tests for interrupted quarantine and restore boundary
+  validation.

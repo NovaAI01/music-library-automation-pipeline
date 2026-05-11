@@ -12,6 +12,7 @@ from app.duplicate_report import generate_duplicate_report
 from app.duplicate_review import generate_duplicate_review_plan
 from app.identity_engine import identify_scan_run
 from app.intake import run_intake
+from app.library_qa import generate_library_qa_report
 from app.pipeline import run_intake_pipeline
 from app.placement_executor import execute_placement
 from app.placement_planner import plan_scan_run_placements
@@ -151,6 +152,14 @@ def build_parser() -> argparse.ArgumentParser:
     quarantine_parser.add_argument("--review-plan-id", required=True, type=int)
     quarantine_parser.add_argument("--quarantine-root", required=True)
     quarantine_parser.add_argument("--dry-run", action="store_true")
+
+    library_qa_parser = subparsers.add_parser(
+        "library-qa",
+        help="Export read-only QA reports for an organised library.",
+    )
+    library_qa_parser.add_argument("--library-root", required=True)
+    library_qa_parser.add_argument("--quarantine-root", required=True)
+    library_qa_parser.add_argument("--out", default="reports")
 
     return parser
 
@@ -371,6 +380,23 @@ def main(argv: list[str] | None = None) -> int:
         print(f"skipped={result.skipped_count}")
         print(f"failed={result.failed_count}")
         print(f"dry_run={str(result.dry_run).lower()}")
+        return 0
+
+    if args.command == "library-qa":
+        result = generate_library_qa_report(
+            library_root=args.library_root,
+            quarantine_root=args.quarantine_root,
+            out_dir=args.out,
+            db_path=db_path,
+        )
+        print(f"report_path={result.report_path}")
+        print(f"total_library_files={result.total_library_files}")
+        print(f"total_quarantine_files={result.total_quarantine_files}")
+        print(f"genre_count={result.genre_count}")
+        print(f"subgenre_count={result.subgenre_count}")
+        print(f"artist_count={result.artist_count}")
+        print(f"duplicate_group_count={result.duplicate_group_count}")
+        print(f"missing_file_count={result.missing_file_count}")
         return 0
 
     parser.error(f"unknown command: {args.command}")

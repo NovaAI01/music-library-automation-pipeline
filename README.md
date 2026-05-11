@@ -224,3 +224,17 @@ Actual run:
 ```bash
 python -m app.main quarantine-duplicates --review-plan-id 1 --quarantine-root ~/Music/Quarantine_Duplicates
 ```
+
+## Library QA Reports
+
+`app/library_qa.py` exports a read-only final health snapshot for an organised
+library and duplicate quarantine folder. It writes `library_qa_summary.json`,
+`artists.csv`, `genres.csv`, `quarantine_summary.csv`, and `file_health.csv`
+under `reports/library_qa/`. The report counts files and folder-derived
+taxonomy from the filesystem, uses duplicate and placement ledger tables when
+available, and does not move, delete, rewrite metadata, modify audio, or alter
+placement plans.
+
+```bash
+python -m app.main library-qa --library-root ~/Music/Organised_Library --quarantine-root ~/Music/Quarantine_Duplicates --out reports
+```

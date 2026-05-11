@@ -7,6 +7,7 @@ from pathlib import Path
 
 from app import db
 from app.classifier import classify_scan_run
+from app.duplicate_quarantine import quarantine_duplicates
 from app.duplicate_report import generate_duplicate_report
 from app.duplicate_review import generate_duplicate_review_plan
 from app.identity_engine import identify_scan_run
@@ -142,6 +143,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--duplicate-report-id", required=True, type=int
     )
     duplicate_review_parser.add_argument("--out", default="reports")
+
+    quarantine_parser = subparsers.add_parser(
+        "quarantine-duplicates",
+        help="Move duplicate remove candidates into a quarantine folder.",
+    )
+    quarantine_parser.add_argument("--review-plan-id", required=True, type=int)
+    quarantine_parser.add_argument("--quarantine-root", required=True)
+    quarantine_parser.add_argument("--dry-run", action="store_true")
 
     return parser
 
@@ -347,6 +356,21 @@ def main(argv: list[str] | None = None) -> int:
         print(f"files_reviewed={result.total_files_reviewed}")
         print(f"keeper_count={result.keeper_count}")
         print(f"remove_candidate_count={result.remove_candidate_count}")
+        return 0
+
+    if args.command == "quarantine-duplicates":
+        result = quarantine_duplicates(
+            review_plan_id=args.review_plan_id,
+            quarantine_root=args.quarantine_root,
+            dry_run=args.dry_run,
+            db_path=db_path,
+        )
+        print(f"quarantine_run_id={result.quarantine_run_id}")
+        print(f"total_remove_candidates={result.total_remove_candidates}")
+        print(f"moved={result.moved_count}")
+        print(f"skipped={result.skipped_count}")
+        print(f"failed={result.failed_count}")
+        print(f"dry_run={str(result.dry_run).lower()}")
         return 0
 
     parser.error(f"unknown command: {args.command}")

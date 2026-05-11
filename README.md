@@ -205,3 +205,22 @@ stored duplicate report. It writes `duplicate_review_summary.json` and
 `reports/duplicate_review_scan_<SCAN_RUN_ID>/`, records metadata in
 `duplicate_review_plans` and `duplicate_review_items`, and never applies
 decisions or deletes, moves, overwrites, or modifies music files.
+
+`app/duplicate_quarantine.py` moves only `remove_candidate` rows from a stored
+duplicate review plan into a quarantine folder. It records runs in
+`duplicate_quarantine_runs` and per-file outcomes in
+`duplicate_quarantine_items`, preserves paths below the duplicate report's
+library root when possible, skips missing sources and existing quarantine
+destinations, and never touches `keep_candidate` or `manual_review` rows.
+
+Dry run:
+
+```bash
+python -m app.main quarantine-duplicates --review-plan-id 1 --quarantine-root ~/Music/Quarantine_Duplicates --dry-run
+```
+
+Actual run:
+
+```bash
+python -m app.main quarantine-duplicates --review-plan-id 1 --quarantine-root ~/Music/Quarantine_Duplicates
+```

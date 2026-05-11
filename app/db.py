@@ -320,6 +320,44 @@ CREATE TABLE IF NOT EXISTS duplicate_review_items (
     created_at TEXT NOT NULL,
     FOREIGN KEY (review_plan_id) REFERENCES duplicate_review_plans(id)
 );
+
+CREATE TABLE IF NOT EXISTS duplicate_quarantine_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    review_plan_id INTEGER NOT NULL,
+    quarantine_root TEXT NOT NULL,
+    run_status TEXT NOT NULL CHECK (
+        run_status IN (
+            'completed',
+            'partial',
+            'failed'
+        )
+    ),
+    total_remove_candidates INTEGER NOT NULL,
+    moved_count INTEGER NOT NULL,
+    skipped_count INTEGER NOT NULL,
+    failed_count INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+    completed_at TEXT,
+    FOREIGN KEY (review_plan_id) REFERENCES duplicate_review_plans(id)
+);
+
+CREATE TABLE IF NOT EXISTS duplicate_quarantine_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    quarantine_run_id INTEGER NOT NULL,
+    source_path TEXT NOT NULL,
+    quarantine_path TEXT NOT NULL,
+    item_status TEXT NOT NULL CHECK (
+        item_status IN (
+            'moved',
+            'skipped_missing',
+            'skipped_exists',
+            'failed'
+        )
+    ),
+    reason TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (quarantine_run_id) REFERENCES duplicate_quarantine_runs(id)
+);
 """
 
 

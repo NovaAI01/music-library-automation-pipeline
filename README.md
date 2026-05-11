@@ -277,6 +277,21 @@ files, or modify audio.
 python -m app.main metadata-audit --library-root ~/Music/Organised_Library --out reports
 ```
 
+## Metadata Normalization Plans
+
+`app/metadata_plan.py` creates a read-only review plan of tag corrections from
+an organised library path shaped as `Genre/Subgenre/Artist/Artist - Title.flac`.
+It writes `metadata_plan_summary.json` and `tag_update_plan.csv` under
+`reports/metadata_plan/`. Proposed artist and album artist come from the artist
+folder, title comes from the filename with common YouTube source suffixes
+removed, and genre comes from the top-level genre folder. It does not propose
+album or track number changes, save tags, rewrite metadata, move files, delete
+files, or modify audio.
+
+```bash
+python -m app.main metadata-plan --library-root ~/Music/Organised_Library --out reports
+```
+
 ## Library Reports UI
 
 `app/report_ui.py` exposes a read-only FastAPI/Jinja2 UI for generated report

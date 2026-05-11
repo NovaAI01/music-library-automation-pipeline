@@ -17,6 +17,7 @@ from app.intake import run_intake
 from app.library_qa import generate_library_qa_report
 from app.manual_review_ui import router as manual_review_ui_router
 from app.metadata_audit import generate_metadata_audit_report
+from app.metadata_plan import generate_metadata_plan
 from app.pipeline import run_intake_pipeline
 from app.placement_executor import execute_placement
 from app.placement_planner import plan_scan_run_placements
@@ -187,6 +188,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     metadata_audit_parser.add_argument("--library-root", required=True)
     metadata_audit_parser.add_argument("--out", required=True)
+
+    metadata_plan_parser = subparsers.add_parser(
+        "metadata-plan",
+        help="Create a read-only FLAC metadata tag correction plan.",
+    )
+    metadata_plan_parser.add_argument("--library-root", required=True)
+    metadata_plan_parser.add_argument("--out", required=True)
 
     return parser
 
@@ -468,6 +476,18 @@ def main(argv: list[str] | None = None) -> int:
             "inconsistent_title_group_count="
             f"{result.inconsistent_title_group_count}"
         )
+        return 0
+
+    if args.command == "metadata-plan":
+        result = generate_metadata_plan(
+            library_root=args.library_root,
+            out_dir=args.out,
+        )
+        print(f"report_path={result.report_path}")
+        print(f"total_flac_files={result.total_flac_files}")
+        print(f"readable_flac_files={result.readable_flac_files}")
+        print(f"unreadable_flac_files={result.unreadable_flac_files}")
+        print(f"proposed_update_count={result.proposed_update_count}")
         return 0
 
     parser.error(f"unknown command: {args.command}")

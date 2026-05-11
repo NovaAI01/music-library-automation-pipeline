@@ -19,9 +19,9 @@ class FilenameObservation:
 
 
 TRACK_ARTIST_TITLE = re.compile(
-    r"^(?P<track>\d{1,3})\s*-\s*(?P<artist>.+?)\s*-\s*(?P<title>.+)$"
+    r"^(?P<track>\d{1,3})\s+-\s+(?P<artist>.+?)\s+-\s+(?P<title>.+)$"
 )
-ARTIST_TITLE = re.compile(r"^(?P<artist>.+?)\s*-\s*(?P<title>.+)$")
+ARTIST_TITLE = re.compile(r"^(?P<artist>.+?)\s+-\s+(?P<title>.+)$")
 TRACK_TITLE = re.compile(r"^(?P<track>\d{1,3})\s+(?P<title>.+)$")
 MIX_SUFFIX = re.compile(r"^(?P<title>.+?)\s*\((?P<mix>[^)]+)\)$")
 

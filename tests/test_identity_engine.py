@@ -2,6 +2,7 @@ import json
 import sqlite3
 
 from app import db
+from app.filename_parser import parse_filename
 from app.identity_engine import (
     REQUIRED_EVIDENCE_FIELDS,
     build_identity_evidence,
@@ -361,6 +362,18 @@ def test_title_artist_prefix_hyphen_resolves_seed_artist_and_title():
     )
 
     assert result.identity_status == "identified"
+    assert result.probable_artist == "Static-X"
+    assert result.probable_title == "Push It"
+
+
+def test_parsed_static_x_filename_resolves_seed_artist_and_title():
+    observation = parse_filename("Static-X - Push It [ubimQkYukxc].flac")
+
+    result = resolve_identity(
+        filename_artist=observation.possible_artist,
+        filename_title=observation.possible_title,
+    )
+
     assert result.probable_artist == "Static-X"
     assert result.probable_title == "Push It"
 

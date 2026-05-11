@@ -225,6 +225,25 @@ Actual run:
 python -m app.main quarantine-duplicates --review-plan-id 1 --quarantine-root ~/Music/Quarantine_Duplicates
 ```
 
+`app/quarantine_restore.py` restores files recorded in
+`duplicate_quarantine_items` back to their original `source_path`. It records
+runs in `quarantine_restore_runs` and per-file outcomes in
+`quarantine_restore_items`, validates the original library boundary when the
+library root is available, skips missing quarantine files and existing restore
+targets, and never overwrites files or mutates audio metadata.
+
+Dry run:
+
+```bash
+python -m app.main restore-quarantine --quarantine-run-id 1 --dry-run
+```
+
+Actual run:
+
+```bash
+python -m app.main restore-quarantine --quarantine-run-id 1
+```
+
 ## Library QA Reports
 
 `app/library_qa.py` exports a read-only final health snapshot for an organised

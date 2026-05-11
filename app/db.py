@@ -358,6 +358,46 @@ CREATE TABLE IF NOT EXISTS duplicate_quarantine_items (
     created_at TEXT NOT NULL,
     FOREIGN KEY (quarantine_run_id) REFERENCES duplicate_quarantine_runs(id)
 );
+
+CREATE TABLE IF NOT EXISTS quarantine_restore_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    quarantine_run_id INTEGER NOT NULL,
+    restore_status TEXT NOT NULL CHECK (
+        restore_status IN (
+            'completed',
+            'partial',
+            'failed'
+        )
+    ),
+    total_restore_candidates INTEGER NOT NULL,
+    restored_count INTEGER NOT NULL,
+    skipped_count INTEGER NOT NULL,
+    failed_count INTEGER NOT NULL,
+    dry_run INTEGER NOT NULL CHECK (dry_run IN (0, 1)),
+    created_at TEXT NOT NULL,
+    completed_at TEXT,
+    FOREIGN KEY (quarantine_run_id) REFERENCES duplicate_quarantine_runs(id)
+);
+
+CREATE TABLE IF NOT EXISTS quarantine_restore_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    restore_run_id INTEGER NOT NULL,
+    quarantine_item_id INTEGER NOT NULL,
+    quarantine_path TEXT NOT NULL,
+    restore_path TEXT NOT NULL,
+    item_status TEXT NOT NULL CHECK (
+        item_status IN (
+            'restored',
+            'skipped_missing_quarantine_file',
+            'skipped_restore_target_exists',
+            'failed'
+        )
+    ),
+    reason TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (restore_run_id) REFERENCES quarantine_restore_runs(id),
+    FOREIGN KEY (quarantine_item_id) REFERENCES duplicate_quarantine_items(id)
+);
 """
 
 

@@ -26,6 +26,7 @@ from app.purchase_gateway import (
     create_purchase_request,
     unlock_intake,
 )
+from app.quarantine_restore import restore_quarantine
 from app.report_ui import router as report_ui_router
 from app.review_report import generate_review_report
 from app.scanner import scan
@@ -161,6 +162,15 @@ def build_parser() -> argparse.ArgumentParser:
     quarantine_parser.add_argument("--review-plan-id", required=True, type=int)
     quarantine_parser.add_argument("--quarantine-root", required=True)
     quarantine_parser.add_argument("--dry-run", action="store_true")
+
+    restore_quarantine_parser = subparsers.add_parser(
+        "restore-quarantine",
+        help="Restore files from a duplicate quarantine run.",
+    )
+    restore_quarantine_parser.add_argument(
+        "--quarantine-run-id", required=True, type=int
+    )
+    restore_quarantine_parser.add_argument("--dry-run", action="store_true")
 
     library_qa_parser = subparsers.add_parser(
         "library-qa",
@@ -386,6 +396,20 @@ def main(argv: list[str] | None = None) -> int:
         print(f"quarantine_run_id={result.quarantine_run_id}")
         print(f"total_remove_candidates={result.total_remove_candidates}")
         print(f"moved={result.moved_count}")
+        print(f"skipped={result.skipped_count}")
+        print(f"failed={result.failed_count}")
+        print(f"dry_run={str(result.dry_run).lower()}")
+        return 0
+
+    if args.command == "restore-quarantine":
+        result = restore_quarantine(
+            quarantine_run_id=args.quarantine_run_id,
+            dry_run=args.dry_run,
+            db_path=db_path,
+        )
+        print(f"restore_run_id={result.restore_run_id}")
+        print(f"total_restore_candidates={result.total_restore_candidates}")
+        print(f"restored={result.restored_count}")
         print(f"skipped={result.skipped_count}")
         print(f"failed={result.failed_count}")
         print(f"dry_run={str(result.dry_run).lower()}")

@@ -45,8 +45,11 @@ YOUTUBE_TITLE_SUFFIXES: tuple[str, ...] = (
     "Official Audio Stream",
     "Official Music Video",
     "Official Video",
+    "Official Visual",
     "Official Visualizer",
     "Performance Music Video",
+    "Low Gain Mix",
+    "Studio Version, from X-Rated",
     "HD Remaster",
     "Audio",
     "4K",
@@ -56,6 +59,7 @@ YOUTUBE_TITLE_SUFFIXES: tuple[str, ...] = (
 
 TITLE_REMOVAL_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"\s*\[Full Dynamic Range Edition\]\s*", re.IGNORECASE),
+    re.compile(r"\s*\[4K,\s*60FPS\]\s*", re.IGNORECASE),
     re.compile(r"\s*\|\s*Warner Vault\s*$", re.IGNORECASE),
 )
 
@@ -69,6 +73,27 @@ FULL_WIDTH_PUNCTUATION = str.maketrans(
 )
 
 TITLE_ARTIST_SEPARATORS = re.compile(r"\s+[-–—]\s+|:\s+")
+
+PARENT_ARTIST_ALIASES: dict[str, str] = {
+    normalize_artist_name("CrossfadeMusicTV"): "Crossfade",
+    normalize_artist_name("System Of A Down"): "System of a Down",
+    normalize_artist_name("NOTHING MORE"): "Nothing More",
+    normalize_artist_name("Fit For a King"): "Fit for a King",
+}
+
+KNOWN_LABEL_UPLOADER_NAMES: tuple[str, ...] = (
+    "Better Noise Music",
+    "Warner Records Vault",
+    "SharpTone Records",
+    "Solid State Records",
+    "Pale Chord Music",
+    "riserecords",
+    "SUMERIAN",
+)
+
+KNOWN_LABEL_UPLOADER_KEYS: frozenset[str] = frozenset(
+    normalize_artist_name(name) for name in KNOWN_LABEL_UPLOADER_NAMES
+)
 
 
 @dataclass(frozen=True)
@@ -511,10 +536,17 @@ def _is_contaminated_tag_artist(
     if not tag_artist or tag_artist_seed_matched or not seed_artist_available:
         return False
 
+    if _is_known_label_uploader_name(tag_artist):
+        return True
+
     normalized_tag_artist = tag_artist.lower()
     if any(term in normalized_tag_artist for term in CONTAMINATED_TAG_ARTIST_TERMS):
         return True
     return True
+
+
+def _is_known_label_uploader_name(value: str) -> bool:
+    return normalize_artist_name(value) in KNOWN_LABEL_UPLOADER_KEYS
 
 
 def _has_seed_artist_support(
@@ -543,6 +575,9 @@ def _parent_folder_artist(parent_folder: str | None) -> str | None:
 
     candidates = [part for part in re.split(r"[\\/]", parent_folder) if part]
     for candidate in reversed(candidates):
+        alias_artist = PARENT_ARTIST_ALIASES.get(normalize_artist_name(candidate))
+        if alias_artist:
+            return alias_artist
         seed = match_seed_artist(candidate)
         if seed:
             return seed.artist
@@ -610,6 +645,12 @@ def _extract_title_artist(
     if not normalized_value:
         return None
 
+    seed_prefix_evidence = _extract_seed_prefix_title_artist(
+        normalized_value, source=source
+    )
+    if seed_prefix_evidence:
+        return seed_prefix_evidence
+
     whitespace_evidence = _extract_whitespace_title_artist(
         normalized_value, source=source
     )
@@ -646,6 +687,63 @@ def _extract_title_artist(
             )
 
     return None
+
+
+def _extract_seed_prefix_title_artist(
+    value: str, *, source: str
+) -> TitleArtistEvidence | None:
+    for candidate in _source_stripped_title_candidates(value):
+        for seed in sorted(
+            list_seed_artists(),
+            key=lambda item: len(normalize_artist_name(item.artist)),
+            reverse=True,
+        ):
+            match = re.match(
+                rf"^\s*{re.escape(seed.artist)}(?P<after>(?:\W|_).*)$",
+                candidate,
+                re.IGNORECASE,
+            )
+            if not match:
+                continue
+            title = _title_after_seed_artist_prefix(match.group("after"))
+            if not title:
+                continue
+            cleaned_title = _clean_title(title, probable_artist=seed.artist)
+            if cleaned_title:
+                return TitleArtistEvidence(
+                    artist=seed.artist,
+                    title=cleaned_title,
+                    source=source,
+                )
+    return None
+
+
+def _source_stripped_title_candidates(value: str) -> list[str]:
+    candidates = [value]
+    slash_parts = [part.strip() for part in re.split(r"\s*/\s*", value) if part.strip()]
+    if len(slash_parts) < 2:
+        return candidates
+
+    for index in range(1, len(slash_parts)):
+        source_parts = slash_parts[:index]
+        if all(_is_known_label_uploader_name(part) for part in source_parts):
+            candidates.append(" / ".join(slash_parts[index:]))
+    return candidates
+
+
+def _title_after_seed_artist_prefix(value: str) -> str | None:
+    after = value.strip()
+    if not after:
+        return None
+
+    direct_separator = re.match(r"^(?:[-–—]\s+|:\s+)(?P<title>.+)$", after)
+    if direct_separator:
+        return direct_separator.group("title")
+
+    separator_match = TITLE_ARTIST_SEPARATORS.search(after)
+    if separator_match is None:
+        return None
+    return after[separator_match.end() :].strip() or None
 
 
 def _extract_whitespace_title_artist(

@@ -376,6 +376,28 @@ def test_title_artist_prefix_colon_resolves_seed_artist_and_title():
     assert result.probable_title == "Push It"
 
 
+def test_title_artist_prefix_full_width_colon_resolves_seed_artist_and_title():
+    result = resolve_identity(
+        tag_artist="Uploader Channel",
+        filename_title="Static-X： Sweat of the Bud",
+    )
+
+    assert result.identity_status == "identified"
+    assert result.probable_artist == "Static-X"
+    assert result.probable_title == "Sweat of the Bud"
+
+
+def test_static_x_title_removes_warner_vault_suffix():
+    result = resolve_identity(
+        tag_artist="Warner Records Vault",
+        filename_title="Static-X - I'm With Stupid | Warner Vault",
+    )
+
+    assert result.identity_status == "identified"
+    assert result.probable_artist == "Static-X"
+    assert result.probable_title == "I'm With Stupid"
+
+
 def test_title_artist_suffix_hyphen_resolves_seed_artist_and_title():
     result = resolve_identity(
         tag_artist="Uploader Channel",
@@ -426,6 +448,53 @@ def test_feature_prefix_uses_main_seed_artist_as_primary():
         filename_title=(
             "From Ashes To New ft. Chrissy from Against The Current "
             "- Barely Breathing"
+        ),
+    )
+
+    assert result.identity_status == "identified"
+    assert result.probable_artist == "From Ashes to New"
+    assert result.probable_title == "Barely Breathing"
+
+
+def test_nothing_more_feature_prefix_uses_main_seed_artist_as_primary():
+    result = resolve_identity(
+        tag_artist="Better Noise Music",
+        filename_title="NOTHING MORE ft Chris Daughtry - FREEFALL",
+    )
+
+    assert result.identity_status == "identified"
+    assert result.probable_artist == "Nothing More"
+    assert result.probable_title == "FREEFALL"
+
+
+def test_label_source_prefix_with_seed_title_resolves_artist_and_title():
+    result = resolve_identity(
+        tag_artist="Warner Records Vault",
+        filename_title="Warner Records Vault / Static-X - Push It",
+    )
+
+    assert result.identity_status == "identified"
+    assert result.probable_artist == "Static-X"
+    assert result.probable_title == "Push It"
+
+
+def test_label_source_prefix_with_collaboration_uses_first_seed_artist():
+    result = resolve_identity(
+        tag_artist="SharpTone Records",
+        filename_title="SharpTone Records / Loathe & Teenage Wrist - Is It Really You",
+    )
+
+    assert result.identity_status == "identified"
+    assert result.probable_artist == "Loathe"
+    assert result.probable_title == "Is It Really You"
+
+
+def test_better_noise_title_feature_prefix_resolves_seed_artist():
+    result = resolve_identity(
+        tag_artist="Better Noise Music",
+        filename_title=(
+            "Better Noise Music / From Ashes To New ft. Chrissy from Against "
+            "The Current - Barely Breathing"
         ),
     )
 
@@ -501,6 +570,30 @@ def test_parent_folder_seed_artist_supports_identification():
     assert result.probable_title == "All Around Me"
     assert result.evidence["selected_artist_source"] == "parent_folder"
     assert result.evidence["conflict_reasons"] == []
+
+
+def test_fit_for_a_king_parent_folder_supports_title_only_filename():
+    result = resolve_identity(
+        filename_title="Slave to Nothing",
+        parent_folder="Incoming/Fit For a King",
+    )
+
+    assert result.identity_status == "identified"
+    assert result.probable_artist == "Fit for a King"
+    assert result.probable_title == "Slave to Nothing"
+    assert result.evidence["selected_artist_source"] == "parent_folder"
+
+
+def test_crossfade_music_tv_parent_folder_alias_supports_title_only_filename():
+    result = resolve_identity(
+        filename_title="Already Gone",
+        parent_folder="Incoming/CrossfadeMusicTV",
+    )
+
+    assert result.identity_status == "identified"
+    assert result.probable_artist == "Crossfade"
+    assert result.probable_title == "Already Gone"
+    assert result.evidence["selected_artist_source"] == "parent_folder"
 
 
 def test_non_seed_uploader_tag_cannot_create_conflict_with_filename_seed_artist():

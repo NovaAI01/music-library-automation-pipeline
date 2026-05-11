@@ -42,6 +42,103 @@ def test_selects_no_numeric_suffix_as_keeper(tmp_path):
     ).exists()
 
 
+def test_clean_filename_beats_trailing_dash_filename(tmp_path):
+    db_path = tmp_path / "ledger.sqlite3"
+    report_id, _scan_run_id = _insert_review_fixture(
+        db_path,
+        {
+            "same_artist_title:falling in reverse:voices in my head": [
+                {
+                    "path": "/library/Falling in Reverse - Voices In My Head -.flac",
+                    "size": 200,
+                },
+                {
+                    "path": "/library/Falling in Reverse - Voices In My Head.flac",
+                    "size": 100,
+                },
+            ]
+        },
+    )
+
+    generate_duplicate_review_plan(
+        duplicate_report_id=report_id,
+        out_dir=tmp_path / "reports",
+        db_path=db_path,
+    )
+
+    rows = _fetch_all(db_path, "SELECT file_path, decision FROM duplicate_review_items")
+    assert (
+        _decision_for(rows, "/library/Falling in Reverse - Voices In My Head.flac")
+        == "keep_candidate"
+    )
+
+
+def test_numeric_suffix_still_loses_to_clean_base_name(tmp_path):
+    db_path = tmp_path / "ledger.sqlite3"
+    report_id, _scan_run_id = _insert_review_fixture(
+        db_path,
+        {
+            "same_artist_title:deftones:change": [
+                {"path": "/library/Deftones - Change (2).flac", "size": 300},
+                {"path": "/library/Deftones - Change.flac", "size": 100},
+            ]
+        },
+    )
+
+    generate_duplicate_review_plan(
+        duplicate_report_id=report_id,
+        out_dir=tmp_path / "reports",
+        db_path=db_path,
+    )
+
+    rows = _fetch_all(db_path, "SELECT file_path, decision FROM duplicate_review_items")
+    assert _decision_for(rows, "/library/Deftones - Change.flac") == "keep_candidate"
+
+
+def test_larger_file_does_not_beat_dirty_trailing_dash(tmp_path):
+    db_path = tmp_path / "ledger.sqlite3"
+    report_id, _scan_run_id = _insert_review_fixture(
+        db_path,
+        {
+            "same_artist_title:static x:push it": [
+                {"path": "/library/Static-X - Push It-.flac", "size": 500},
+                {"path": "/library/Static-X - Push It.flac", "size": 100},
+            ]
+        },
+    )
+
+    generate_duplicate_review_plan(
+        duplicate_report_id=report_id,
+        out_dir=tmp_path / "reports",
+        db_path=db_path,
+    )
+
+    rows = _fetch_all(db_path, "SELECT file_path, decision FROM duplicate_review_items")
+    assert _decision_for(rows, "/library/Static-X - Push It.flac") == "keep_candidate"
+
+
+def test_larger_file_wins_when_all_candidates_are_dirty(tmp_path):
+    db_path = tmp_path / "ledger.sqlite3"
+    report_id, _scan_run_id = _insert_review_fixture(
+        db_path,
+        {
+            "same_artist_title:static x:push it": [
+                {"path": "/library/Static-X - Push It-.flac", "size": 100},
+                {"path": "/library/Static-X - Push It -.flac", "size": 500},
+            ]
+        },
+    )
+
+    generate_duplicate_review_plan(
+        duplicate_report_id=report_id,
+        out_dir=tmp_path / "reports",
+        db_path=db_path,
+    )
+
+    rows = _fetch_all(db_path, "SELECT file_path, decision FROM duplicate_review_items")
+    assert _decision_for(rows, "/library/Static-X - Push It -.flac") == "keep_candidate"
+
+
 def test_selects_larger_file_when_suffix_rule_ties(tmp_path):
     db_path = tmp_path / "ledger.sqlite3"
     report_id, _scan_run_id = _insert_review_fixture(

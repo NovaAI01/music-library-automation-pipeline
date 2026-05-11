@@ -27,6 +27,9 @@ _VISUALIZER_RE = re.compile(r"\bvisuali[sz]er\b", re.IGNORECASE)
 _REMASTER_RE = re.compile(r"\bremaster(?:ed)?\b", re.IGNORECASE)
 _BRACKET_SUFFIX_RE = re.compile(r"\[[^\]]+\](?=\s*(?:\.[^.]+)?$)")
 _PAREN_SUFFIX_RE = re.compile(r"\([^)]*\)(?=\s*(?:\.[^.]+)?$)")
+_REPEATED_WHITESPACE_RE = re.compile(r"\s{2,}")
+_EMPTY_BRACKET_FRAGMENT_RE = re.compile(r"\[\s*\]")
+_EMPTY_PAREN_FRAGMENT_RE = re.compile(r"\(\s*\)")
 
 
 @dataclass(frozen=True)
@@ -195,10 +198,11 @@ def _review_group(
 
 def _ranking_key(
     candidate: _Candidate, group_candidates: list[_Candidate]
-) -> tuple[int, int, int, str]:
+) -> tuple[int, int, int, int, str]:
     all_remasters = all(_has_remaster(item.file_path) for item in group_candidates)
     return (
         1 if _has_numeric_suffix(candidate.file_path) else 0,
+        _dirty_filename_penalty(candidate.file_path),
         -candidate.file_size_bytes,
         _cleanliness_penalty(candidate.file_path, all_remasters=all_remasters),
         candidate.file_path,
@@ -223,6 +227,20 @@ def _has_numeric_suffix(path: str) -> bool:
 
 def _has_remaster(path: str) -> bool:
     return bool(_REMASTER_RE.search(Path(path).name))
+
+
+def _dirty_filename_penalty(path: str) -> int:
+    stem = Path(path).stem
+    penalty = 0
+    if stem.endswith(" -"):
+        penalty += 1
+    elif stem.endswith("-"):
+        penalty += 1
+    if _REPEATED_WHITESPACE_RE.search(stem):
+        penalty += 1
+    penalty += len(_EMPTY_BRACKET_FRAGMENT_RE.findall(stem))
+    penalty += len(_EMPTY_PAREN_FRAGMENT_RE.findall(stem))
+    return penalty
 
 
 def _cleanliness_penalty(path: str, *, all_remasters: bool) -> int:

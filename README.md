@@ -243,6 +243,24 @@ Available routes include:
 Set `MUSIC_LIBRARY_REPORTS_DIR` before startup to read reports from a directory
 other than `reports`.
 
+## UI Screenshot Capture
+
+Install the Python dependencies, then install the Playwright Chromium browser:
+
+```bash
+python -m pip install -r requirements.txt
+playwright install chromium
+```
+
+With the local UI already running at `http://127.0.0.1:8000`, capture
+deterministic portfolio screenshots:
+
+```bash
+python -m app.main capture-ui-screenshots
+```
+
+Screenshots are written to `docs/screenshots/` using stable filenames.
+
 ## Sample Outputs
 
 Sanitized excerpts from generated reports are available under
@@ -349,11 +367,10 @@ docs/
 Screenshot placeholders:
 
 ![Reports dashboard](docs/screenshots/01_reports_dashboard.png)
-![Artists report](docs/screenshots/02_artists.png)
-![Genres report](docs/screenshots/03_genres.png)
-![Quarantine report](docs/screenshots/04_quarantine.png)
-![Duplicate report](docs/screenshots/05_duplicates.png)
-![Manual review](docs/screenshots/06_manual_review.png)
+![Duplicate report](docs/screenshots/02_duplicate_report.png)
+![Library QA](docs/screenshots/03_library_qa.png)
+![Metadata audit](docs/screenshots/04_metadata_audit.png)
+![Manual review](docs/screenshots/05_manual_review.png)
 
 ## 15. Roadmap
 

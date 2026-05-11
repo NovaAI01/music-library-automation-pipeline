@@ -32,6 +32,7 @@ from app.quarantine_restore import restore_quarantine
 from app.report_ui import router as report_ui_router
 from app.review_report import generate_review_report
 from app.scanner import scan
+from app.ui_screenshot_capture import capture_ui_screenshots
 
 
 app = FastAPI(title="Music Library Reports")
@@ -195,6 +196,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     metadata_plan_parser.add_argument("--library-root", required=True)
     metadata_plan_parser.add_argument("--out", required=True)
+
+    subparsers.add_parser(
+        "capture-ui-screenshots",
+        help="Capture deterministic screenshots from the local report UI.",
+    )
 
     return parser
 
@@ -488,6 +494,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"readable_flac_files={result.readable_flac_files}")
         print(f"unreadable_flac_files={result.unreadable_flac_files}")
         print(f"proposed_update_count={result.proposed_update_count}")
+        return 0
+
+    if args.command == "capture-ui-screenshots":
+        for path in capture_ui_screenshots():
+            print(path)
         return 0
 
     parser.error(f"unknown command: {args.command}")

@@ -86,6 +86,11 @@ def blocked(request: Request):
     )
 
 
+@router.get("/duplicates/latest")
+def duplicate_review_latest(request: Request):
+    return summary(request)
+
+
 def _render(request: Request, template_name: str, context: dict[str, Any]):
     return templates.TemplateResponse(
         name=template_name,

@@ -145,6 +145,69 @@ def duplicates(request: Request):
     )
 
 
+@router.get("/duplicates/latest")
+def duplicates_latest(request: Request):
+    return duplicates(request)
+
+
+@router.get("/library-qa/latest")
+def library_qa_latest(request: Request):
+    reports_dir = _reports_dir(request)
+    qa = _library_qa(reports_dir)
+    summary = qa["summary"]
+    cards = [
+        ("Total library files", summary.get("total_library_files", 0)),
+        ("Quarantine files", summary.get("total_quarantine_files", 0)),
+        ("Artist count", summary.get("artist_count", 0)),
+        ("Genre count", summary.get("genre_count", 0)),
+        ("Active duplicates", summary.get("active_duplicate_group_count", 0)),
+        ("Unresolved missing", summary.get("unresolved_missing_file_count", 0)),
+    ]
+    return _render(
+        request,
+        "reports/dashboard.html",
+        {
+            "title": "Library QA",
+            "cards": cards,
+            "timestamp": summary.get("created_at"),
+            "reports_dir": reports_dir,
+            "missing_files": qa["missing_files"],
+        },
+    )
+
+
+@router.get("/metadata/latest")
+def metadata_latest(request: Request):
+    reports_dir = _reports_dir(request)
+    audit, missing_audit = _read_json(
+        reports_dir / "metadata_audit" / "metadata_summary.json"
+    )
+    plan, missing_plan = _read_json(
+        reports_dir / "metadata_plan" / "metadata_plan_summary.json"
+    )
+    cards = [
+        ("Total FLAC files", audit.get("total_flac_files", 0)),
+        ("Readable FLAC files", audit.get("readable_flac_files", 0)),
+        ("Missing tags", audit.get("missing_tag_count", 0)),
+        ("Malformed tags", audit.get("malformed_tag_count", 0)),
+        ("Proposed updates", plan.get("proposed_update_count", 0)),
+        ("Unreadable FLAC files", audit.get("unreadable_flac_files", 0)),
+    ]
+    return _render(
+        request,
+        "reports/dashboard.html",
+        {
+            "title": "Metadata Audit",
+            "cards": cards,
+            "timestamp": audit.get("created_at") or plan.get("created_at"),
+            "reports_dir": reports_dir,
+            "missing_files": [
+                label for label in [missing_audit, missing_plan] if label
+            ],
+        },
+    )
+
+
 def _render(request: Request, template_name: str, context: dict[str, Any]):
     return templates.TemplateResponse(
         name=template_name,

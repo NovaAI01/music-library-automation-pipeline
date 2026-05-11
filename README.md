@@ -77,6 +77,12 @@ Generate review reports from placement plans:
 python -m app.main review-report --scan-run-id 1 --out reports
 ```
 
+Generate duplicate candidate reports from executed placements:
+
+```bash
+python -m app.main duplicate-report --scan-run-id 1 --library-root ~/Music/Organised_Library --out reports
+```
+
 Use `--db PATH` before the subcommand to select a different SQLite database:
 
 ```bash
@@ -176,3 +182,13 @@ moves, deletes, converts, or overwrites music files.
 under `reports/scan_<SCAN_RUN_ID>/` for review before any execution step exists.
 It records generated report metadata in `review_reports` and does not modify
 music files or placement plans.
+
+## Duplicate Reports
+
+`app/duplicate_report.py` exports read-only duplicate candidate reports for
+files recorded in `placement_execution_files`. It writes
+`duplicate_summary.json`, `exact_hash_duplicates.csv`,
+`same_artist_title_duplicates.csv`, and `probable_variants.csv` under
+`reports/duplicates_scan_<SCAN_RUN_ID>/`, records metadata in
+`duplicate_reports` and `duplicate_candidates`, and never deletes, moves,
+overwrites, or modifies music files.

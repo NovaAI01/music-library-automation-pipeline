@@ -7,6 +7,7 @@ from pathlib import Path
 
 from app import db
 from app.classifier import classify_scan_run
+from app.duplicate_report import generate_duplicate_report
 from app.identity_engine import identify_scan_run
 from app.intake import run_intake
 from app.pipeline import run_intake_pipeline
@@ -123,6 +124,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     review_parser.add_argument("--scan-run-id", required=True, type=int)
     review_parser.add_argument("--out", default="reports")
+
+    duplicate_parser = subparsers.add_parser(
+        "duplicate-report",
+        help="Export read-only duplicate candidate reports for organised files.",
+    )
+    duplicate_parser.add_argument("--scan-run-id", required=True, type=int)
+    duplicate_parser.add_argument("--library-root", required=True)
+    duplicate_parser.add_argument("--out", default="reports")
 
     return parser
 
@@ -301,6 +310,20 @@ def main(argv: list[str] | None = None) -> int:
         print(f"needs_review={result.needs_review_count}")
         print(f"blocked={result.blocked_count}")
         print(f"conflicts={result.conflict_count}")
+        return 0
+
+    if args.command == "duplicate-report":
+        result = generate_duplicate_report(
+            scan_run_id=args.scan_run_id,
+            library_root=args.library_root,
+            out_dir=args.out,
+            db_path=db_path,
+        )
+        print(f"report_path={result.report_path}")
+        print(f"total_files_checked={result.total_files_checked}")
+        print(f"exact_hash_groups={result.exact_hash_groups}")
+        print(f"same_artist_title_groups={result.same_artist_title_groups}")
+        print(f"probable_variant_groups={result.variant_title_groups}")
         return 0
 
     parser.error(f"unknown command: {args.command}")

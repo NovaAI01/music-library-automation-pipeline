@@ -255,6 +255,40 @@ CREATE TABLE IF NOT EXISTS review_reports (
     created_at TEXT NOT NULL,
     FOREIGN KEY (scan_run_id) REFERENCES scan_runs(id)
 );
+
+CREATE TABLE IF NOT EXISTS duplicate_reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    scan_run_id INTEGER NOT NULL,
+    library_root TEXT NOT NULL,
+    report_path TEXT NOT NULL,
+    total_files_checked INTEGER NOT NULL,
+    exact_hash_groups INTEGER NOT NULL,
+    same_artist_title_groups INTEGER NOT NULL,
+    variant_title_groups INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (scan_run_id) REFERENCES scan_runs(id)
+);
+
+CREATE TABLE IF NOT EXISTS duplicate_candidates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    report_id INTEGER NOT NULL,
+    duplicate_group_key TEXT NOT NULL,
+    duplicate_type TEXT NOT NULL CHECK (
+        duplicate_type IN (
+            'exact_hash',
+            'same_artist_title',
+            'probable_variant'
+        )
+    ),
+    artist TEXT,
+    normalized_title TEXT,
+    file_path TEXT NOT NULL,
+    file_size_bytes INTEGER NOT NULL,
+    sha256 TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (report_id) REFERENCES duplicate_reports(id)
+);
 """
 
 

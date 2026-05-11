@@ -1,0 +1,25 @@
+{% extends "manual_review/base.html" %}
+{% block content %}
+<table>
+  <thead>
+    <tr>
+      {% for header in headers %}
+        <th>{{ header }}</th>
+      {% else %}
+        <th>Report Rows</th>
+      {% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+      <tr>
+        {% for header in headers %}
+          <td{% if "path" in header %} class="path"{% endif %}>{{ row.get(header, "") }}</td>
+        {% endfor %}
+      </tr>
+    {% else %}
+      <tr><td class="empty" colspan="{{ headers|length if headers else 1 }}">{{ empty_message }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends "manual_review/base.html" %}
+{% block content %}
+<table>
+  <thead>
+    <tr>
+      <th>Filename</th>
+      <th>Artist / Path</th>
+      <th class="num">Size Bytes</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for file in files %}
+      <tr>
+        <td>{{ file.filename }}</td>
+        <td class="path">{{ file.artist_path }}</td>
+        <td class="num">{{ file.size_bytes }}</td>
+      </tr>
+    {% else %}
+      <tr><td class="empty" colspan="3">No quarantined duplicate rows available.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

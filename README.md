@@ -261,6 +261,26 @@ Routes:
 /reports/duplicates
 ```
 
+## Manual Review UI
+
+`app/manual_review_ui.py` exposes read-only manual review screens for unresolved
+items and quarantined duplicates. It reads generated report files only:
+`reports/library_qa/library_qa_summary.json`, `reports/library_qa/file_health.csv`,
+`reports/scan_1/conflicts.csv`, and `reports/scan_1/blocked_items.csv`. Missing
+files render as empty states with a notice.
+
+Routes:
+
+```text
+/review
+/review/quarantine
+/review/conflicts
+/review/blocked
+```
+
+The manual review UI does not delete files, move files, restore files, modify
+metadata, mutate audio files, or execute quarantine actions.
+
 Run the UI with a FastAPI server, for example:
 
 ```bash

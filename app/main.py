@@ -15,6 +15,7 @@ from app.duplicate_review import generate_duplicate_review_plan
 from app.identity_engine import identify_scan_run
 from app.intake import run_intake
 from app.library_qa import generate_library_qa_report
+from app.manual_review_ui import router as manual_review_ui_router
 from app.pipeline import run_intake_pipeline
 from app.placement_executor import execute_placement
 from app.placement_planner import plan_scan_run_placements
@@ -32,6 +33,7 @@ from app.scanner import scan
 
 app = FastAPI(title="Music Library Reports")
 app.include_router(report_ui_router)
+app.include_router(manual_review_ui_router)
 
 
 def build_parser() -> argparse.ArgumentParser:

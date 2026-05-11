@@ -156,6 +156,20 @@ identity and classification evidence using `Primary Genre/Subgenre/Artist` and
 `Artist - Title.ext`. It writes only `placement_plans` rows and does not copy,
 move, convert, delete, or mutate music files.
 
+## Placement Executor
+
+`app/placement_executor.py` copies only `placement_plans` rows with
+`placement_status = planned` into a user-provided output root:
+
+```bash
+python -m app.main execute-placement --scan-run-id 1 --dest ~/Music/Organised_Library
+```
+
+It records each run in `placement_executions` and per-file results in
+`placement_execution_files`. It creates destination folders, skips existing
+destination files, rejects absolute or traversing planned paths, and never
+moves, deletes, converts, or overwrites music files.
+
 ## Review Reports
 
 `app/review_report.py` exports placement plans into stable JSON and CSV files

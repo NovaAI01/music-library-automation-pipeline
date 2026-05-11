@@ -10,6 +10,7 @@ from app.classifier import classify_scan_run
 from app.identity_engine import identify_scan_run
 from app.intake import run_intake
 from app.pipeline import run_intake_pipeline
+from app.placement_executor import execute_placement
 from app.placement_planner import plan_scan_run_placements
 from app.purchase_gateway import (
     add_purchase_option,
@@ -110,6 +111,12 @@ def build_parser() -> argparse.ArgumentParser:
         "plan-placement", help="Create deterministic placement plans for a scan run."
     )
     placement_parser.add_argument("--scan-run-id", required=True, type=int)
+
+    execute_placement_parser = subparsers.add_parser(
+        "execute-placement", help="Copy planned placement rows into an output root."
+    )
+    execute_placement_parser.add_argument("--scan-run-id", required=True, type=int)
+    execute_placement_parser.add_argument("--dest", required=True)
 
     review_parser = subparsers.add_parser(
         "review-report", help="Export reviewable reports for placement plans."
@@ -266,6 +273,20 @@ def main(argv: list[str] | None = None) -> int:
             f"{summary.blocked_unknown_classification}"
         )
         print(f"conflict={summary.conflict}")
+        return 0
+
+    if args.command == "execute-placement":
+        result = execute_placement(
+            scan_run_id=args.scan_run_id,
+            output_root=args.dest,
+            db_path=db_path,
+        )
+        print(f"execution_id={result.execution_id}")
+        print(f"output_root={result.output_root}")
+        print(f"total_planned={result.total_planned}")
+        print(f"copied={result.copied_count}")
+        print(f"skipped={result.skipped_count}")
+        print(f"failed={result.failed_count}")
         return 0
 
     if args.command == "review-report":

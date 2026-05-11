@@ -216,6 +216,33 @@ CREATE TABLE IF NOT EXISTS placement_plans (
     FOREIGN KEY (scan_run_id) REFERENCES scan_runs(id)
 );
 
+CREATE TABLE IF NOT EXISTS placement_executions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    scan_run_id INTEGER NOT NULL,
+    output_root TEXT NOT NULL,
+    execution_status TEXT NOT NULL,
+    total_planned INTEGER NOT NULL,
+    copied_count INTEGER NOT NULL,
+    skipped_count INTEGER NOT NULL,
+    failed_count INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+    completed_at TEXT,
+    FOREIGN KEY (scan_run_id) REFERENCES scan_runs(id)
+);
+
+CREATE TABLE IF NOT EXISTS placement_execution_files (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    execution_id INTEGER NOT NULL,
+    placement_plan_id INTEGER NOT NULL,
+    source_path TEXT NOT NULL,
+    destination_path TEXT NOT NULL,
+    file_status TEXT NOT NULL,
+    reason TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (execution_id) REFERENCES placement_executions(id),
+    FOREIGN KEY (placement_plan_id) REFERENCES placement_plans(id)
+);
+
 CREATE TABLE IF NOT EXISTS review_reports (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     scan_run_id INTEGER NOT NULL,

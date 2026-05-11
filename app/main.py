@@ -8,6 +8,7 @@ from pathlib import Path
 from app import db
 from app.classifier import classify_scan_run
 from app.duplicate_report import generate_duplicate_report
+from app.duplicate_review import generate_duplicate_review_plan
 from app.identity_engine import identify_scan_run
 from app.intake import run_intake
 from app.pipeline import run_intake_pipeline
@@ -132,6 +133,15 @@ def build_parser() -> argparse.ArgumentParser:
     duplicate_parser.add_argument("--scan-run-id", required=True, type=int)
     duplicate_parser.add_argument("--library-root", required=True)
     duplicate_parser.add_argument("--out", default="reports")
+
+    duplicate_review_parser = subparsers.add_parser(
+        "duplicate-review",
+        help="Create read-only keep/remove recommendations for duplicates.",
+    )
+    duplicate_review_parser.add_argument(
+        "--duplicate-report-id", required=True, type=int
+    )
+    duplicate_review_parser.add_argument("--out", default="reports")
 
     return parser
 
@@ -324,6 +334,19 @@ def main(argv: list[str] | None = None) -> int:
         print(f"exact_hash_groups={result.exact_hash_groups}")
         print(f"same_artist_title_groups={result.same_artist_title_groups}")
         print(f"probable_variant_groups={result.variant_title_groups}")
+        return 0
+
+    if args.command == "duplicate-review":
+        result = generate_duplicate_review_plan(
+            duplicate_report_id=args.duplicate_report_id,
+            out_dir=args.out,
+            db_path=db_path,
+        )
+        print(f"plan_path={result.plan_path}")
+        print(f"total_groups={result.total_groups}")
+        print(f"files_reviewed={result.total_files_reviewed}")
+        print(f"keeper_count={result.keeper_count}")
+        print(f"remove_candidate_count={result.remove_candidate_count}")
         return 0
 
     parser.error(f"unknown command: {args.command}")

@@ -289,6 +289,37 @@ CREATE TABLE IF NOT EXISTS duplicate_candidates (
     created_at TEXT NOT NULL,
     FOREIGN KEY (report_id) REFERENCES duplicate_reports(id)
 );
+
+CREATE TABLE IF NOT EXISTS duplicate_review_plans (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    duplicate_report_id INTEGER NOT NULL,
+    scan_run_id INTEGER NOT NULL,
+    plan_path TEXT NOT NULL,
+    total_groups INTEGER NOT NULL,
+    total_files_reviewed INTEGER NOT NULL,
+    keeper_count INTEGER NOT NULL,
+    remove_candidate_count INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (duplicate_report_id) REFERENCES duplicate_reports(id),
+    FOREIGN KEY (scan_run_id) REFERENCES scan_runs(id)
+);
+
+CREATE TABLE IF NOT EXISTS duplicate_review_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    review_plan_id INTEGER NOT NULL,
+    duplicate_group_key TEXT NOT NULL,
+    file_path TEXT NOT NULL,
+    decision TEXT NOT NULL CHECK (
+        decision IN (
+            'keep_candidate',
+            'remove_candidate',
+            'manual_review'
+        )
+    ),
+    reason TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (review_plan_id) REFERENCES duplicate_review_plans(id)
+);
 """
 
 

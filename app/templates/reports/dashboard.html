@@ -1,0 +1,11 @@
+{% extends "reports/base.html" %}
+{% block content %}
+<section class="cards">
+  {% for label, value in cards %}
+    <article class="card">
+      <div class="label">{{ label }}</div>
+      <div class="value">{{ value }}</div>
+    </article>
+  {% endfor %}
+</section>
+{% endblock %}

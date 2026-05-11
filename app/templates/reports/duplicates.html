@@ -1,0 +1,60 @@
+{% extends "reports/base.html" %}
+{% block content %}
+<div class="stack">
+  <section class="group">
+    <h2>Active Duplicate Groups</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Group</th>
+          <th>Type</th>
+          <th>Artist</th>
+          <th>Title</th>
+          <th class="num">Files</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for group in active_groups %}
+          <tr>
+            <td class="path">{{ group.key }}</td>
+            <td>{{ group.type }}</td>
+            <td>{{ group.artist }}</td>
+            <td>{{ group.title }}</td>
+            <td class="num">{{ group.files|length }}</td>
+          </tr>
+        {% else %}
+          <tr><td class="empty" colspan="5">No active duplicate groups available.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="group">
+    <h2>Historical Duplicate Groups</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Group</th>
+          <th>Type</th>
+          <th>Artist</th>
+          <th>Title</th>
+          <th class="num">Files</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for group in historical_groups %}
+          <tr>
+            <td class="path">{{ group.key }}</td>
+            <td>{{ group.type }}</td>
+            <td>{{ group.artist }}</td>
+            <td>{{ group.title }}</td>
+            <td class="num">{{ group.files|length }}</td>
+          </tr>
+        {% else %}
+          <tr><td class="empty" colspan="5">No historical duplicate groups available.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</div>
+{% endblock %}

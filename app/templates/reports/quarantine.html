@@ -1,0 +1,45 @@
+{% extends "reports/base.html" %}
+{% block content %}
+<div class="stack">
+  <table>
+    <thead>
+      <tr>
+        <th>Path</th>
+        <th>Extension</th>
+        <th class="num">Size Bytes</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for file in files %}
+        <tr>
+          <td class="path">{{ file.path }}</td>
+          <td>{{ file.extension }}</td>
+          <td class="num">{{ file.size_bytes }}</td>
+        </tr>
+      {% else %}
+        <tr><td class="empty" colspan="3">No quarantined file rows available.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <table>
+    <thead>
+      <tr>
+        <th>Extension</th>
+        <th class="num">Files</th>
+        <th class="num">Size Bytes</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in summary %}
+        <tr>
+          <td>{{ row.extension }}</td>
+          <td class="num">{{ row.file_count }}</td>
+          <td class="num">{{ row.size_bytes }}</td>
+        </tr>
+      {% else %}
+        <tr><td class="empty" colspan="3">No quarantine summary rows available.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

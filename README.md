@@ -241,3 +241,31 @@ quarantine is considered.
 ```bash
 python -m app.main library-qa --library-root ~/Music/Organised_Library --quarantine-root ~/Music/Quarantine_Duplicates --out reports
 ```
+
+## Library Reports UI
+
+`app/report_ui.py` exposes a read-only FastAPI/Jinja2 UI for generated report
+files. It reads existing `reports/library_qa/` CSV and JSON files plus
+`reports/duplicates_scan_*/` duplicate report files, handles missing files with
+empty states, and does not generate reports, move files, delete files, mutate
+metadata, modify reports, or execute quarantine actions.
+
+Routes:
+
+```text
+/reports
+/reports/artists
+/reports/genres
+/reports/quarantine
+/reports/file-health
+/reports/duplicates
+```
+
+Run the UI with a FastAPI server, for example:
+
+```bash
+uvicorn app.main:app --reload
+```
+
+Set `MUSIC_LIBRARY_REPORTS_DIR` before starting the server to read reports from
+a directory other than `reports`.

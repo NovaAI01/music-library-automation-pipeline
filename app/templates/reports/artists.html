@@ -1,0 +1,27 @@
+{% extends "reports/base.html" %}
+{% block content %}
+<table>
+  <thead>
+    <tr>
+      <th>Artist</th>
+      <th>Library Locations</th>
+      <th class="num">Files</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for artist in artists %}
+      <tr>
+        <td>{{ artist.artist }}</td>
+        <td>
+          {% for location in artist.locations %}
+            {{ location.genre }}{% if location.subgenre %} / {{ location.subgenre }}{% endif %} ({{ location.file_count }}){% if not loop.last %}<br>{% endif %}
+          {% endfor %}
+        </td>
+        <td class="num">{{ artist.file_count }}</td>
+      </tr>
+    {% else %}
+      <tr><td class="empty" colspan="3">No artist report rows available.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

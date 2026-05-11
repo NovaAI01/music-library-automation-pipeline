@@ -1,0 +1,29 @@
+{% extends "reports/base.html" %}
+{% block content %}
+<form method="get" action="/reports/file-health">
+  <input name="q" value="{{ query }}" placeholder="Search files, extensions, or status">
+  <button type="submit">Search</button>
+</form>
+<table>
+  <thead>
+    <tr>
+      <th>Path</th>
+      <th>Status</th>
+      <th>Extension</th>
+      <th class="num">Size Bytes</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+      <tr>
+        <td class="path">{{ row.path }}</td>
+        <td>{{ row.status }}</td>
+        <td>{{ row.extension }}</td>
+        <td class="num">{{ row.size_bytes }}</td>
+      </tr>
+    {% else %}
+      <tr><td class="empty" colspan="4">No file health rows available.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

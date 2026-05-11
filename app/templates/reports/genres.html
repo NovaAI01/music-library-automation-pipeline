@@ -1,0 +1,30 @@
+{% extends "reports/base.html" %}
+{% block content %}
+<div class="stack">
+  {% for genre in genres %}
+    <section class="group">
+      <h2>{{ genre.genre }} · {{ genre.file_count }} files · {{ genre.artist_count }} artists</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Subgenre</th>
+            <th class="num">Artists</th>
+            <th class="num">Files</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for subgenre in genre.subgenres %}
+            <tr>
+              <td>{{ subgenre.subgenre }}</td>
+              <td class="num">{{ subgenre.artist_count }}</td>
+              <td class="num">{{ subgenre.file_count }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  {% else %}
+    <table><tbody><tr><td class="empty">No genre report rows available.</td></tr></tbody></table>
+  {% endfor %}
+</div>
+{% endblock %}

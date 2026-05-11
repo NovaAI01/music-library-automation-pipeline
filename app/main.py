@@ -5,6 +5,8 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from fastapi import FastAPI
+
 from app import db
 from app.classifier import classify_scan_run
 from app.duplicate_quarantine import quarantine_duplicates
@@ -23,8 +25,13 @@ from app.purchase_gateway import (
     create_purchase_request,
     unlock_intake,
 )
+from app.report_ui import router as report_ui_router
 from app.review_report import generate_review_report
 from app.scanner import scan
+
+
+app = FastAPI(title="Music Library Reports")
+app.include_router(report_ui_router)
 
 
 def build_parser() -> argparse.ArgumentParser:

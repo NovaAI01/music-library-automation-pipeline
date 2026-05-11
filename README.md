@@ -233,7 +233,10 @@ library and duplicate quarantine folder. It writes `library_qa_summary.json`,
 under `reports/library_qa/`. The report counts files and folder-derived
 taxonomy from the filesystem, uses duplicate and placement ledger tables when
 available, and does not move, delete, rewrite metadata, modify audio, or alter
-placement plans.
+placement plans. Duplicate health separates active live-library duplicate
+groups from historical duplicate records, and missing-file health separates
+stale placement references from unresolved missing files after duplicate
+quarantine is considered.
 
 ```bash
 python -m app.main library-qa --library-root ~/Music/Organised_Library --quarantine-root ~/Music/Quarantine_Duplicates --out reports

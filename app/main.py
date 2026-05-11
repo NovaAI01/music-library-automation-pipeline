@@ -395,8 +395,17 @@ def main(argv: list[str] | None = None) -> int:
         print(f"genre_count={result.genre_count}")
         print(f"subgenre_count={result.subgenre_count}")
         print(f"artist_count={result.artist_count}")
-        print(f"duplicate_group_count={result.duplicate_group_count}")
+        print(f"active_duplicate_group_count={result.active_duplicate_group_count}")
+        print(
+            "historical_duplicate_group_count="
+            f"{result.historical_duplicate_group_count}"
+        )
+        print(
+            "quarantined_duplicate_file_count="
+            f"{result.quarantined_duplicate_file_count}"
+        )
         print(f"missing_file_count={result.missing_file_count}")
+        print(f"unresolved_missing_file_count={result.unresolved_missing_file_count}")
         return 0
 
     parser.error(f"unknown command: {args.command}")

@@ -34,8 +34,11 @@ class LibraryQAResult:
     genre_count: int
     subgenre_count: int
     artist_count: int
-    duplicate_group_count: int
+    active_duplicate_group_count: int
+    historical_duplicate_group_count: int
+    quarantined_duplicate_file_count: int
     missing_file_count: int
+    unresolved_missing_file_count: int
 
 
 @dataclass(frozen=True)
@@ -70,11 +73,21 @@ def generate_library_qa_report(
         root_label="quarantine",
     )
     missing_files = _missing_placement_records(library_root_path, db_path)
+    unresolved_missing_files = _unresolved_missing_records(
+        missing_files,
+        library_root=library_root_path,
+        quarantine_root=quarantine_root_path,
+        db_path=db_path,
+    )
 
     artists = _artist_rows(library_files)
     genres = _genre_rows(library_files)
     quarantine_summary = _quarantine_rows(quarantine_files)
-    duplicate_group_count = _duplicate_group_count(db_path)
+    active_duplicate_group_count = _active_duplicate_group_count(
+        library_root_path,
+        db_path,
+    )
+    historical_duplicate_group_count = _historical_duplicate_group_count(db_path)
     created_at = datetime.now(UTC).isoformat()
 
     summary = {
@@ -91,8 +104,11 @@ def generate_library_qa_report(
             {(row["genre"], row["subgenre"]) for row in genres if row["subgenre"]}
         ),
         "artist_count": len({row["artist"] for row in artists}),
-        "duplicate_group_count": duplicate_group_count,
+        "active_duplicate_group_count": active_duplicate_group_count,
+        "historical_duplicate_group_count": historical_duplicate_group_count,
+        "quarantined_duplicate_file_count": len(quarantine_files),
         "missing_file_count": len(missing_files),
+        "unresolved_missing_file_count": len(unresolved_missing_files),
         "created_at": created_at,
     }
 
@@ -118,8 +134,11 @@ def generate_library_qa_report(
         genre_count=summary["genre_count"],
         subgenre_count=summary["subgenre_count"],
         artist_count=summary["artist_count"],
-        duplicate_group_count=duplicate_group_count,
+        active_duplicate_group_count=summary["active_duplicate_group_count"],
+        historical_duplicate_group_count=summary["historical_duplicate_group_count"],
+        quarantined_duplicate_file_count=summary["quarantined_duplicate_file_count"],
         missing_file_count=summary["missing_file_count"],
+        unresolved_missing_file_count=summary["unresolved_missing_file_count"],
     )
 
 
@@ -268,7 +287,94 @@ def _missing_placement_records(
     return records
 
 
-def _duplicate_group_count(db_path: str | Path) -> int:
+def _unresolved_missing_records(
+    records: list[FileRecord],
+    *,
+    library_root: Path,
+    quarantine_root: Path,
+    db_path: str | Path,
+) -> list[FileRecord]:
+    quarantined_sources = _quarantined_source_paths(db_path)
+    library_root_resolved = library_root.resolve(strict=False)
+    quarantine_root_resolved = quarantine_root.resolve(strict=False)
+
+    unresolved: list[FileRecord] = []
+    for record in records:
+        destination = record.path.expanduser()
+        destination_resolved = destination.resolve(strict=False)
+        if str(destination_resolved) in quarantined_sources:
+            continue
+        try:
+            relative_path = destination_resolved.relative_to(library_root_resolved)
+        except ValueError:
+            unresolved.append(record)
+            continue
+        quarantine_path = quarantine_root_resolved / relative_path
+        if quarantine_path.is_file():
+            continue
+        unresolved.append(record)
+    return unresolved
+
+
+def _quarantined_source_paths(db_path: str | Path) -> set[str]:
+    database_path = Path(db_path).expanduser()
+    if not database_path.exists():
+        return set()
+
+    rows = _safe_query(
+        database_path,
+        """
+        SELECT source_path, quarantine_path
+        FROM duplicate_quarantine_items
+        WHERE item_status IN ('moved', 'skipped_exists')
+        """,
+    )
+    if rows is None:
+        return set()
+
+    paths: set[str] = set()
+    for row in rows:
+        quarantine_path = Path(row["quarantine_path"]).expanduser()
+        if quarantine_path.is_file():
+            paths.add(str(Path(row["source_path"]).expanduser().resolve(strict=False)))
+    return paths
+
+
+def _active_duplicate_group_count(library_root: Path, db_path: str | Path) -> int:
+    database_path = Path(db_path).expanduser()
+    if not database_path.exists():
+        return 0
+
+    rows = _safe_query(
+        database_path,
+        """
+        SELECT duplicate_group_key, file_path
+        FROM duplicate_candidates
+        ORDER BY duplicate_group_key, file_path
+        """,
+    )
+    if rows is None:
+        return 0
+
+    library_root_resolved = library_root.resolve(strict=False)
+    live_files_by_group: defaultdict[str, set[str]] = defaultdict(set)
+    for row in rows:
+        file_path = Path(row["file_path"]).expanduser()
+        if not file_path.is_absolute():
+            file_path = library_root / file_path
+        if not file_path.is_file():
+            continue
+        try:
+            resolved_file_path = file_path.resolve(strict=True)
+            resolved_file_path.relative_to(library_root_resolved)
+        except ValueError:
+            continue
+        live_files_by_group[row["duplicate_group_key"]].add(str(resolved_file_path))
+
+    return sum(1 for paths in live_files_by_group.values() if len(paths) >= 2)
+
+
+def _historical_duplicate_group_count(db_path: str | Path) -> int:
     database_path = Path(db_path).expanduser()
     if not database_path.exists():
         return 0

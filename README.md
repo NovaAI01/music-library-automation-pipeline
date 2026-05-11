@@ -261,6 +261,22 @@ quarantine is considered.
 python -m app.main library-qa --library-root ~/Music/Organised_Library --quarantine-root ~/Music/Quarantine_Duplicates --out reports
 ```
 
+## Metadata Audit Reports
+
+`app/metadata_audit.py` exports a read-only FLAC tag audit using `mutagen`.
+It writes `metadata_summary.json`, `inconsistent_artists.csv`,
+`inconsistent_titles.csv`, `missing_tags.csv`, and `malformed_tags.csv` under
+`reports/metadata_audit/`. The audit checks artist, album artist, album, title,
+genre, date, and track number tags for missing values, malformed track numbers,
+trailing or duplicate whitespace, separator and symbol inconsistencies,
+probable junk suffixes, inconsistent capitalization, and mixed casing within
+artist groups. It does not save tags, rewrite metadata, move files, delete
+files, or modify audio.
+
+```bash
+python -m app.main metadata-audit --library-root ~/Music/Organised_Library --out reports
+```
+
 ## Library Reports UI
 
 `app/report_ui.py` exposes a read-only FastAPI/Jinja2 UI for generated report

@@ -16,6 +16,7 @@ from app.identity_engine import identify_scan_run
 from app.intake import run_intake
 from app.library_qa import generate_library_qa_report
 from app.manual_review_ui import router as manual_review_ui_router
+from app.metadata_audit import generate_metadata_audit_report
 from app.pipeline import run_intake_pipeline
 from app.placement_executor import execute_placement
 from app.placement_planner import plan_scan_run_placements
@@ -179,6 +180,13 @@ def build_parser() -> argparse.ArgumentParser:
     library_qa_parser.add_argument("--library-root", required=True)
     library_qa_parser.add_argument("--quarantine-root", required=True)
     library_qa_parser.add_argument("--out", default="reports")
+
+    metadata_audit_parser = subparsers.add_parser(
+        "metadata-audit",
+        help="Export read-only FLAC metadata audit reports.",
+    )
+    metadata_audit_parser.add_argument("--library-root", required=True)
+    metadata_audit_parser.add_argument("--out", required=True)
 
     return parser
 
@@ -439,6 +447,27 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(f"missing_file_count={result.missing_file_count}")
         print(f"unresolved_missing_file_count={result.unresolved_missing_file_count}")
+        return 0
+
+    if args.command == "metadata-audit":
+        result = generate_metadata_audit_report(
+            library_root=args.library_root,
+            out_dir=args.out,
+        )
+        print(f"report_path={result.report_path}")
+        print(f"total_flac_files={result.total_flac_files}")
+        print(f"readable_flac_files={result.readable_flac_files}")
+        print(f"unreadable_flac_files={result.unreadable_flac_files}")
+        print(f"missing_tag_count={result.missing_tag_count}")
+        print(f"malformed_tag_count={result.malformed_tag_count}")
+        print(
+            "inconsistent_artist_group_count="
+            f"{result.inconsistent_artist_group_count}"
+        )
+        print(
+            "inconsistent_title_group_count="
+            f"{result.inconsistent_title_group_count}"
+        )
         return 0
 
     parser.error(f"unknown command: {args.command}")

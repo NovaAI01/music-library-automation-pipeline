@@ -2,3 +2,9 @@ __pycache__/
 *.pyc
 music_library.sqlite3
 reports/
+
+# local recovery/export bundles
+backup/
+
+# local recovery/export bundles
+backup/

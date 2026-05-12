@@ -285,7 +285,9 @@ python -m app.main capture-ui-screenshots
 ```
 
 Screenshots are written to `docs/screenshots/` using stable filenames for the
-portfolio views shown below.
+portfolio views shown below. The command prints `captured=<count>`,
+`failed=<count>`, and each generated file path; individual route failures are
+reported without stopping remaining captures.
 
 ## Demo Generation
 

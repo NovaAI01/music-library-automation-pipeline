@@ -529,9 +529,13 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "capture-ui-screenshots":
-        for path in capture_ui_screenshots():
+        result = capture_ui_screenshots()
+        failed_count = getattr(result, "failed_count", 0)
+        print(f"captured={len(result)}")
+        print(f"failed={failed_count}")
+        for path in result:
             print(path)
-        return 0
+        return 0 if result else 1
 
     if args.command == "generate-demo":
         result = generate_demo()

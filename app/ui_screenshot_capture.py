@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import sys
 from typing import Any, Callable
 from urllib.parse import urljoin
 
@@ -17,6 +18,31 @@ DEFAULT_VIEWPORT = {"width": 1440, "height": 1000}
 class ScreenshotTarget:
     route: str
     filename: str
+
+
+@dataclass(frozen=True)
+class ScreenshotFailure:
+    route: str
+    path: Path
+    error: str
+
+
+class ScreenshotCaptureResult(list[Path]):
+    def __init__(
+        self,
+        captured_paths: list[Path],
+        failures: list[ScreenshotFailure] | None = None,
+    ) -> None:
+        super().__init__(captured_paths)
+        self.failures = failures or []
+
+    @property
+    def captured_count(self) -> int:
+        return len(self)
+
+    @property
+    def failed_count(self) -> int:
+        return len(self.failures)
 
 
 SCREENSHOT_TARGETS = (
@@ -58,10 +84,11 @@ def capture_ui_screenshots(
     viewport: dict[str, int] | None = None,
     wait_after_load_ms: int = 500,
     playwright_factory: Callable[[], Any] | None = None,
-) -> list[Path]:
+) -> ScreenshotCaptureResult:
     root = ensure_output_dir(output_dir)
     viewport_size = viewport or DEFAULT_VIEWPORT
     generated_paths: list[Path] = []
+    failures: list[ScreenshotFailure] = []
     factory = playwright_factory or _load_playwright_factory()
 
     with factory() as playwright:
@@ -70,14 +97,35 @@ def capture_ui_screenshots(
             page = browser.new_page(viewport=viewport_size)
             for target in SCREENSHOT_TARGETS:
                 destination = root / target.filename
-                page.goto(target_url(base_url, target.route), wait_until="networkidle")
-                page.wait_for_timeout(wait_after_load_ms)
-                page.screenshot(path=str(destination), full_page=True)
-                generated_paths.append(destination)
+                try:
+                    page.goto(
+                        target_url(base_url, target.route),
+                        wait_until="domcontentloaded",
+                    )
+                    page.wait_for_selector("body", timeout=10000)
+                    page.wait_for_timeout(wait_after_load_ms)
+                    try:
+                        page.screenshot(path=str(destination), full_page=False)
+                    except Exception:
+                        page.wait_for_timeout(1000)
+                        page.screenshot(path=str(destination), full_page=False)
+                    generated_paths.append(destination)
+                except Exception as exc:
+                    failures.append(
+                        ScreenshotFailure(
+                            route=target.route,
+                            path=destination,
+                            error=str(exc),
+                        )
+                    )
+                    print(
+                        f"failed_route={target.route} path={destination} error={exc}",
+                        file=sys.stderr,
+                    )
         finally:
             browser.close()
 
-    return generated_paths
+    return ScreenshotCaptureResult(generated_paths, failures)
 
 
 def _load_playwright_factory() -> Callable[[], Any]:

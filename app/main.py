@@ -9,6 +9,7 @@ from fastapi import FastAPI
 
 from app import db
 from app.classifier import classify_scan_run
+from app.demo_generator import generate_demo
 from app.duplicate_quarantine import quarantine_duplicates
 from app.duplicate_report import generate_duplicate_report
 from app.duplicate_review import generate_duplicate_review_plan
@@ -200,6 +201,11 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser(
         "capture-ui-screenshots",
         help="Capture deterministic screenshots from the local report UI.",
+    )
+
+    subparsers.add_parser(
+        "generate-demo",
+        help="Generate deterministic local demo frames and an optional MP4.",
     )
 
     return parser
@@ -499,6 +505,19 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "capture-ui-screenshots":
         for path in capture_ui_screenshots():
             print(path)
+        return 0
+
+    if args.command == "generate-demo":
+        result = generate_demo()
+        print(f"frames_dir={result.frames_dir}")
+        print(f"manifest_path={result.manifest_path}")
+        print(f"script_path={result.script_path}")
+        if result.video_path is None:
+            print("video_path=")
+            print("ffmpeg_available=false")
+        else:
+            print(f"video_path={result.video_path}")
+            print("ffmpeg_available=true")
         return 0
 
     parser.error(f"unknown command: {args.command}")

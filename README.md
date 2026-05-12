@@ -266,6 +266,22 @@ python -m app.main capture-ui-screenshots
 Screenshots are written to `docs/screenshots/` using stable filenames for the
 portfolio views shown below.
 
+## Demo Generation
+
+Generate deterministic local demo artifacts from UI screenshots and read-only
+CLI evidence frames:
+
+```bash
+python -m app.main generate-demo
+```
+
+Dependencies: Python requirements, Playwright Chromium for UI screenshots, and
+optional `ffmpeg` for MP4 stitching. Outputs are written under `demo/`:
+`demo/frames/`, `demo/demo_script.md`, `demo/demo_manifest.json`, and
+`demo/demo.mp4` when `ffmpeg` is installed. This workflow does not perform live
+screen recording, voice synthesis, AI narration, schema changes, or media-file
+mutation.
+
 ## Sample Outputs
 
 Sanitized excerpts from generated reports are available under

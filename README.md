@@ -303,7 +303,8 @@ optional `ffmpeg` for MP4 stitching. Outputs are written under `demo/`:
 `demo/frames/`, `demo/demo_script.md`, `demo/demo_manifest.json`, and
 `demo/demo.mp4` when `ffmpeg` is installed. This workflow does not perform live
 screen recording, voice synthesis, AI narration, schema changes, or media-file
-mutation.
+mutation. Demo assets are regenerated from current report and review workflows
+each run.
 
 ## Sample Outputs
 

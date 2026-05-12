@@ -539,14 +539,16 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "generate-demo":
         result = generate_demo()
+        print(f"regenerated_screenshot_count={result.regenerated_screenshot_count}")
+        print(f"frame_count={len(result.frames)}")
         print(f"frames_dir={result.frames_dir}")
         print(f"manifest_path={result.manifest_path}")
         print(f"script_path={result.script_path}")
         if result.video_path is None:
-            print("video_path=")
+            print("output_video_path=")
             print("ffmpeg_available=false")
         else:
-            print(f"video_path={result.video_path}")
+            print(f"output_video_path={result.video_path}")
             print("ffmpeg_available=true")
         return 0
 

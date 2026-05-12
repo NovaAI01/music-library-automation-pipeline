@@ -14,7 +14,7 @@ from typing import Callable, Sequence
 
 from PIL import Image, ImageDraw, ImageFont
 
-from app.ui_screenshot_capture import capture_ui_screenshots
+from app.ui_screenshot_capture import capture_ui_screenshots, screenshot_targets
 
 
 DEFAULT_DEMO_DIR = Path("demo")
@@ -47,6 +47,7 @@ class DemoCommandResult:
 class DemoGenerationResult:
     frames_dir: Path
     frames: list[Path]
+    regenerated_screenshot_count: int
     commands: list[DemoCommandResult]
     script_path: Path
     manifest_path: Path
@@ -136,15 +137,21 @@ def generate_demo(
 ) -> DemoGenerationResult:
     root = Path(demo_dir)
     frames_dir = root / "frames"
+    frames_txt_path = root / "frames.txt"
     root.mkdir(parents=True, exist_ok=True)
+    if frames_dir.exists():
+        shutil.rmtree(frames_dir)
     frames_dir.mkdir(parents=True, exist_ok=True)
+    frames_txt_path.unlink(missing_ok=True)
 
     now = clock or _utc_now
     runner = command_runner or _run_command
     frames: list[Path] = []
     commands: list[DemoCommandResult] = []
 
-    frames.extend(screenshot_capture(output_dir=frames_dir))
+    captured_screenshots = screenshot_capture(output_dir=frames_dir)
+    screenshot_frames = _ordered_screenshot_frames(frames_dir, captured_screenshots)
+    frames.extend(screenshot_frames)
 
     for index, command in enumerate(evidence_commands(), start=len(frames) + 1):
         started_at = _timestamp(now())
@@ -177,9 +184,10 @@ def generate_demo(
 
     ffmpeg = ffmpeg_path if ffmpeg_path is not None else shutil.which("ffmpeg")
     video_path: Path | None = None
+    frames_txt_path.write_text(_concat_file(frames), encoding="utf-8")
     if ffmpeg:
         video_path = root / "demo.mp4"
-        stitch_frames(ffmpeg, frames, video_path, root / "frames.txt")
+        stitch_frames(ffmpeg, frames, video_path, frames_txt_path)
 
     manifest_path = root / "demo_manifest.json"
     write_manifest(
@@ -195,12 +203,30 @@ def generate_demo(
     return DemoGenerationResult(
         frames_dir=frames_dir,
         frames=frames,
+        regenerated_screenshot_count=len(captured_screenshots),
         commands=commands,
         script_path=script_path,
         manifest_path=manifest_path,
         video_path=video_path,
         ffmpeg_available=bool(ffmpeg),
     )
+
+
+def _ordered_screenshot_frames(
+    frames_dir: Path,
+    captured_screenshots: Sequence[Path],
+) -> list[Path]:
+    captured_paths = [Path(path) for path in captured_screenshots]
+    captured_set = {path.resolve() for path in captured_paths if path.exists()}
+    ordered_paths = [frames_dir / target.filename for target in screenshot_targets()]
+    frames = [path for path in ordered_paths if path.resolve() in captured_set]
+    known_names = {path.name for path in ordered_paths}
+    frames.extend(
+        path
+        for path in captured_paths
+        if path.exists() and path.name not in known_names
+    )
+    return frames
 
 
 def render_terminal_frame(

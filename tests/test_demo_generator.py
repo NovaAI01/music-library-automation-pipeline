@@ -9,6 +9,10 @@ from app.demo_generator import (
     render_terminal_frame,
 )
 from app.main import build_parser, main
+from app.ui_screenshot_capture import screenshot_targets
+
+
+PNG_BYTES = b"\x89PNG\r\n\x1a\n"
 
 
 def test_evidence_command_mapping_is_stable():
@@ -53,7 +57,7 @@ def test_generate_demo_creates_frames_manifest_and_script_without_ffmpeg(tmp_pat
 
     def fake_capture(*, output_dir):
         Path(output_dir).mkdir(parents=True, exist_ok=True)
-        screenshot.write_bytes(b"\x89PNG\r\n\x1a\n")
+        screenshot.write_bytes(PNG_BYTES)
         return [screenshot]
 
     def fake_runner(argv):
@@ -83,6 +87,7 @@ def test_generate_demo_creates_frames_manifest_and_script_without_ffmpeg(tmp_pat
     assert result.frames_dir == tmp_path / "demo" / "frames"
     assert result.frames_dir.is_dir()
     assert result.video_path is None
+    assert result.regenerated_screenshot_count == 1
     assert len(result.frames) == 5
     assert len(calls) == 4
     assert result.script_path.read_text(encoding="utf-8").startswith("# Demo Script")
@@ -98,13 +103,122 @@ def test_generate_demo_creates_frames_manifest_and_script_without_ffmpeg(tmp_pat
     assert manifest["commands"][0]["finished_at"] == "2026-01-01T12:01:00Z"
 
 
+def test_generate_demo_clears_stale_frames_before_rebuild(tmp_path):
+    demo_dir = tmp_path / "demo"
+    frames_dir = demo_dir / "frames"
+    frames_dir.mkdir(parents=True)
+    stale_frame = frames_dir / "99_stale.png"
+    stale_frame.write_bytes(PNG_BYTES)
+    (demo_dir / "frames.txt").write_text("file '/old/frame.png'\n", encoding="utf-8")
+
+    def fake_capture(*, output_dir):
+        screenshot = Path(output_dir) / "01_reports_dashboard.png"
+        screenshot.write_bytes(PNG_BYTES)
+        return [screenshot]
+
+    result = generate_demo(
+        demo_dir=demo_dir,
+        screenshot_capture=fake_capture,
+        command_runner=_completed_command,
+        clock=lambda: datetime(2026, 1, 1, tzinfo=timezone.utc),
+        ffmpeg_path="",
+    )
+
+    assert not stale_frame.exists()
+    assert all(path.exists() for path in result.frames)
+    assert "99_stale.png" not in (demo_dir / "frames.txt").read_text(encoding="utf-8")
+
+
+def test_generate_demo_orders_frames_from_current_screenshot_targets(tmp_path):
+    demo_dir = tmp_path / "demo"
+    target_paths = [
+        demo_dir / "frames" / target.filename for target in reversed(screenshot_targets())
+    ]
+
+    def fake_capture(*, output_dir):
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
+        for path in target_paths:
+            path.write_bytes(PNG_BYTES)
+        return target_paths
+
+    result = generate_demo(
+        demo_dir=demo_dir,
+        screenshot_capture=fake_capture,
+        command_runner=_completed_command,
+        clock=lambda: datetime(2026, 1, 1, tzinfo=timezone.utc),
+        ffmpeg_path="",
+    )
+
+    assert [path.name for path in result.frames[:6]] == [
+        "01_reports_dashboard.png",
+        "02_duplicate_report.png",
+        "03_library_qa.png",
+        "04_metadata_audit.png",
+        "05_manual_review.png",
+        "06_metadata_suggestions.png",
+    ]
+
+
+def test_generate_demo_includes_metadata_suggestions_in_frames_and_manifest(tmp_path):
+    demo_dir = tmp_path / "demo"
+
+    def fake_capture(*, output_dir):
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
+        paths = []
+        for target in screenshot_targets():
+            path = Path(output_dir) / target.filename
+            path.write_bytes(PNG_BYTES)
+            paths.append(path)
+        return paths
+
+    result = generate_demo(
+        demo_dir=demo_dir,
+        screenshot_capture=fake_capture,
+        command_runner=_completed_command,
+        clock=lambda: datetime(2026, 1, 1, tzinfo=timezone.utc),
+        ffmpeg_path="",
+    )
+
+    frames_txt = (demo_dir / "frames.txt").read_text(encoding="utf-8")
+    manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+
+    metadata_frame = str((demo_dir / "frames" / "06_metadata_suggestions.png"))
+    assert metadata_frame in [str(path) for path in result.frames]
+    assert "06_metadata_suggestions.png" in frames_txt
+    assert metadata_frame in manifest["frames"]
+
+
+def test_generate_demo_synchronizes_manifest_with_frames_txt(tmp_path):
+    demo_dir = tmp_path / "demo"
+
+    def fake_capture(*, output_dir):
+        screenshot = Path(output_dir) / "01_reports_dashboard.png"
+        screenshot.write_bytes(PNG_BYTES)
+        return [screenshot]
+
+    result = generate_demo(
+        demo_dir=demo_dir,
+        screenshot_capture=fake_capture,
+        command_runner=_completed_command,
+        clock=lambda: datetime(2026, 1, 1, tzinfo=timezone.utc),
+        ffmpeg_path="",
+    )
+
+    frames_txt = (demo_dir / "frames.txt").read_text(encoding="utf-8")
+    manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+
+    assert manifest["frames"] == [str(path) for path in result.frames]
+    for frame in result.frames:
+        assert str(frame.resolve()) in frames_txt
+
+
 def test_generate_demo_invokes_ffmpeg_when_available(tmp_path, monkeypatch):
     screenshot = tmp_path / "demo" / "frames" / "01_reports_dashboard.png"
     ffmpeg_calls = []
 
     def fake_capture(*, output_dir):
         Path(output_dir).mkdir(parents=True, exist_ok=True)
-        screenshot.write_bytes(b"\x89PNG\r\n\x1a\n")
+        screenshot.write_bytes(PNG_BYTES)
         return [screenshot]
 
     def fake_runner(argv):
@@ -142,6 +256,8 @@ def test_generate_demo_command_registration_behavior(monkeypatch, capsys, tmp_pa
 
     class FakeResult:
         frames_dir = tmp_path / "demo" / "frames"
+        frames = [frames_dir / "01_reports_dashboard.png"]
+        regenerated_screenshot_count = 1
         manifest_path = tmp_path / "demo" / "demo_manifest.json"
         script_path = tmp_path / "demo" / "demo_script.md"
         video_path = None
@@ -150,9 +266,20 @@ def test_generate_demo_command_registration_behavior(monkeypatch, capsys, tmp_pa
 
     assert main(["generate-demo"]) == 0
     assert capsys.readouterr().out.splitlines() == [
+        "regenerated_screenshot_count=1",
+        "frame_count=1",
         f"frames_dir={tmp_path / 'demo' / 'frames'}",
         f"manifest_path={tmp_path / 'demo' / 'demo_manifest.json'}",
         f"script_path={tmp_path / 'demo' / 'demo_script.md'}",
-        "video_path=",
+        "output_video_path=",
         "ffmpeg_available=false",
     ]
+
+
+def _completed_command(argv):
+    return subprocess.CompletedProcess(
+        args=list(argv),
+        returncode=0,
+        stdout="ok",
+        stderr="",
+    )

@@ -205,6 +205,7 @@ CREATE TABLE IF NOT EXISTS placement_plans (
     source_path TEXT NOT NULL,
     planned_relative_path TEXT,
     planned_artist TEXT,
+    planned_album TEXT,
     planned_title TEXT,
     planned_primary_genre TEXT,
     planned_subgenre TEXT,
@@ -415,6 +416,23 @@ def init_db(db_path: str | Path = DEFAULT_DB_PATH) -> None:
 
     with connect(db_path) as connection:
         connection.executescript(SCHEMA)
+        _ensure_column(connection, "placement_plans", "planned_album", "TEXT")
+
+
+def _ensure_column(
+    connection: sqlite3.Connection,
+    table_name: str,
+    column_name: str,
+    column_type: str,
+) -> None:
+    columns = {
+        row["name"]
+        for row in connection.execute(f"PRAGMA table_info({table_name})").fetchall()
+    }
+    if column_name not in columns:
+        connection.execute(
+            f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}"
+        )
 
 
 def get_scan_summary(

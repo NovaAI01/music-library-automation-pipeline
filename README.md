@@ -61,15 +61,18 @@ evidence preserved at each review boundary.
 - Scans local audio files and records observations in SQLite.
 - Resolves probable track identity from tags, filenames, parent folders, and
   controlled artist seed data.
+- Infers album groupings from FLAC album tags, album-like parent folders,
+  filename/title evidence, or the explicit `Unknown Album` fallback.
 - Classifies files using deterministic artist and genre rules.
-- Plans organized placement paths before copying files.
+- Plans album-aware organized placement paths before copying files.
 - Generates library QA, duplicate, metadata audit, metadata normalization, and
   metadata suggestion reports for review-based remediation.
 - Produces duplicate review plans and quarantines selected remove candidates.
 - Restores quarantined files from recorded ledger information.
 - Serves a read-only FastAPI/Jinja2 local music library UI over generated
-  reports, with album-aware browsing where the organized folder structure
-  contains album directories.
+  reports, with album-aware browsing from existing album folders, generated
+  album organization plans, or fallback grouping when tracks have no album
+  folder yet.
 - Plays organized local tracks through an HTML5 audio player when the browser
   supports the file format.
 
@@ -98,7 +101,7 @@ SQLite observation ledger
   |
   v
 Placement planner
-  - creates reviewable destination paths
+  - creates reviewable Genre / Artist / Album / Track destination paths
   - writes plans before file movement
   |
   v
@@ -153,6 +156,9 @@ Evidence is represented in generated report artifacts under:
 - Identity resolution from available local evidence without remote lookups.
 - Deterministic genre and subgenre classification from local rules.
 - Placement planning and copy execution for organized library output.
+- Plan-first album organization for existing libraries; the
+  `plan-album-organization` command writes CSV/JSON reports and never moves
+  files.
 - Library QA summaries for organized files, quarantine state, missing files, and
   duplicate status.
 - Duplicate report generation for exact hashes, same artist/title groups, and
@@ -227,12 +233,29 @@ python -m app.main metadata-suggestions \
   --metadata-plan reports/metadata_plan/metadata_plan.csv \
   --metadata-audit reports/metadata_audit \
   --out reports
+python -m app.main plan-album-organization \
+  --library-root ~/Music/Organised_Library \
+  --out reports
 python -m app.main duplicate-report \
   --scan-run-id 1 \
   --library-root ~/Music/Organised_Library \
   --out reports
 python -m app.main duplicate-review --duplicate-report-id 1 --out reports
 ```
+
+Album-aware organization is plan-first. The generated report lives under
+`reports/album_organization_plan/` and proposes paths in this shape:
+
+```text
+Genre/
+  Artist/
+    Album/
+      Artist - Track.flac
+```
+
+`plan-album-organization` does not move, delete, copy, or write metadata tags.
+It exists to make album folders reviewable before any future migration step, and
+to prepare the UI for proper artist -> album -> track browsing.
 
 Run duplicate quarantine and restore in dry-run mode:
 

@@ -7,6 +7,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 
+from app.album_organization import generate_album_organization_plan
 from app import db
 from app.classifier import classify_scan_run
 from app.demo_generator import generate_demo
@@ -210,6 +211,13 @@ def build_parser() -> argparse.ArgumentParser:
     metadata_suggestions_parser.add_argument("--metadata-plan", required=True)
     metadata_suggestions_parser.add_argument("--metadata-audit", required=True)
     metadata_suggestions_parser.add_argument("--out", default="reports")
+
+    album_organization_parser = subparsers.add_parser(
+        "plan-album-organization",
+        help="Create a read-only album-folder organization plan for a library.",
+    )
+    album_organization_parser.add_argument("--library-root", required=True)
+    album_organization_parser.add_argument("--out", default="reports")
 
     subparsers.add_parser(
         "capture-ui-screenshots",
@@ -529,6 +537,20 @@ def main(argv: list[str] | None = None) -> int:
         print(f"low_confidence_count={result.low_confidence_count}")
         print(f"requires_human_review_count={result.requires_human_review_count}")
         print(f"ai_enrichment_used={str(result.ai_enrichment_used).lower()}")
+        return 0
+
+    if args.command == "plan-album-organization":
+        result = generate_album_organization_plan(
+            library_root=args.library_root,
+            out_dir=args.out,
+        )
+        print(f"report_path={result.report_path}")
+        print(f"total_files={result.total_files}")
+        print(f"high_confidence={result.high_confidence}")
+        print(f"medium_confidence={result.medium_confidence}")
+        print(f"low_confidence={result.low_confidence}")
+        print(f"requires_review={result.requires_review}")
+        print(f"unknown_album_count={result.unknown_album_count}")
         return 0
 
     if args.command == "capture-ui-screenshots":

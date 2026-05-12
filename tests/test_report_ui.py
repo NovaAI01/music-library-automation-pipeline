@@ -91,6 +91,8 @@ def test_app_dashboard_route_renders_unified_navigation(tmp_path):
     assert "Local Music Library" in response.text
     assert "Total tracks" in response.text
     assert "Albums" in response.text
+    assert "Unknown albums" in response.text
+    assert "Album plan rows" in response.text
     assert "/import" in response.text
     assert "/library/albums" in response.text
     assert "/library/tracks" in response.text
@@ -139,6 +141,51 @@ def test_library_listing_routes_render(tmp_path):
     assert "Play album" in albums.text
     assert "Back to Library" in tracks.text
     assert "Dashboard</a>" in tracks.text
+
+
+def test_album_browser_not_empty_when_tracks_exist_without_album_folder(tmp_path):
+    client = _client(tmp_path)
+    _write_report_fixture(tmp_path)
+
+    response = client.get("/library/albums?q=Unknown")
+
+    assert response.status_code == 200
+    assert "Unknown Album" in response.text
+    assert "Static-X" in response.text
+
+
+def test_dashboard_uses_album_plan_metrics_when_available(tmp_path):
+    client = _client(tmp_path)
+    _write_report_fixture(tmp_path)
+    plan_dir = tmp_path / "reports" / "album_organization_plan"
+    plan_dir.mkdir(parents=True)
+    _write_json(
+        plan_dir / "album_organization_summary.json",
+        {
+            "total_files": 4,
+            "unknown_album_count": 2,
+        },
+    )
+    _write_csv(
+        plan_dir / "album_organization_plan.csv",
+        [
+            "current_path",
+            "proposed_path",
+            "artist",
+            "album",
+            "title",
+            "confidence",
+            "reason",
+            "requires_review",
+        ],
+        [],
+    )
+
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert "Album plan rows" in response.text
+    assert "4" in response.text
 
 
 def test_album_detail_route_lists_tracks_and_play_links(tmp_path):

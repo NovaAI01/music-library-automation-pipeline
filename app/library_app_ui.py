@@ -14,6 +14,11 @@ from fastapi.responses import FileResponse
 from fastapi.templating import Jinja2Templates
 
 from app import db
+from app.album_organization import (
+    UNKNOWN_ALBUM,
+    read_album_plan_rows,
+    read_album_plan_summary,
+)
 from app.manual_review_ui import _review_data
 from app.metadata_suggestion_ui import _read_suggestions
 from app.report_ui import (
@@ -61,9 +66,17 @@ def dashboard(request: Request):
     metadata = _metadata_summary(reports_dir)
     suggestions = _suggestion_summary(reports_dir)
     summary = qa["summary"]
+    tracks = _album_browser_tracks(
+        reports_dir,
+        qa["file_health"],
+        _library_root(request),
+    )
+    albums = _albums_from_tracks(tracks)
     cards = [
         ("Total tracks", summary.get("total_library_files", 0)),
-        ("Albums", summary.get("album_count", 0)),
+        ("Albums", len(albums)),
+        ("Unknown albums", _unknown_album_count(albums)),
+        ("Album plan rows", _album_plan_count(reports_dir)),
         ("Duplicate groups", len(duplicate_groups["active"])),
         ("Metadata issues", metadata["issue_count"]),
         ("Suggestions", suggestions["total"]),
@@ -94,9 +107,7 @@ def dashboard(request: Request):
             "cards": cards,
             "latest_reports": latest_reports,
             "quick_actions": quick_actions,
-            "top_albums": _albums_from_tracks(
-                _track_rows(qa["file_health"], _library_root(request))
-            )[:5],
+            "top_albums": albums[:5],
             "incomplete_album_count": _incomplete_album_count(
                 _track_rows(qa["file_health"], _library_root(request))
             ),
@@ -174,7 +185,11 @@ def library(request: Request):
 @router.get("/library/artists")
 def library_artists(request: Request, q: str = ""):
     qa = _library_qa(_reports_dir(request))
-    tracks = _track_rows(qa["file_health"], _library_root(request))
+    tracks = _album_browser_tracks(
+        _reports_dir(request),
+        qa["file_health"],
+        _library_root(request),
+    )
     return _render(
         request,
         "reports/artists.html",
@@ -199,6 +214,11 @@ def library_artists(request: Request, q: str = ""):
 def library_albums(request: Request, q: str = ""):
     qa = _library_qa(_reports_dir(request))
     library_root = _library_root(request)
+    tracks = _album_browser_tracks(
+        _reports_dir(request),
+        qa["file_health"],
+        library_root,
+    )
     return _render(
         request,
         "reports/albums.html",
@@ -209,7 +229,7 @@ def library_albums(request: Request, q: str = ""):
             "breadcrumbs": [("Library", "/library"), ("Albums", "")],
             "back_links": [("Back to Library", "/library")],
             "albums": _filter_rows(
-                _albums_from_tracks(_track_rows(qa["file_health"], library_root)),
+                _albums_from_tracks(tracks),
                 q,
             ),
             "query": q,
@@ -223,7 +243,11 @@ def library_albums(request: Request, q: str = ""):
 def library_album_detail(request: Request, album_key: str):
     qa = _library_qa(_reports_dir(request))
     library_root = _library_root(request)
-    tracks = _track_rows(qa["file_health"], library_root)
+    tracks = _album_browser_tracks(
+        _reports_dir(request),
+        qa["file_health"],
+        library_root,
+    )
     albums = _albums_from_tracks(tracks)
     album = next((item for item in albums if item["key"] == album_key), None)
     if album is None:
@@ -505,6 +529,36 @@ def _suggestion_summary(reports_dir: Path) -> dict[str, Any]:
     }
 
 
+def _album_browser_tracks(
+    reports_dir: Path,
+    rows: list[dict[str, str]],
+    library_root: Path,
+) -> list[dict[str, Any]]:
+    tracks = _track_rows(rows, library_root)
+    plan_by_path = _album_plan_by_current_path(reports_dir)
+    for track in tracks:
+        plan = plan_by_path.get(str(Path(track["path"]).expanduser()))
+        if not plan:
+            continue
+        track["artist"] = plan.get("artist") or track["artist"]
+        track["album"] = plan.get("album") or track["album"]
+        track["title"] = plan.get("title") or track["title"]
+    return tracks
+
+
+def _album_plan_by_current_path(reports_dir: Path) -> dict[str, dict[str, str]]:
+    return {
+        str(Path(row.get("current_path", "")).expanduser()): row
+        for row in read_album_plan_rows(reports_dir)
+        if row.get("current_path")
+    }
+
+
+def _album_plan_count(reports_dir: Path) -> int:
+    summary = read_album_plan_summary(reports_dir)
+    return _int_value(summary.get("total_files")) if summary else 0
+
+
 def _track_rows(rows: list[dict[str, str]], library_root: Path) -> list[dict[str, Any]]:
     tracks = []
     root = library_root.resolve()
@@ -545,10 +599,8 @@ def _track_rows(rows: list[dict[str, str]], library_root: Path) -> list[dict[str
 def _albums_from_tracks(tracks: list[dict[str, Any]]) -> list[dict[str, Any]]:
     albums: dict[str, dict[str, Any]] = {}
     for track in tracks:
-        album_title = track.get("album", "")
-        artist = track.get("artist", "")
-        if not album_title or not artist:
-            continue
+        album_title = track.get("album") or UNKNOWN_ALBUM
+        artist = track.get("artist") or "Unknown Artist"
         key = _album_key(
             track.get("genre", ""),
             track.get("subgenre", ""),
@@ -588,6 +640,10 @@ def _album_key(genre: str, subgenre: str, artist: str, album: str) -> str:
 
 def _incomplete_album_count(tracks: list[dict[str, Any]]) -> int:
     return sum(1 for track in tracks if not track.get("album"))
+
+
+def _unknown_album_count(albums: list[dict[str, Any]]) -> int:
+    return sum(1 for album in albums if album.get("title") == UNKNOWN_ALBUM)
 
 
 def _artists_with_albums(

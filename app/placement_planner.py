@@ -10,6 +10,7 @@ from pathlib import PurePosixPath
 from typing import Any
 
 from app import db
+from app.album_organization import infer_album
 
 
 PLACEMENT_STATUSES: frozenset[str] = frozenset(
@@ -30,6 +31,7 @@ class PlacementPlan:
     source_path: str
     planned_relative_path: str | None
     planned_artist: str | None
+    planned_album: str | None
     planned_title: str | None
     planned_primary_genre: str | None
     planned_subgenre: str | None
@@ -67,18 +69,19 @@ def build_planned_relative_path(
     primary_genre: str,
     subgenre: str | None,
     artist: str,
+    album: str,
     title: str,
     extension: str,
 ) -> str:
-    """Build the v1 relative placement path."""
+    """Build the album-aware relative placement path."""
 
     safe_primary = sanitize_path_component(primary_genre)
-    safe_subgenre = sanitize_path_component(subgenre or "_Unsorted")
     safe_artist = sanitize_path_component(artist)
+    safe_album = sanitize_path_component(album)
     safe_title = sanitize_path_component(title)
     safe_extension = _sanitize_extension(extension)
     filename = f"{safe_artist} - {safe_title}{safe_extension}"
-    relative = PurePosixPath(safe_primary, safe_subgenre, safe_artist, filename)
+    relative = PurePosixPath(safe_primary, safe_artist, safe_album, filename)
     return relative.as_posix()
 
 
@@ -132,6 +135,10 @@ def create_placement_plan(
     identity_confidence: float | None,
     probable_artist: str | None,
     probable_title: str | None,
+    probable_album: str | None = None,
+    tag_album: str | None = None,
+    parent_folder: str | None = None,
+    filename: str | None = None,
     classification_status: str | None,
     classification_confidence: float | None,
     primary_genre: str | None,
@@ -160,11 +167,19 @@ def create_placement_plan(
 
     planned_relative_path = None
     planned_subgenre = subgenre or "_Unsorted" if primary_genre else None
+    album_inference = infer_album(
+        album_tag=tag_album or probable_album,
+        parent_folder=parent_folder,
+        filename=filename,
+        title=probable_title,
+        artist=probable_artist,
+    )
     if status in {"planned", "needs_review"}:
         planned_relative_path = build_planned_relative_path(
             primary_genre=primary_genre or "_Unknown",
             subgenre=subgenre,
             artist=probable_artist or "_Unknown",
+            album=album_inference.album,
             title=probable_title or "_Unknown",
             extension=extension,
         )
@@ -181,6 +196,8 @@ def create_placement_plan(
     reason = {
         "identity_status": identity_status,
         "classification_status": classification_status,
+        "album_confidence": album_inference.confidence,
+        "album_reason": album_inference.reason,
         "reasons": reasons,
     }
     return PlacementPlan(
@@ -189,6 +206,9 @@ def create_placement_plan(
         source_path=source_path,
         planned_relative_path=planned_relative_path,
         planned_artist=probable_artist,
+        planned_album=(
+            album_inference.album if status in {"planned", "needs_review"} else None
+        ),
         planned_title=probable_title,
         planned_primary_genre=primary_genre,
         planned_subgenre=planned_subgenre,
@@ -213,19 +233,25 @@ def plan_scan_run_placements(
                 observed_files.source_path,
                 observed_files.relative_path,
                 observed_files.extension,
+                observed_files.parent_folder,
+                observed_files.filename,
                 track_identity.probable_artist,
+                track_identity.probable_album,
                 track_identity.probable_title,
                 track_identity.identity_confidence,
                 track_identity.identity_status,
                 classification_results.primary_genre,
                 classification_results.subgenre,
                 classification_results.classification_confidence,
-                classification_results.classification_status
+                classification_results.classification_status,
+                tag_observations.album AS tag_album
             FROM observed_files
             LEFT JOIN track_identity
                 ON track_identity.observed_file_id = observed_files.id
             LEFT JOIN classification_results
                 ON classification_results.observed_file_id = observed_files.id
+            LEFT JOIN tag_observations
+                ON tag_observations.observed_file_id = observed_files.id
             WHERE observed_files.scan_run_id = ?
             ORDER BY observed_files.id
             """,
@@ -262,7 +288,11 @@ def plan_scan_run_placements(
                 identity_status=row["identity_status"],
                 identity_confidence=row["identity_confidence"],
                 probable_artist=row["probable_artist"],
+                probable_album=row["probable_album"],
                 probable_title=row["probable_title"],
+                tag_album=row["tag_album"],
+                parent_folder=row["parent_folder"],
+                filename=row["filename"],
                 classification_status=row["classification_status"],
                 classification_confidence=row["classification_confidence"],
                 primary_genre=row["primary_genre"],
@@ -291,6 +321,7 @@ def _insert_placement_plan(connection, plan: PlacementPlan) -> None:
             source_path,
             planned_relative_path,
             planned_artist,
+            planned_album,
             planned_title,
             planned_primary_genre,
             planned_subgenre,
@@ -299,7 +330,7 @@ def _insert_placement_plan(connection, plan: PlacementPlan) -> None:
             reason_json,
             created_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             plan.observed_file_id,
@@ -307,6 +338,7 @@ def _insert_placement_plan(connection, plan: PlacementPlan) -> None:
             plan.source_path,
             plan.planned_relative_path,
             plan.planned_artist,
+            plan.planned_album,
             plan.planned_title,
             plan.planned_primary_genre,
             plan.planned_subgenre,

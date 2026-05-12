@@ -469,6 +469,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"genre_count={result.genre_count}")
         print(f"subgenre_count={result.subgenre_count}")
         print(f"artist_count={result.artist_count}")
+        print(f"album_count={result.album_count}")
         print(f"active_duplicate_group_count={result.active_duplicate_group_count}")
         print(
             "historical_duplicate_group_count="

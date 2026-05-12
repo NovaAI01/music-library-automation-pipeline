@@ -1,0 +1,33 @@
+{% extends "reports/base.html" %}
+{% block content %}
+<form method="get" action="/library/albums">
+  <input name="q" value="{{ query }}" placeholder="Search albums, artists, genres, or paths">
+  <button type="submit">Search</button>
+</form>
+<table>
+  <thead>
+    <tr>
+      <th>Album</th>
+      <th>Artist</th>
+      <th>Genre</th>
+      <th>Subgenre</th>
+      <th class="num">Tracks</th>
+      <th>Open</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for album in albums %}
+      <tr>
+        <td><a href="/library/albums/{{ album.key }}">{{ album.title }}</a></td>
+        <td><a href="/library/artists?q={{ album.artist }}">{{ album.artist }}</a></td>
+        <td><a href="/library/genres?q={{ album.genre }}">{{ album.genre }}</a></td>
+        <td>{{ album.subgenre }}</td>
+        <td class="num">{{ album.track_count }}</td>
+        <td><a class="play-link" href="/player?q={{ album.title }}">Play album</a></td>
+      </tr>
+    {% else %}
+      <tr><td class="empty" colspan="6">No album folders available.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

@@ -58,6 +58,19 @@ def test_counts_artists_from_folder_structure(tmp_path):
     }
 
 
+def test_counts_albums_from_album_folders(tmp_path):
+    library_root, quarantine_root = _make_library_fixture(tmp_path)
+
+    result = generate_library_qa_report(
+        library_root=library_root,
+        quarantine_root=quarantine_root,
+        out_dir=tmp_path / "reports",
+        db_path=tmp_path / "missing.sqlite3",
+    )
+
+    assert result.album_count == 1
+
+
 def test_counts_genres_and_subgenres_from_folder_structure(tmp_path):
     library_root, quarantine_root = _make_library_fixture(tmp_path)
 
@@ -87,6 +100,7 @@ def test_writes_json_summary(tmp_path):
     assert summary["library_root"] == str(library_root)
     assert summary["quarantine_root"] == str(quarantine_root)
     assert summary["total_library_files"] == 4
+    assert summary["album_count"] == 1
     assert summary["total_quarantine_files"] == 2
     assert summary["active_duplicate_group_count"] == 0
     assert summary["historical_duplicate_group_count"] == 0
@@ -166,6 +180,7 @@ def test_cli_works(tmp_path, capsys):
     assert f"report_path={out_dir / 'library_qa'}" in output
     assert "total_library_files=4" in output
     assert "total_quarantine_files=2" in output
+    assert "album_count=1" in output
     assert (out_dir / "library_qa" / "library_qa_summary.json").exists()
 
 
@@ -249,6 +264,7 @@ def test_historical_duplicate_count_is_preserved(tmp_path):
         / "Alternative Rock"
         / "Grunge"
         / "Nirvana"
+        / "Nevermind"
         / "Nirvana - Breed.wav",
     ]
     _insert_duplicate_candidates(db_path, paths, library_root=library_root)
@@ -279,6 +295,7 @@ def test_cli_output_uses_active_duplicate_group_count(tmp_path, capsys):
             / "Alternative Rock"
             / "Grunge"
             / "Nirvana"
+            / "Nevermind"
             / "Nirvana - Breed.wav",
         ],
         library_root=library_root,
@@ -330,6 +347,7 @@ def _make_library_fixture(tmp_path):
         / "Alternative Rock"
         / "Grunge"
         / "Nirvana"
+        / "Nevermind"
         / "Nirvana - Breed.wav",
         b"nirvana",
     )

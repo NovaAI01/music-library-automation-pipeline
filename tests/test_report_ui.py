@@ -1,5 +1,6 @@
 import csv
 import json
+import re
 
 from fastapi.testclient import TestClient
 
@@ -89,7 +90,9 @@ def test_app_dashboard_route_renders_unified_navigation(tmp_path):
     assert response.status_code == 200
     assert "Local Music Library" in response.text
     assert "Total tracks" in response.text
+    assert "Albums" in response.text
     assert "/import" in response.text
+    assert "/library/albums" in response.text
     assert "/library/tracks" in response.text
     assert "/player" in response.text
     assert 'class="active">Dashboard' in response.text
@@ -117,18 +120,40 @@ def test_library_listing_routes_render(tmp_path):
     artists = client.get("/library/artists?q=Static")
     genres = client.get("/library/genres?q=Alternative")
     tracks = client.get("/library/tracks?q=Push")
+    albums = client.get("/library/albums?q=Wisconsin")
 
     assert library.status_code == 200
     assert "Organized Browser" in library.text
+    assert "Albums" in library.text
     assert artists.status_code == 200
     assert "Static-X" in artists.text
+    assert "Wisconsin Death Trip" in artists.text
     assert genres.status_code == 200
     assert "Alternative Metal" in genres.text
     assert tracks.status_code == 200
     assert "Static-X - Push It.flac" in tracks.text
+    assert "Album" in tracks.text
     assert "/media/audio?path=Alternative%20Metal/Nu%20Metal/Static-X/Static-X%20-%20Push%20It.flac" in tracks.text
+    assert albums.status_code == 200
+    assert "Wisconsin Death Trip" in albums.text
+    assert "Play album" in albums.text
     assert "Back to Library" in tracks.text
     assert "Dashboard</a>" in tracks.text
+
+
+def test_album_detail_route_lists_tracks_and_play_links(tmp_path):
+    client = _client(tmp_path)
+    _write_report_fixture(tmp_path)
+
+    albums = client.get("/library/albums?q=Wisconsin")
+    album_key = re.search(r"/library/albums/([^\"?]+)", albums.text).group(1)
+    detail = client.get(f"/library/albums/{album_key}")
+
+    assert detail.status_code == 200
+    assert "Wisconsin Death Trip" in detail.text
+    assert "Static-X - Bled for Days.flac" in detail.text
+    assert "/media/audio?path=Alternative%20Metal/Nu%20Metal/Static-X/Wisconsin%20Death%20Trip/Static-X%20-%20Bled%20for%20Days.flac" in detail.text
+    assert "Back to Albums" in detail.text
 
 
 def test_unified_review_and_metadata_routes_render(tmp_path):
@@ -163,6 +188,7 @@ def test_player_and_settings_routes_render(tmp_path):
     assert player.status_code == 200
     assert "<audio" in player.text
     assert "Play file" in player.text
+    assert "Playable Albums" in player.text
     assert "Alternative Metal/Nu Metal/Static-X/Static-X - Push It.flac" in player.text
     assert settings.status_code == 200
     assert "Library root" in settings.text
@@ -215,6 +241,7 @@ def _write_report_fixture(tmp_path):
             "total_library_files": 4,
             "total_quarantine_files": 1,
             "artist_count": 2,
+            "album_count": 1,
             "genre_count": 2,
             "active_duplicate_group_count": 1,
             "unresolved_missing_file_count": 0,
@@ -278,8 +305,17 @@ def _write_report_fixture(tmp_path):
         / "Static-X"
         / "Static-X - Push It duplicate.flac"
     )
+    album_file = (
+        tmp_path
+        / "library"
+        / "Alternative Metal"
+        / "Nu Metal"
+        / "Static-X"
+        / "Wisconsin Death Trip"
+        / "Static-X - Bled for Days.flac"
+    )
     quarantine_file = tmp_path / "quarantine" / "duplicate.flac"
-    for path in (library_file, duplicate_file, quarantine_file):
+    for path in (library_file, duplicate_file, album_file, quarantine_file):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(b"audio")
     _write_csv(
@@ -294,6 +330,12 @@ def _write_report_fixture(tmp_path):
             },
             {
                 "path": str(duplicate_file),
+                "size_bytes": "100",
+                "extension": ".flac",
+                "status": "library_present",
+            },
+            {
+                "path": str(album_file),
                 "size_bytes": "100",
                 "extension": ".flac",
                 "status": "library_present",

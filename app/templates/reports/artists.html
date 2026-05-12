@@ -8,6 +8,7 @@
   <thead>
     <tr>
       <th>Artist</th>
+      <th>Albums</th>
       <th>Library Locations</th>
       <th class="num">Files</th>
     </tr>
@@ -17,6 +18,13 @@
       <tr>
         <td><a href="/library/tracks?q={{ artist.artist }}">{{ artist.artist }}</a></td>
         <td>
+          {% for album in artist.albums %}
+            <a href="/library/albums/{{ album.key }}">{{ album.title }}</a> ({{ album.track_count }}){% if not loop.last %}<br>{% endif %}
+          {% else %}
+            <span class="muted">No album folders</span>
+          {% endfor %}
+        </td>
+        <td>
           {% for location in artist.locations %}
             {{ location.genre }}{% if location.subgenre %} / {{ location.subgenre }}{% endif %} ({{ location.file_count }}){% if not loop.last %}<br>{% endif %}
           {% endfor %}
@@ -24,7 +32,7 @@
         <td class="num">{{ artist.file_count }}</td>
       </tr>
     {% else %}
-      <tr><td class="empty" colspan="3">No artist report rows available.</td></tr>
+      <tr><td class="empty" colspan="4">No artist report rows available.</td></tr>
     {% endfor %}
   </tbody>
 </table>

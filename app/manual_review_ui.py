@@ -224,6 +224,7 @@ def _nav_items() -> list[tuple[str, str]]:
         ("/import", "Import"),
         ("/library", "Library"),
         ("/library/artists", "Artists"),
+        ("/library/albums", "Albums"),
         ("/library/genres", "Genres"),
         ("/library/tracks", "Tracks"),
         ("/review", "Review"),

@@ -3,11 +3,12 @@
 A local-first music library management application powered by deterministic
 audit and remediation workflows.
 
-Local Music Library helps organize, review, and play a messy local music collection
-without cloud services, accounts, streaming integrations, or destructive
-automation. It observes files, records evidence, plans changes, exposes review
-checkpoints, quarantines known duplicate candidates, and restores from an audit
-trail. The project is built around deterministic rules and local SQLite state.
+Local Music Library helps organize, review, browse, and play a messy local music
+collection around Artists -> Albums -> Tracks without cloud services, accounts,
+streaming integrations, or destructive automation. It observes files, records
+evidence, plans changes, exposes review checkpoints, quarantines known duplicate
+candidates, and restores from an audit trail. The project is built around
+deterministic rules and local SQLite state.
 
 ## 1. Overview
 
@@ -20,7 +21,7 @@ Import messy music
   -> review issues
   -> review duplicates
   -> review metadata suggestions
-  -> browse organized library
+  -> browse organized artists, albums, and tracks
   -> play tracks locally
 ```
 
@@ -67,7 +68,8 @@ evidence preserved at each review boundary.
 - Produces duplicate review plans and quarantines selected remove candidates.
 - Restores quarantined files from recorded ledger information.
 - Serves a read-only FastAPI/Jinja2 local music library UI over generated
-  reports.
+  reports, with album-aware browsing where the organized folder structure
+  contains album directories.
 - Plays organized local tracks through an HTML5 audio player when the browser
   supports the file format.
 
@@ -264,6 +266,8 @@ Available routes include:
 /import
 /library
 /library/artists
+/library/albums
+/library/albums/{album_key}
 /library/genres
 /library/tracks
 /review

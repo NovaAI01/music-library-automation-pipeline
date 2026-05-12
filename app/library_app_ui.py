@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import os
 from collections import Counter
 from pathlib import Path
@@ -62,6 +63,7 @@ def dashboard(request: Request):
     summary = qa["summary"]
     cards = [
         ("Total tracks", summary.get("total_library_files", 0)),
+        ("Albums", summary.get("album_count", 0)),
         ("Duplicate groups", len(duplicate_groups["active"])),
         ("Metadata issues", metadata["issue_count"]),
         ("Suggestions", suggestions["total"]),
@@ -76,6 +78,7 @@ def dashboard(request: Request):
     quick_actions = [
         ("Import messy music", "/import"),
         ("Analyze library", "/library"),
+        ("Browse albums", "/library/albums"),
         ("Review issues", "/review"),
         ("Review duplicates", "/review/duplicates"),
         ("Review metadata", "/review/metadata"),
@@ -91,6 +94,12 @@ def dashboard(request: Request):
             "cards": cards,
             "latest_reports": latest_reports,
             "quick_actions": quick_actions,
+            "top_albums": _albums_from_tracks(
+                _track_rows(qa["file_health"], _library_root(request))
+            )[:5],
+            "incomplete_album_count": _incomplete_album_count(
+                _track_rows(qa["file_health"], _library_root(request))
+            ),
             "timestamp": summary.get("created_at") or metadata["timestamp"],
             "missing_files": [
                 *qa["missing_files"],
@@ -151,6 +160,7 @@ def library(request: Request):
             "cards": [
                 ("Total tracks", summary.get("total_library_files", 0)),
                 ("Artists", summary.get("artist_count", 0)),
+                ("Albums", summary.get("album_count", 0)),
                 ("Genres", summary.get("genre_count", 0)),
                 ("Quarantine files", summary.get("total_quarantine_files", 0)),
             ],
@@ -164,6 +174,7 @@ def library(request: Request):
 @router.get("/library/artists")
 def library_artists(request: Request, q: str = ""):
     qa = _library_qa(_reports_dir(request))
+    tracks = _track_rows(qa["file_health"], _library_root(request))
     return _render(
         request,
         "reports/artists.html",
@@ -173,8 +184,64 @@ def library_artists(request: Request, q: str = ""):
             "intro": "Find artists in the organized library and open their tracks from one place.",
             "breadcrumbs": [("Library", "/library"), ("Artists", "")],
             "back_links": [("Back to Library", "/library")],
-            "artists": _filter_rows(_artist_totals(qa["artists"]), q),
+            "artists": _filter_rows(
+                _artists_with_albums(_artist_totals(qa["artists"]), tracks),
+                q,
+            ),
             "query": q,
+            "timestamp": qa["summary"].get("created_at"),
+            "missing_files": qa["missing_files"],
+        },
+    )
+
+
+@router.get("/library/albums")
+def library_albums(request: Request, q: str = ""):
+    qa = _library_qa(_reports_dir(request))
+    library_root = _library_root(request)
+    return _render(
+        request,
+        "reports/albums.html",
+        {
+            "title": "Albums",
+            "eyebrow": "Library Browser",
+            "intro": "Browse album folders in the organized library and open their local tracks.",
+            "breadcrumbs": [("Library", "/library"), ("Albums", "")],
+            "back_links": [("Back to Library", "/library")],
+            "albums": _filter_rows(
+                _albums_from_tracks(_track_rows(qa["file_health"], library_root)),
+                q,
+            ),
+            "query": q,
+            "timestamp": qa["summary"].get("created_at"),
+            "missing_files": qa["missing_files"],
+        },
+    )
+
+
+@router.get("/library/albums/{album_key}")
+def library_album_detail(request: Request, album_key: str):
+    qa = _library_qa(_reports_dir(request))
+    library_root = _library_root(request)
+    tracks = _track_rows(qa["file_health"], library_root)
+    albums = _albums_from_tracks(tracks)
+    album = next((item for item in albums if item["key"] == album_key), None)
+    if album is None:
+        raise HTTPException(status_code=404, detail="Album not found")
+    return _render(
+        request,
+        "reports/album_detail.html",
+        {
+            "title": album["title"],
+            "eyebrow": "Album",
+            "intro": "Review the album grouping and play available local tracks.",
+            "breadcrumbs": [
+                ("Library", "/library"),
+                ("Albums", "/library/albums"),
+                (album["title"], ""),
+            ],
+            "back_links": [("Back to Albums", "/library/albums")],
+            "album": album,
             "timestamp": qa["summary"].get("created_at"),
             "missing_files": qa["missing_files"],
         },
@@ -326,6 +393,7 @@ def player(request: Request, q: str = ""):
         for row in _filter_rows(_track_rows(qa["file_health"], library_root), q)
         if row["playable"]
     ]
+    albums = _albums_from_tracks(rows)
     return _render(
         request,
         "reports/player.html",
@@ -336,6 +404,7 @@ def player(request: Request, q: str = ""):
             "back_links": [("Back to Library", "/library")],
             "selected": rows[0] if rows else None,
             "rows": rows[:50],
+            "albums": albums[:20],
             "query": q,
             "timestamp": qa["summary"].get("created_at"),
             "missing_files": qa["missing_files"],
@@ -448,7 +517,11 @@ def _track_rows(rows: list[dict[str, str]], library_root: Path) -> list[dict[str
             relative_path = resolved.relative_to(root)
         except ValueError:
             relative_path = None
-        parts = path.parts
+        display_parts = relative_path.parts if relative_path is not None else path.parts
+        genre = display_parts[0] if len(display_parts) >= 4 else ""
+        subgenre = display_parts[1] if len(display_parts) >= 4 else ""
+        artist = display_parts[2] if len(display_parts) >= 4 else ""
+        album = display_parts[3] if len(display_parts) >= 5 else ""
         playable = relative_path is not None and resolved.is_file()
         media_path = relative_path.as_posix() if relative_path else ""
         tracks.append(
@@ -456,9 +529,10 @@ def _track_rows(rows: list[dict[str, str]], library_root: Path) -> list[dict[str
                 "path": row.get("path", ""),
                 "relative_path": media_path,
                 "title": path.stem,
-                "artist": parts[-2] if len(parts) >= 2 else "",
-                "genre": parts[-4] if len(parts) >= 4 else "",
-                "subgenre": parts[-3] if len(parts) >= 3 else "",
+                "artist": artist,
+                "album": album,
+                "genre": genre,
+                "subgenre": subgenre,
                 "extension": row.get("extension", path.suffix),
                 "size_bytes": row.get("size_bytes", ""),
                 "playable": playable,
@@ -466,6 +540,66 @@ def _track_rows(rows: list[dict[str, str]], library_root: Path) -> list[dict[str
             }
         )
     return sorted(tracks, key=lambda item: item["path"].casefold())
+
+
+def _albums_from_tracks(tracks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    albums: dict[str, dict[str, Any]] = {}
+    for track in tracks:
+        album_title = track.get("album", "")
+        artist = track.get("artist", "")
+        if not album_title or not artist:
+            continue
+        key = _album_key(
+            track.get("genre", ""),
+            track.get("subgenre", ""),
+            artist,
+            album_title,
+        )
+        album = albums.setdefault(
+            key,
+            {
+                "key": key,
+                "title": album_title,
+                "artist": artist,
+                "genre": track.get("genre", ""),
+                "subgenre": track.get("subgenre", ""),
+                "track_count": 0,
+                "tracks": [],
+                "path": str(Path(track.get("relative_path") or track.get("path", "")).parent),
+            },
+        )
+        album["track_count"] += 1
+        album["tracks"].append(track)
+    for album in albums.values():
+        album["tracks"] = sorted(
+            album["tracks"],
+            key=lambda item: (item.get("relative_path") or item.get("path", "")).casefold(),
+        )
+    return sorted(
+        albums.values(),
+        key=lambda item: (-item["track_count"], item["artist"].casefold(), item["title"].casefold()),
+    )
+
+
+def _album_key(genre: str, subgenre: str, artist: str, album: str) -> str:
+    payload = "\0".join([genre, subgenre, artist, album]).encode("utf-8")
+    return base64.urlsafe_b64encode(payload).decode("ascii").rstrip("=")
+
+
+def _incomplete_album_count(tracks: list[dict[str, Any]]) -> int:
+    return sum(1 for track in tracks if not track.get("album"))
+
+
+def _artists_with_albums(
+    artists: list[dict[str, Any]],
+    tracks: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    albums_by_artist: dict[str, list[dict[str, Any]]] = {}
+    for album in _albums_from_tracks(tracks):
+        albums_by_artist.setdefault(album["artist"], []).append(album)
+    for artist in artists:
+        artist["albums"] = albums_by_artist.get(artist["artist"], [])
+    return artists
 
 
 def _filter_rows(rows: list[dict[str, Any]], query: str) -> list[dict[str, Any]]:
@@ -485,6 +619,7 @@ def _nav_items() -> list[tuple[str, str]]:
         ("/import", "Import"),
         ("/library", "Library"),
         ("/library/artists", "Artists"),
+        ("/library/albums", "Albums"),
         ("/library/genres", "Genres"),
         ("/library/tracks", "Tracks"),
         ("/review", "Review"),

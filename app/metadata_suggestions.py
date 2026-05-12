@@ -28,6 +28,7 @@ SUPPORTED_SUGGESTION_TYPES: tuple[str, ...] = (
     "artist_casing",
     "junk_suffix_removal",
     "separator_cleanup",
+    "missing_album",
     "missing_album_artist",
     "duplicate_whitespace_cleanup",
 )
@@ -149,6 +150,8 @@ def _suggestion_type(
 ) -> str | None:
     issue_types = {item.get("issue_type", "") for item in evidence}
     group_issues = " ".join(item.get("issue_types", "") for item in evidence)
+    if field == "album" and not current_value:
+        return "missing_album"
     if field == "album_artist" and not current_value:
         return "missing_album_artist"
     if "duplicate_whitespace" in issue_types or _DUPLICATE_WHITESPACE_RE.search(current_value):

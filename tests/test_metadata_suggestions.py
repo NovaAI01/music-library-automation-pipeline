@@ -20,11 +20,12 @@ def test_generates_deterministic_suggestions_without_api_key(tmp_path, monkeypat
     suggestions = _read_suggestions_json(tmp_path)
 
     assert result.ai_enrichment_used is False
-    assert result.total_suggestions == 5
+    assert result.total_suggestions == 6
     assert {row["suggestion_type"] for row in suggestions} == {
         "artist_casing",
         "duplicate_whitespace_cleanup",
         "junk_suffix_removal",
+        "missing_album",
         "missing_album_artist",
         "separator_cleanup",
     }
@@ -72,14 +73,14 @@ def test_summary_counts(tmp_path, monkeypatch):
     )
 
     assert summary == {
-        "total_suggestions": 5,
-        "high_confidence_count": 3,
+        "total_suggestions": 6,
+        "high_confidence_count": 4,
         "medium_confidence_count": 1,
         "low_confidence_count": 1,
-        "requires_human_review_count": 5,
+        "requires_human_review_count": 6,
         "ai_enrichment_used": False,
     }
-    assert result.high_confidence_count == 3
+    assert result.high_confidence_count == 4
 
 
 def test_writes_csv_and_json_outputs(tmp_path, monkeypatch):
@@ -123,7 +124,7 @@ def test_command_registration(tmp_path, monkeypatch, capsys):
     assert exit_code == 0
     output = capsys.readouterr().out
     assert f"report_path={out_dir / 'metadata_suggestions'}" in output
-    assert "total_suggestions=5" in output
+    assert "total_suggestions=6" in output
     assert "ai_enrichment_used=false" in output
     command_names = build_parser()._subparsers._group_actions[0].choices
     assert "metadata-suggestions" in command_names
@@ -142,7 +143,7 @@ def test_metadata_plan_alias_resolves_existing_tag_update_plan(tmp_path, monkeyp
         out_dir=tmp_path / "reports",
     )
 
-    assert result.total_suggestions == 5
+    assert result.total_suggestions == 6
 
 
 def test_enrichment_cannot_change_proposed_values(tmp_path, monkeypatch):
@@ -212,6 +213,13 @@ def _make_suggestion_fixture(tmp_path):
                 "reason": "album_artist should equal artist",
             },
             {
+                "path": "Metal/Nu Metal/Static-X/Wisconsin Death Trip/Static-X - Push It.flac",
+                "field": "album",
+                "current_value": "",
+                "proposed_value": "Wisconsin Death Trip",
+                "reason": "album folder",
+            },
+            {
                 "path": "Deftones/Deftones - Digital Bath.flac",
                 "field": "title",
                 "current_value": "Digital  Bath",
@@ -254,7 +262,11 @@ def _make_suggestion_fixture(tmp_path):
             {
                 "path": "Deftones/Deftones - Knife Prty.flac",
                 "field": "album_artist",
-            }
+            },
+            {
+                "path": "Metal/Nu Metal/Static-X/Wisconsin Death Trip/Static-X - Push It.flac",
+                "field": "album",
+            },
         ],
     )
     _write_csv(

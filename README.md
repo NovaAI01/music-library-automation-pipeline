@@ -3,23 +3,25 @@
 A local-first media ingestion, audit, deduplication, quarantine, reporting, and
 metadata normalization planning system.
 
-Media Library Automation Pipeline is designed for controlled library operations:
-observe files, record evidence, plan changes, review reports, quarantine known
-duplicate candidates, and restore from an audit trail. The project is built
-around deterministic rules and local SQLite state rather than remote services or
-opaque automation.
+Media Library Automation Pipeline is an operational workflow system for
+evidence-driven media library remediation. It observes files, records evidence,
+plans changes, exposes review checkpoints, quarantines known duplicate
+candidates, and restores from an audit trail. The project is built around
+deterministic rules and local SQLite state rather than remote services or opaque
+automation.
 
 ## 1. Overview
 
 This repository contains a Python application for maintaining a FLAC-focused
-local media library. It provides a command-line workflow for scanning and
-organizing files, detecting duplicate candidates, producing quality reports,
-planning metadata normalization, and safely moving duplicate review outcomes
-into quarantine.
+local media library. It provides a controlled command-line workflow for scanning
+and organizing files, detecting duplicate candidates, producing quality reports,
+planning metadata normalization, and moving reviewed duplicate outcomes into
+quarantine.
 
-The system favors explicit stages. Most commands inspect data and write reports
-or ledger records. Commands that can change files are narrow, support dry-run
-review where appropriate, and preserve recovery information.
+The system favors explicit stages: observation, planning, review, execution,
+quarantine, and restore. Most commands inspect data and write reports or ledger
+records. Commands that can change files are narrow, support dry-run review where
+appropriate, and preserve recovery information.
 
 ## Documentation
 
@@ -39,7 +41,8 @@ maintenance becomes risky because mistakes can overwrite curated files, remove
 the wrong copy, or leave no clear record of what changed.
 
 This project addresses that operational problem by separating observation,
-planning, execution, audit, quarantine, and restore into inspectable steps.
+planning, execution, audit, quarantine, and restore into inspectable steps with
+evidence preserved at each review boundary.
 
 ## 3. What the System Does
 
@@ -49,7 +52,7 @@ planning, execution, audit, quarantine, and restore into inspectable steps.
 - Classifies files using deterministic artist and genre rules.
 - Plans organized placement paths before copying files.
 - Generates library QA, duplicate, metadata audit, and metadata normalization
-  reports.
+  reports for review-based remediation.
 - Produces duplicate review plans and quarantines selected remove candidates.
 - Restores quarantined files from recorded ledger information.
 - Serves read-only FastAPI/Jinja2 report screens over generated reports.
@@ -112,7 +115,7 @@ Current generated evidence shows:
 - 0 unresolved missing files
 - 627 readable FLAC files in metadata audit
 - 2063 proposed metadata updates
-- 232 passing tests
+- 238 passing tests
 
 Evidence is represented in generated report artifacts under:
 
@@ -148,6 +151,7 @@ Evidence is represented in generated report artifacts under:
 - Restore capability backed by recorded quarantine ledger entries.
 - Human approval boundaries between report generation, planning, and execution.
 - Audit-first workflow for duplicate, metadata, QA, and remediation decisions.
+- Review checkpoints before file movement or recovery operations.
 
 ## 7. CLI Workflow
 
@@ -259,7 +263,8 @@ deterministic portfolio screenshots:
 python -m app.main capture-ui-screenshots
 ```
 
-Screenshots are written to `docs/screenshots/` using stable filenames.
+Screenshots are written to `docs/screenshots/` using stable filenames for the
+portfolio views shown below.
 
 ## Sample Outputs
 
@@ -333,7 +338,7 @@ python -m pytest -q
 Current result:
 
 ```text
-232 passed
+238 passed
 ```
 
 ## 13. Repository Structure
@@ -364,13 +369,10 @@ docs/
 
 ## 14. Screenshots
 
-Screenshot placeholders:
-
-![Reports dashboard](docs/screenshots/01_reports_dashboard.png)
-![Duplicate report](docs/screenshots/02_duplicate_report.png)
-![Library QA](docs/screenshots/03_library_qa.png)
-![Metadata audit](docs/screenshots/04_metadata_audit.png)
-![Manual review](docs/screenshots/05_manual_review.png)
+| Reports | Review | QA |
+| --- | --- | --- |
+| <img src="docs/screenshots/01_reports_dashboard.png" alt="Reports dashboard" width="240"><br><sub>Reports dashboard</sub> | <img src="docs/screenshots/02_duplicate_report.png" alt="Duplicate review" width="240"><br><sub>Duplicate review</sub> | <img src="docs/screenshots/03_library_qa.png" alt="Library QA" width="240"><br><sub>Library QA</sub> |
+| <img src="docs/screenshots/04_metadata_audit.png" alt="Metadata audit" width="240"><br><sub>Metadata audit</sub> | <img src="docs/screenshots/05_manual_review.png" alt="Manual review" width="240"><br><sub>Manual review</sub> |  |
 
 ## 15. Roadmap
 

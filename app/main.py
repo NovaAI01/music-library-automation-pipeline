@@ -19,6 +19,7 @@ from app.library_qa import generate_library_qa_report
 from app.manual_review_ui import router as manual_review_ui_router
 from app.metadata_audit import generate_metadata_audit_report
 from app.metadata_plan import generate_metadata_plan
+from app.metadata_suggestion_ui import router as metadata_suggestion_ui_router
 from app.metadata_suggestions import generate_metadata_suggestions
 from app.pipeline import run_intake_pipeline
 from app.placement_executor import execute_placement
@@ -40,6 +41,7 @@ from app.ui_screenshot_capture import capture_ui_screenshots
 app = FastAPI(title="Music Library Reports")
 app.include_router(report_ui_router)
 app.include_router(manual_review_ui_router)
+app.include_router(metadata_suggestion_ui_router)
 
 
 def build_parser() -> argparse.ArgumentParser:

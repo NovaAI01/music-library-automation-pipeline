@@ -20,6 +20,7 @@ def test_route_mapping_is_deterministic():
         ("/reports/library-qa/latest", "03_library_qa.png"),
         ("/reports/metadata/latest", "04_metadata_audit.png"),
         ("/review/duplicates/latest", "05_manual_review.png"),
+        ("/review/metadata-suggestions", "06_metadata_suggestions.png"),
     ]
 
 
@@ -32,6 +33,7 @@ def test_filename_generation_uses_output_directory(tmp_path):
         tmp_path / "03_library_qa.png",
         tmp_path / "04_metadata_audit.png",
         tmp_path / "05_manual_review.png",
+        tmp_path / "06_metadata_suggestions.png",
     ]
 
 
@@ -63,8 +65,9 @@ def test_capture_uses_mocked_browser_and_stable_urls(tmp_path):
         "http://127.0.0.1:8000/reports/library-qa/latest",
         "http://127.0.0.1:8000/reports/metadata/latest",
         "http://127.0.0.1:8000/review/duplicates/latest",
+        "http://127.0.0.1:8000/review/metadata-suggestions",
     ]
-    assert fake.page.waits == [25, 25, 25, 25, 25]
+    assert fake.page.waits == [25, 25, 25, 25, 25, 25]
     assert fake.page.screenshot_paths == [str(path) for path in generated]
 
 

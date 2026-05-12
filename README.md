@@ -255,7 +255,15 @@ Available routes include:
 /review/quarantine
 /review/conflicts
 /review/blocked
+/review/metadata-suggestions
+/review/metadata-suggestions/high
+/review/metadata-suggestions/medium
+/review/metadata-suggestions/low
 ```
+
+The metadata suggestion review pages are inspection-only: they show proposed
+values, confidence, rationale, and source evidence without writing tags or
+modifying media files.
 
 Set `MUSIC_LIBRARY_REPORTS_DIR` before startup to read reports from a directory
 other than `reports`.

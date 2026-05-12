@@ -25,6 +25,7 @@ SCREENSHOT_TARGETS = (
     ScreenshotTarget("/reports/library-qa/latest", "03_library_qa.png"),
     ScreenshotTarget("/reports/metadata/latest", "04_metadata_audit.png"),
     ScreenshotTarget("/review/duplicates/latest", "05_manual_review.png"),
+    ScreenshotTarget("/review/metadata-suggestions", "06_metadata_suggestions.png"),
 )
 
 

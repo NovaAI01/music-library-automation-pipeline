@@ -8,3 +8,6 @@ backup/
 
 # local recovery/export bundles
 backup/
+
+# generated demo exports
+demo/

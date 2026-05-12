@@ -27,6 +27,7 @@ appropriate, and preserve recovery information.
 
 - [Architecture](docs/architecture.md)
 - [Operational workflow](docs/operational-workflow.md)
+- [AI-assisted workflow](docs/ai-assisted-workflow.md)
 - [Demo workflow](docs/demo-workflow.md)
 - [Demo script](docs/demo-script.md)
 - [Normalization rules](docs/normalization-rules.md)
@@ -51,8 +52,8 @@ evidence preserved at each review boundary.
   controlled artist seed data.
 - Classifies files using deterministic artist and genre rules.
 - Plans organized placement paths before copying files.
-- Generates library QA, duplicate, metadata audit, and metadata normalization
-  reports for review-based remediation.
+- Generates library QA, duplicate, metadata audit, metadata normalization, and
+  metadata suggestion reports for review-based remediation.
 - Produces duplicate review plans and quarantines selected remove candidates.
 - Restores quarantined files from recorded ledger information.
 - Serves read-only FastAPI/Jinja2 report screens over generated reports.
@@ -92,6 +93,11 @@ Placement executor
   |
   v
 QA, duplicate, metadata audit, and metadata plan reports
+  |
+  v
+Metadata suggestions
+  - review-only cleanup suggestions from audit and plan evidence
+  - optional rationale wording enrichment when configured
   |
   v
 Duplicate review
@@ -141,6 +147,8 @@ Evidence is represented in generated report artifacts under:
 - Quarantine movement for selected duplicate remove candidates.
 - Restore workflow based on recorded quarantine items.
 - FLAC metadata audit and proposed normalization plan generation.
+- Review-only metadata cleanup suggestions generated from audit and plan
+  evidence.
 - Read-only web reporting views for generated report data.
 
 ## Operational Characteristics
@@ -178,6 +186,7 @@ Core command forms:
 python -m app.main library-qa ...
 python -m app.main metadata-audit ...
 python -m app.main metadata-plan ...
+python -m app.main metadata-suggestions ...
 python -m app.main duplicate-report ...
 python -m app.main duplicate-review ...
 python -m app.main quarantine-duplicates --dry-run
@@ -197,6 +206,10 @@ python -m app.main metadata-audit \
   --out reports
 python -m app.main metadata-plan \
   --library-root ~/Music/Organised_Library \
+  --out reports
+python -m app.main metadata-suggestions \
+  --metadata-plan reports/metadata_plan/metadata_plan.csv \
+  --metadata-audit reports/metadata_audit \
   --out reports
 python -m app.main duplicate-report \
   --scan-run-id 1 \

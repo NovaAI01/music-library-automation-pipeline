@@ -19,6 +19,7 @@ from app.library_qa import generate_library_qa_report
 from app.manual_review_ui import router as manual_review_ui_router
 from app.metadata_audit import generate_metadata_audit_report
 from app.metadata_plan import generate_metadata_plan
+from app.metadata_suggestions import generate_metadata_suggestions
 from app.pipeline import run_intake_pipeline
 from app.placement_executor import execute_placement
 from app.placement_planner import plan_scan_run_placements
@@ -197,6 +198,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     metadata_plan_parser.add_argument("--library-root", required=True)
     metadata_plan_parser.add_argument("--out", required=True)
+
+    metadata_suggestions_parser = subparsers.add_parser(
+        "metadata-suggestions",
+        help="Create review-only metadata cleanup suggestions from plan and audit reports.",
+    )
+    metadata_suggestions_parser.add_argument("--metadata-plan", required=True)
+    metadata_suggestions_parser.add_argument("--metadata-audit", required=True)
+    metadata_suggestions_parser.add_argument("--out", default="reports")
 
     subparsers.add_parser(
         "capture-ui-screenshots",
@@ -500,6 +509,21 @@ def main(argv: list[str] | None = None) -> int:
         print(f"readable_flac_files={result.readable_flac_files}")
         print(f"unreadable_flac_files={result.unreadable_flac_files}")
         print(f"proposed_update_count={result.proposed_update_count}")
+        return 0
+
+    if args.command == "metadata-suggestions":
+        result = generate_metadata_suggestions(
+            metadata_plan_path=args.metadata_plan,
+            metadata_audit_dir=args.metadata_audit,
+            out_dir=args.out,
+        )
+        print(f"report_path={result.report_path}")
+        print(f"total_suggestions={result.total_suggestions}")
+        print(f"high_confidence_count={result.high_confidence_count}")
+        print(f"medium_confidence_count={result.medium_confidence_count}")
+        print(f"low_confidence_count={result.low_confidence_count}")
+        print(f"requires_human_review_count={result.requires_human_review_count}")
+        print(f"ai_enrichment_used={str(result.ai_enrichment_used).lower()}")
         return 0
 
     if args.command == "capture-ui-screenshots":

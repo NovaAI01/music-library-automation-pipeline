@@ -16,6 +16,7 @@ from app.duplicate_review import generate_duplicate_review_plan
 from app.identity_engine import identify_scan_run
 from app.intake import run_intake
 from app.library_qa import generate_library_qa_report
+from app.library_app_ui import router as library_app_ui_router
 from app.manual_review_ui import router as manual_review_ui_router
 from app.metadata_audit import generate_metadata_audit_report
 from app.metadata_plan import generate_metadata_plan
@@ -38,7 +39,8 @@ from app.scanner import scan
 from app.ui_screenshot_capture import capture_ui_screenshots
 
 
-app = FastAPI(title="Music Library Reports")
+app = FastAPI(title="Local Music Library")
+app.include_router(library_app_ui_router)
 app.include_router(report_ui_router)
 app.include_router(manual_review_ui_router)
 app.include_router(metadata_suggestion_ui_router)

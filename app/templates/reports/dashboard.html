@@ -8,4 +8,39 @@
     </article>
   {% endfor %}
 </section>
+
+{% if quick_actions %}
+  <section class="section">
+    <h2>Quick Actions</h2>
+    <div class="actions">
+      {% for label, href in quick_actions %}
+        <a class="action" href="{{ href }}">{{ label }}</a>
+      {% endfor %}
+    </div>
+  </section>
+{% endif %}
+
+{% if latest_reports %}
+  <section class="section">
+    <h2>Latest Scan Summaries</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Report</th>
+          <th>Timestamp</th>
+          <th>Open</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for name, report_timestamp, href in latest_reports %}
+          <tr>
+            <td>{{ name }}</td>
+            <td>{{ report_timestamp or "No report timestamp" }}</td>
+            <td><a href="{{ href }}">Open</a></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endif %}
 {% endblock %}

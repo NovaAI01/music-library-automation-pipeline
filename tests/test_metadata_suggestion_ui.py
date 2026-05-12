@@ -82,8 +82,8 @@ def test_metadata_suggestions_missing_report_state(tmp_path):
 
 def test_metadata_suggestion_screenshot_route_is_registered():
     assert (
-        "/review/metadata-suggestions",
-        "06_metadata_suggestions.png",
+        "/review",
+        "03_review_hub.png",
     ) in [(target.route, target.filename) for target in screenshot_targets()]
 
 

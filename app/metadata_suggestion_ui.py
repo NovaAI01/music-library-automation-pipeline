@@ -148,10 +148,15 @@ def _empty_message(confidence: str | None, missing_files: list[str]) -> str:
 
 def _nav_items() -> list[tuple[str, str]]:
     return [
-        ("/review/metadata-suggestions", "All Suggestions"),
-        ("/review/metadata-suggestions/high", "High"),
-        ("/review/metadata-suggestions/medium", "Medium"),
-        ("/review/metadata-suggestions/low", "Low"),
-        ("/review", "Manual Review"),
-        ("/reports", "Reports"),
+        ("/", "Dashboard"),
+        ("/import", "Import"),
+        ("/library", "Library"),
+        ("/library/artists", "Artists"),
+        ("/library/genres", "Genres"),
+        ("/library/tracks", "Tracks"),
+        ("/review", "Review"),
+        ("/review/duplicates", "Duplicates"),
+        ("/review/metadata", "Metadata"),
+        ("/player", "Player"),
+        ("/settings", "Settings"),
     ]

@@ -46,12 +46,10 @@ class ScreenshotCaptureResult(list[Path]):
 
 
 SCREENSHOT_TARGETS = (
-    ScreenshotTarget("/reports", "01_reports_dashboard.png"),
-    ScreenshotTarget("/reports/duplicates/latest", "02_duplicate_report.png"),
-    ScreenshotTarget("/reports/library-qa/latest", "03_library_qa.png"),
-    ScreenshotTarget("/reports/metadata/latest", "04_metadata_audit.png"),
-    ScreenshotTarget("/review/duplicates/latest", "05_manual_review.png"),
-    ScreenshotTarget("/review/metadata-suggestions", "06_metadata_suggestions.png"),
+    ScreenshotTarget("/", "01_dashboard.png"),
+    ScreenshotTarget("/library", "02_library_browser.png"),
+    ScreenshotTarget("/review", "03_review_hub.png"),
+    ScreenshotTarget("/player", "04_player.png"),
 )
 
 

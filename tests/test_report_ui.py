@@ -79,6 +79,87 @@ def test_file_health_search_filters_rows(tmp_path):
     assert "Push It.flac" not in response.text
 
 
+def test_app_dashboard_route_renders_unified_navigation(tmp_path):
+    client = _client(tmp_path)
+    _write_report_fixture(tmp_path)
+    _write_metadata_fixture(tmp_path)
+
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert "Local Music Library" in response.text
+    assert "Total tracks" in response.text
+    assert "/import" in response.text
+    assert "/library/tracks" in response.text
+    assert "/player" in response.text
+
+
+def test_import_page_renders_workflow(tmp_path):
+    client = _client(tmp_path)
+    _write_report_fixture(tmp_path)
+
+    response = client.get("/import")
+
+    assert response.status_code == 200
+    assert "Library intake path" in response.text
+    assert "python -m app.main scan" in response.text
+    assert "Operational Workflow" in response.text
+
+
+def test_library_listing_routes_render(tmp_path):
+    client = _client(tmp_path)
+    _write_report_fixture(tmp_path)
+
+    library = client.get("/library")
+    artists = client.get("/library/artists?q=Static")
+    genres = client.get("/library/genres?q=Alternative")
+    tracks = client.get("/library/tracks?q=Push")
+
+    assert library.status_code == 200
+    assert "Organized Browser" in library.text
+    assert artists.status_code == 200
+    assert "Static-X" in artists.text
+    assert genres.status_code == 200
+    assert "Alternative Metal" in genres.text
+    assert tracks.status_code == 200
+    assert "Static-X - Push It.flac" in tracks.text
+
+
+def test_unified_review_and_metadata_routes_render(tmp_path):
+    client = _client(tmp_path)
+    _write_report_fixture(tmp_path)
+    _write_metadata_fixture(tmp_path)
+
+    review = client.get("/review")
+    duplicates = client.get("/review/duplicates")
+    metadata = client.get("/review/metadata")
+
+    assert review.status_code == 200
+    assert "Unified Review Hub" in review.text
+    assert "Duplicate Review" in review.text
+    assert "Metadata Review" in review.text
+    assert duplicates.status_code == 200
+    assert "Active Duplicate Groups" in duplicates.text
+    assert metadata.status_code == 200
+    assert "Metadata suggestions are review-only" in metadata.text
+    assert "missing_album_artist" in metadata.text
+
+
+def test_player_and_settings_routes_render(tmp_path):
+    client = _client(tmp_path)
+    _write_report_fixture(tmp_path)
+
+    player = client.get("/player")
+    settings = client.get("/settings")
+
+    assert player.status_code == 200
+    assert "<audio" in player.text
+    assert "Open local file" in player.text
+    assert settings.status_code == 200
+    assert "Library root" in settings.text
+    assert "Reports directory" in settings.text
+
+
 def _client(tmp_path):
     app.state.reports_dir = tmp_path / "reports"
     return TestClient(app)
@@ -258,6 +339,47 @@ def _write_report_fixture(tmp_path):
             "reason",
         ],
         [],
+    )
+
+
+def _write_metadata_fixture(tmp_path):
+    reports_dir = tmp_path / "reports"
+    audit_dir = reports_dir / "metadata_audit"
+    plan_dir = reports_dir / "metadata_plan"
+    suggestions_dir = reports_dir / "metadata_suggestions"
+    audit_dir.mkdir(parents=True, exist_ok=True)
+    plan_dir.mkdir(parents=True, exist_ok=True)
+    suggestions_dir.mkdir(parents=True, exist_ok=True)
+    _write_json(
+        audit_dir / "metadata_summary.json",
+        {
+            "missing_tag_count": 2,
+            "malformed_tag_count": 1,
+            "unreadable_flac_files": 0,
+            "created_at": "2026-05-10T00:00:00+00:00",
+        },
+    )
+    _write_json(
+        plan_dir / "metadata_plan_summary.json",
+        {"proposed_update_count": 3},
+    )
+    _write_json(
+        suggestions_dir / "metadata_suggestions.json",
+        {
+            "suggestions": [
+                {
+                    "file_path": "Alternative Metal/Static-X/Push It.flac",
+                    "field": "album_artist",
+                    "current_value": "",
+                    "proposed_value": "Static-X",
+                    "confidence": "high",
+                    "suggestion_type": "missing_album_artist",
+                    "rationale": "album_artist should equal artist",
+                    "source_evidence": ["metadata_plan"],
+                    "requires_human_review": True,
+                }
+            ]
+        },
     )
 
 

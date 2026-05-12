@@ -1,22 +1,32 @@
-# Media Library Automation Pipeline
+# Local Music Library
 
-A local-first media ingestion, audit, deduplication, quarantine, reporting, and
-metadata normalization planning system.
+A local-first music library management app powered by a deterministic
+audit/review pipeline.
 
-Media Library Automation Pipeline is an operational workflow system for
-evidence-driven media library remediation. It observes files, records evidence,
-plans changes, exposes review checkpoints, quarantines known duplicate
-candidates, and restores from an audit trail. The project is built around
-deterministic rules and local SQLite state rather than remote services or opaque
-automation.
+Local Music Library helps organize and review a messy local music collection
+without cloud services, accounts, streaming integrations, or destructive
+automation. It observes files, records evidence, plans changes, exposes review
+checkpoints, quarantines known duplicate candidates, and restores from an audit
+trail. The project is built around deterministic rules and local SQLite state.
 
 ## 1. Overview
 
-This repository contains a Python application for maintaining a FLAC-focused
-local media library. It provides a controlled command-line workflow for scanning
-and organizing files, detecting duplicate candidates, producing quality reports,
-planning metadata normalization, and moving reviewed duplicate outcomes into
-quarantine.
+This repository contains a Python application and server-rendered Jinja2 UI for
+maintaining a FLAC-focused local music library. The primary workflow is:
+
+```text
+Import messy music
+  -> analyze library
+  -> review issues
+  -> review duplicates
+  -> review metadata suggestions
+  -> browse organized library
+  -> play tracks locally
+```
+
+The command-line pipeline still performs the deterministic scanning, planning,
+QA, duplicate, metadata, quarantine, and restore work. The UI consolidates those
+outputs into one coherent local music library application.
 
 The system favors explicit stages: observation, planning, review, execution,
 quarantine, and restore. Most commands inspect data and write reports or ledger
@@ -56,7 +66,8 @@ evidence preserved at each review boundary.
   metadata suggestion reports for review-based remediation.
 - Produces duplicate review plans and quarantines selected remove candidates.
 - Restores quarantined files from recorded ledger information.
-- Serves read-only FastAPI/Jinja2 report screens over generated reports.
+- Serves a read-only FastAPI/Jinja2 local music library UI over generated
+  reports.
 
 The project does not claim AI recognition, audio fingerprinting, automatic tag
 writing, or unsupervised destructive cleanup.
@@ -108,7 +119,7 @@ Quarantine and restore
   - ledger-backed movement and recovery
   |
   v
-Read-only reporting UI
+Local music library app UI
 ```
 
 ## 5. Current Evidence / Metrics
@@ -149,7 +160,8 @@ Evidence is represented in generated report artifacts under:
 - FLAC metadata audit and proposed normalization plan generation.
 - Review-only metadata cleanup suggestions generated from audit and plan
   evidence.
-- Read-only web reporting views for generated report data.
+- Unified read-only web UI for import workflow, dashboard, library browsing,
+  review queues, local playback, and settings.
 
 ## Operational Characteristics
 
@@ -231,10 +243,11 @@ Use a separate SQLite database:
 python -m app.main --db /tmp/media_library.sqlite3 scan --source ~/Music/Library_Intake
 ```
 
-## 8. Reporting UI
+## 8. Local Music Library UI
 
-The report UI is a read-only FastAPI/Jinja2 interface over generated reports. It
-does not mutate media files, apply duplicate decisions, or write metadata.
+The UI is a read-only FastAPI/Jinja2 local application over generated pipeline
+reports. It does not mutate media files, apply duplicate decisions, write
+metadata, authenticate users, call remote APIs, or integrate streaming services.
 
 Run the UI:
 
@@ -245,25 +258,26 @@ uvicorn app.main:app --reload
 Available routes include:
 
 ```text
-/reports
-/reports/artists
-/reports/genres
-/reports/quarantine
-/reports/file-health
-/reports/duplicates
+/
+/import
+/library
+/library/artists
+/library/genres
+/library/tracks
 /review
-/review/quarantine
-/review/conflicts
-/review/blocked
-/review/metadata-suggestions
-/review/metadata-suggestions/high
-/review/metadata-suggestions/medium
-/review/metadata-suggestions/low
+/review/duplicates
+/review/metadata
+/player
+/settings
 ```
 
-The metadata suggestion review pages are inspection-only: they show proposed
-values, confidence, rationale, and source evidence without writing tags or
-modifying media files.
+Legacy report/review URLs remain available for compatibility, including
+`/reports`, `/reports/duplicates`, `/review/quarantine`, `/review/conflicts`,
+`/review/blocked`, and `/review/metadata-suggestions`.
+
+The metadata review pages are inspection-only: they show proposed values,
+confidence, rationale, and source evidence without writing tags or modifying
+media files.
 
 Set `MUSIC_LIBRARY_REPORTS_DIR` before startup to read reports from a directory
 other than `reports`.
@@ -285,7 +299,7 @@ python -m app.main capture-ui-screenshots
 ```
 
 Screenshots are written to `docs/screenshots/` using stable filenames for the
-portfolio views shown below. The command prints `captured=<count>`,
+dashboard, library browser, unified review hub, and player views. The command prints `captured=<count>`,
 `failed=<count>`, and each generated file path; individual route failures are
 reported without stopping remaining captures.
 
@@ -378,21 +392,22 @@ python -m pytest -q
 Current result:
 
 ```text
-238 passed
+269 passed
 ```
 
 ## 13. Repository Structure
 
 ```text
 app/
-  main.py                 CLI entry point and report UI app
+  main.py                 CLI entry point and local UI app
   scanner.py              Local media observation
   identity_engine.py      Deterministic identity resolution
   classifier.py           Classification rules
   placement.py            Placement planning and execution
   duplicate_*.py          Duplicate reporting, review, quarantine, restore
   metadata_*.py           FLAC audit and normalization planning
-  report_*.py             Report generation and UI helpers
+  library_app_ui.py       Unified local music library UI routes
+  report_*.py             Report generation and compatibility UI helpers
 
 reports/
   library_qa/             Library health reports
@@ -409,14 +424,14 @@ docs/
 
 ## 14. Screenshots
 
-| Reports | Review | QA |
+| Dashboard | Library | Review |
 | --- | --- | --- |
-| <img src="docs/screenshots/01_reports_dashboard.png" alt="Reports dashboard" width="240"><br><sub>Reports dashboard</sub> | <img src="docs/screenshots/02_duplicate_report.png" alt="Duplicate review" width="240"><br><sub>Duplicate review</sub> | <img src="docs/screenshots/03_library_qa.png" alt="Library QA" width="240"><br><sub>Library QA</sub> |
-| <img src="docs/screenshots/04_metadata_audit.png" alt="Metadata audit" width="240"><br><sub>Metadata audit</sub> | <img src="docs/screenshots/05_manual_review.png" alt="Manual review" width="240"><br><sub>Manual review</sub> |  |
+| <img src="docs/screenshots/01_dashboard.png" alt="Dashboard" width="240"><br><sub>Dashboard</sub> | <img src="docs/screenshots/02_library_browser.png" alt="Library browser" width="240"><br><sub>Library browser</sub> | <img src="docs/screenshots/03_review_hub.png" alt="Review hub" width="240"><br><sub>Review hub</sub> |
+| <img src="docs/screenshots/04_player.png" alt="Player" width="240"><br><sub>Player</sub> |  |  |
 
 ## 15. Roadmap
 
-- Add real UI screenshots for the documented report and review screens.
+- Add real UI screenshots for the documented app screens.
 - Add a scripted demo dataset so portfolio metrics can be regenerated
   reproducibly.
 - Expand command documentation with input and output contracts.

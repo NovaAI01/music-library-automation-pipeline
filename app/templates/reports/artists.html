@@ -1,5 +1,9 @@
 {% extends "reports/base.html" %}
 {% block content %}
+<form method="get" action="/library/artists">
+  <input name="q" value="{{ query|default('') }}" placeholder="Search artists or library locations">
+  <button type="submit">Search</button>
+</form>
 <table>
   <thead>
     <tr>
@@ -11,7 +15,7 @@
   <tbody>
     {% for artist in artists %}
       <tr>
-        <td>{{ artist.artist }}</td>
+        <td><a href="/library/tracks?q={{ artist.artist }}">{{ artist.artist }}</a></td>
         <td>
           {% for location in artist.locations %}
             {{ location.genre }}{% if location.subgenre %} / {{ location.subgenre }}{% endif %} ({{ location.file_count }}){% if not loop.last %}<br>{% endif %}

@@ -1,4 +1,4 @@
-"""Read-only FastAPI routes for generated library report files."""
+"""Read-only local music library application routes."""
 
 from __future__ import annotations
 
@@ -385,10 +385,15 @@ def _int_value(value: Any) -> int:
 
 def _nav_items() -> list[tuple[str, str]]:
     return [
-        ("/reports", "Dashboard"),
-        ("/reports/artists", "Artists"),
-        ("/reports/genres", "Genres"),
-        ("/reports/quarantine", "Quarantine"),
-        ("/reports/file-health", "File Health"),
-        ("/reports/duplicates", "Duplicates"),
+        ("/", "Dashboard"),
+        ("/import", "Import"),
+        ("/library", "Library"),
+        ("/library/artists", "Artists"),
+        ("/library/genres", "Genres"),
+        ("/library/tracks", "Tracks"),
+        ("/review", "Review"),
+        ("/review/duplicates", "Duplicates"),
+        ("/review/metadata", "Metadata"),
+        ("/player", "Player"),
+        ("/settings", "Settings"),
     ]

@@ -149,17 +149,15 @@ def test_generate_demo_orders_frames_from_current_screenshot_targets(tmp_path):
         ffmpeg_path="",
     )
 
-    assert [path.name for path in result.frames[:6]] == [
-        "01_reports_dashboard.png",
-        "02_duplicate_report.png",
-        "03_library_qa.png",
-        "04_metadata_audit.png",
-        "05_manual_review.png",
-        "06_metadata_suggestions.png",
+    assert [path.name for path in result.frames[:4]] == [
+        "01_dashboard.png",
+        "02_library_browser.png",
+        "03_review_hub.png",
+        "04_player.png",
     ]
 
 
-def test_generate_demo_includes_metadata_suggestions_in_frames_and_manifest(tmp_path):
+def test_generate_demo_includes_player_in_frames_and_manifest(tmp_path):
     demo_dir = tmp_path / "demo"
 
     def fake_capture(*, output_dir):
@@ -182,10 +180,10 @@ def test_generate_demo_includes_metadata_suggestions_in_frames_and_manifest(tmp_
     frames_txt = (demo_dir / "frames.txt").read_text(encoding="utf-8")
     manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
 
-    metadata_frame = str((demo_dir / "frames" / "06_metadata_suggestions.png"))
-    assert metadata_frame in [str(path) for path in result.frames]
-    assert "06_metadata_suggestions.png" in frames_txt
-    assert metadata_frame in manifest["frames"]
+    player_frame = str((demo_dir / "frames" / "04_player.png"))
+    assert player_frame in [str(path) for path in result.frames]
+    assert "04_player.png" in frames_txt
+    assert player_frame in manifest["frames"]
 
 
 def test_generate_demo_synchronizes_manifest_with_frames_txt(tmp_path):

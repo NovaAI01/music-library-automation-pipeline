@@ -17,12 +17,10 @@ def test_route_mapping_is_deterministic():
     targets = screenshot_targets()
 
     assert [(target.route, target.filename) for target in targets] == [
-        ("/reports", "01_reports_dashboard.png"),
-        ("/reports/duplicates/latest", "02_duplicate_report.png"),
-        ("/reports/library-qa/latest", "03_library_qa.png"),
-        ("/reports/metadata/latest", "04_metadata_audit.png"),
-        ("/review/duplicates/latest", "05_manual_review.png"),
-        ("/review/metadata-suggestions", "06_metadata_suggestions.png"),
+        ("/", "01_dashboard.png"),
+        ("/library", "02_library_browser.png"),
+        ("/review", "03_review_hub.png"),
+        ("/player", "04_player.png"),
     ]
 
 
@@ -30,12 +28,10 @@ def test_filename_generation_uses_output_directory(tmp_path):
     paths = output_paths(tmp_path)
 
     assert paths == [
-        tmp_path / "01_reports_dashboard.png",
-        tmp_path / "02_duplicate_report.png",
-        tmp_path / "03_library_qa.png",
-        tmp_path / "04_metadata_audit.png",
-        tmp_path / "05_manual_review.png",
-        tmp_path / "06_metadata_suggestions.png",
+        tmp_path / "01_dashboard.png",
+        tmp_path / "02_library_browser.png",
+        tmp_path / "03_review_hub.png",
+        tmp_path / "04_player.png",
     ]
 
 
@@ -62,22 +58,20 @@ def test_capture_uses_mocked_browser_and_stable_urls(tmp_path):
     assert fake.browser.closed is True
     assert fake.page.viewport == {"width": 1440, "height": 1000}
     assert fake.page.urls == [
-        "http://127.0.0.1:8000/reports",
-        "http://127.0.0.1:8000/reports/duplicates/latest",
-        "http://127.0.0.1:8000/reports/library-qa/latest",
-        "http://127.0.0.1:8000/reports/metadata/latest",
-        "http://127.0.0.1:8000/review/duplicates/latest",
-        "http://127.0.0.1:8000/review/metadata-suggestions",
+        "http://127.0.0.1:8000/",
+        "http://127.0.0.1:8000/library",
+        "http://127.0.0.1:8000/review",
+        "http://127.0.0.1:8000/player",
     ]
-    assert fake.page.goto_waits == ["domcontentloaded"] * 6
-    assert fake.page.selectors == [("body", 10000)] * 6
-    assert fake.page.waits == [25, 25, 25, 25, 25, 25]
+    assert fake.page.goto_waits == ["domcontentloaded"] * 4
+    assert fake.page.selectors == [("body", 10000)] * 4
+    assert fake.page.waits == [25, 25, 25, 25]
     assert fake.page.screenshot_paths == [str(path) for path in generated]
     assert generated.failed_count == 0
 
 
 def test_capture_retries_failed_viewport_screenshot(tmp_path):
-    retry_path = tmp_path / "02_duplicate_report.png"
+    retry_path = tmp_path / "02_library_browser.png"
     fake = FakePlaywright()
     fake.page.fail_once_screenshot_paths.add(str(retry_path))
 
@@ -94,7 +88,7 @@ def test_capture_retries_failed_viewport_screenshot(tmp_path):
 
 def test_capture_records_route_failure_and_continues(tmp_path, capsys):
     fake = FakePlaywright()
-    fake.page.fail_goto_routes.add("/reports/duplicates/latest")
+    fake.page.fail_goto_routes.add("/library")
 
     generated = capture_ui_screenshots(
         output_dir=tmp_path,
@@ -103,21 +97,19 @@ def test_capture_records_route_failure_and_continues(tmp_path, capsys):
     )
 
     assert generated == [
-        tmp_path / "01_reports_dashboard.png",
-        tmp_path / "03_library_qa.png",
-        tmp_path / "04_metadata_audit.png",
-        tmp_path / "05_manual_review.png",
-        tmp_path / "06_metadata_suggestions.png",
+        tmp_path / "01_dashboard.png",
+        tmp_path / "03_review_hub.png",
+        tmp_path / "04_player.png",
     ]
     assert generated.failed_count == 1
-    assert generated.failures[0].route == "/reports/duplicates/latest"
-    assert "failed_route=/reports/duplicates/latest" in capsys.readouterr().err
+    assert generated.failures[0].route == "/library"
+    assert "failed_route=/library" in capsys.readouterr().err
 
 
 def test_target_url_handles_base_url_slashes():
     assert (
-        target_url("http://127.0.0.1:8000/", "/reports")
-        == "http://127.0.0.1:8000/reports"
+        target_url("http://127.0.0.1:8000/", "/library")
+        == "http://127.0.0.1:8000/library"
     )
 
 
@@ -129,13 +121,13 @@ def test_command_registration_behavior(monkeypatch, capsys):
     def fake_capture():
         return ScreenshotCaptureResult(
             [
-                DEFAULT_OUTPUT_DIR / "01_reports_dashboard.png",
-                DEFAULT_OUTPUT_DIR / "02_duplicate_report.png",
+                DEFAULT_OUTPUT_DIR / "01_dashboard.png",
+                DEFAULT_OUTPUT_DIR / "02_library_browser.png",
             ],
             [
                 ScreenshotFailure(
-                    route="/reports/metadata/latest",
-                    path=DEFAULT_OUTPUT_DIR / "04_metadata_audit.png",
+                    route="/player",
+                    path=DEFAULT_OUTPUT_DIR / "04_player.png",
                     error="timeout",
                 )
             ],
@@ -147,8 +139,8 @@ def test_command_registration_behavior(monkeypatch, capsys):
     assert capsys.readouterr().out.splitlines() == [
         "captured=2",
         "failed=1",
-        "docs/screenshots/01_reports_dashboard.png",
-        "docs/screenshots/02_duplicate_report.png",
+        "docs/screenshots/01_dashboard.png",
+        "docs/screenshots/02_library_browser.png",
     ]
 
 

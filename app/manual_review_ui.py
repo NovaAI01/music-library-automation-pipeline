@@ -220,9 +220,15 @@ def _summary_int(summary: dict[str, Any], key: str, fallback: int) -> int:
 
 def _nav_items() -> list[tuple[str, str]]:
     return [
-        ("/review", "Summary"),
-        ("/review/quarantine", "Quarantine"),
-        ("/review/conflicts", "Conflicts"),
-        ("/review/blocked", "Blocked"),
-        ("/reports", "Reports"),
+        ("/", "Dashboard"),
+        ("/import", "Import"),
+        ("/library", "Library"),
+        ("/library/artists", "Artists"),
+        ("/library/genres", "Genres"),
+        ("/library/tracks", "Tracks"),
+        ("/review", "Review"),
+        ("/review/duplicates", "Duplicates"),
+        ("/review/metadata", "Metadata"),
+        ("/player", "Player"),
+        ("/settings", "Settings"),
     ]

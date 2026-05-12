@@ -6,8 +6,10 @@ import os
 from collections import Counter
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi.responses import FileResponse
 from fastapi.templating import Jinja2Templates
 
 from app import db
@@ -25,7 +27,9 @@ from app.report_ui import (
 )
 
 
-DEFAULT_LIBRARY_ROOT = Path(os.environ.get("MUSIC_LIBRARY_ROOT", "library"))
+DEFAULT_LIBRARY_ROOT = Path(
+    os.environ.get("MUSIC_LIBRARY_ROOT", "~/Music/Organised_Library")
+).expanduser()
 DEFAULT_QUARANTINE_ROOT = Path(
     os.environ.get("MUSIC_LIBRARY_QUARANTINE_ROOT", "quarantine")
 )
@@ -33,6 +37,19 @@ DEFAULT_SCREENSHOT_DIR = Path("docs/screenshots")
 
 router = APIRouter(tags=["music-library-app"])
 templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
+
+
+@router.get("/media/audio")
+def audio_file(request: Request, path: str = Query(..., min_length=1)):
+    root = _library_root(request).resolve()
+    candidate = (root / path).resolve()
+    try:
+        candidate.relative_to(root)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="Audio file not found") from exc
+    if not candidate.is_file():
+        raise HTTPException(status_code=404, detail="Audio file not found")
+    return FileResponse(candidate, media_type=_audio_media_type(candidate))
 
 
 @router.get("/")
@@ -70,6 +87,7 @@ def dashboard(request: Request):
         {
             "title": "Dashboard",
             "eyebrow": "Local Music Library",
+            "intro": "Your home base for importing, reviewing, browsing, and playing the organized local library.",
             "cards": cards,
             "latest_reports": latest_reports,
             "quick_actions": quick_actions,
@@ -106,6 +124,8 @@ def import_page(request: Request):
         {
             "title": "Import",
             "eyebrow": "Intake Workflow",
+            "intro": "Use this page as the checklist for turning a messy local folder into reviewed library evidence.",
+            "back_links": [("Back to Dashboard", "/")],
             "intake_path": _library_root(request),
             "reports_dir": reports_dir,
             "steps": steps,
@@ -118,6 +138,7 @@ def import_page(request: Request):
 @router.get("/library")
 def library(request: Request):
     qa = _library_qa(_reports_dir(request))
+    library_root = _library_root(request)
     summary = qa["summary"]
     return _render(
         request,
@@ -125,13 +146,15 @@ def library(request: Request):
         {
             "title": "Library",
             "eyebrow": "Organized Browser",
+            "intro": "Browse the organized library by artist, genre, or track, then jump straight into local playback.",
+            "back_links": [("Back to Dashboard", "/")],
             "cards": [
                 ("Total tracks", summary.get("total_library_files", 0)),
                 ("Artists", summary.get("artist_count", 0)),
                 ("Genres", summary.get("genre_count", 0)),
                 ("Quarantine files", summary.get("total_quarantine_files", 0)),
             ],
-            "sample_tracks": _track_rows(qa["file_health"])[:10],
+            "sample_tracks": _track_rows(qa["file_health"], library_root)[:10],
             "timestamp": summary.get("created_at"),
             "missing_files": qa["missing_files"],
         },
@@ -147,6 +170,9 @@ def library_artists(request: Request, q: str = ""):
         {
             "title": "Artists",
             "eyebrow": "Library Browser",
+            "intro": "Find artists in the organized library and open their tracks from one place.",
+            "breadcrumbs": [("Library", "/library"), ("Artists", "")],
+            "back_links": [("Back to Library", "/library")],
             "artists": _filter_rows(_artist_totals(qa["artists"]), q),
             "query": q,
             "timestamp": qa["summary"].get("created_at"),
@@ -164,6 +190,9 @@ def library_genres(request: Request, q: str = ""):
         {
             "title": "Genres",
             "eyebrow": "Library Browser",
+            "intro": "Use genres and subgenres to understand how the library is organized.",
+            "breadcrumbs": [("Library", "/library"), ("Genres", "")],
+            "back_links": [("Back to Library", "/library")],
             "genres": _genre_tree(_filter_rows(qa["genres"], q)),
             "query": q,
             "timestamp": qa["summary"].get("created_at"),
@@ -175,13 +204,17 @@ def library_genres(request: Request, q: str = ""):
 @router.get("/library/tracks")
 def library_tracks(request: Request, q: str = ""):
     qa = _library_qa(_reports_dir(request))
+    library_root = _library_root(request)
     return _render(
         request,
         "reports/tracks.html",
         {
             "title": "Tracks",
             "eyebrow": "Library Browser",
-            "rows": _filter_rows(_track_rows(qa["file_health"]), q),
+            "intro": "Search tracks, inspect their library placement, and play files that are available under the library root.",
+            "breadcrumbs": [("Library", "/library"), ("Tracks", "")],
+            "back_links": [("Back to Library", "/library")],
+            "rows": _filter_rows(_track_rows(qa["file_health"], library_root), q),
             "query": q,
             "timestamp": qa["summary"].get("created_at"),
             "missing_files": qa["missing_files"],
@@ -202,6 +235,8 @@ def review_hub(request: Request):
         {
             "title": "Review",
             "eyebrow": "Unified Review Hub",
+            "intro": "Review duplicate groups, metadata suggestions, and blocked items before taking any file action outside this UI.",
+            "back_links": [("Back to Dashboard", "/")],
             "cards": [
                 ("Active duplicate groups", len(duplicate_groups["active"])),
                 ("Quarantined duplicate files", review["quarantine_count"]),
@@ -228,9 +263,29 @@ def review_hub(request: Request):
 
 @router.get("/review/duplicates")
 def review_duplicates(request: Request):
-    from app.report_ui import duplicates
-
-    return duplicates(request)
+    reports_dir = _reports_dir(request)
+    qa = _library_qa(reports_dir)
+    groups = _duplicate_groups(reports_dir)
+    return _render(
+        request,
+        "reports/duplicates.html",
+        {
+            "title": "Duplicate Review",
+            "eyebrow": "Review Queue",
+            "intro": "Compare active and historical duplicate groups before deciding what belongs in quarantine.",
+            "breadcrumbs": [("Review", "/review"), ("Duplicates", "")],
+            "back_links": [("Back to Review", "/review")],
+            "cards": [
+                ("Active groups", len(groups["active"])),
+                ("Historical groups", len(groups["historical"])),
+                ("Quarantine files", qa["summary"].get("total_quarantine_files", 0)),
+            ],
+            "historical_groups": groups["historical"],
+            "active_groups": groups["active"],
+            "timestamp": qa["summary"].get("created_at") or groups["latest_timestamp"],
+            "missing_files": [*qa["missing_files"], *groups["missing_files"]],
+        },
+    )
 
 
 @router.get("/review/metadata")
@@ -244,6 +299,9 @@ def review_metadata(request: Request, q: str = ""):
         {
             "title": "Metadata Review",
             "eyebrow": "Suggestions",
+            "intro": "Review suggested tag cleanup without writing metadata. Confidence badges help decide what needs closer attention.",
+            "breadcrumbs": [("Review", "/review"), ("Metadata", "")],
+            "back_links": [("Back to Review", "/review")],
             "cards": [
                 ("Metadata issues", metadata["issue_count"]),
                 ("Proposed updates", metadata["proposed_updates"]),
@@ -262,8 +320,11 @@ def review_metadata(request: Request, q: str = ""):
 @router.get("/player")
 def player(request: Request, q: str = ""):
     qa = _library_qa(_reports_dir(request))
+    library_root = _library_root(request)
     rows = [
-        row for row in _filter_rows(_track_rows(qa["file_health"]), q) if row["playable"]
+        row
+        for row in _filter_rows(_track_rows(qa["file_health"], library_root), q)
+        if row["playable"]
     ]
     return _render(
         request,
@@ -271,6 +332,8 @@ def player(request: Request, q: str = ""):
         {
             "title": "Player",
             "eyebrow": "Local Playback",
+            "intro": "Play organized local tracks directly from the configured library root when your browser supports the format.",
+            "back_links": [("Back to Library", "/library")],
             "selected": rows[0] if rows else None,
             "rows": rows[:50],
             "query": q,
@@ -288,6 +351,8 @@ def settings(request: Request):
         {
             "title": "Settings",
             "eyebrow": "Read-only Paths",
+            "intro": "These paths define where the app reads reports, organized tracks, quarantine files, and demo assets.",
+            "back_links": [("Back to Dashboard", "/")],
             "settings": [
                 ("Library root", _library_root(request)),
                 ("Quarantine root", _quarantine_root(request)),
@@ -308,6 +373,7 @@ def _render(request: Request, template_name: str, context: dict[str, Any]):
             "request": request,
             "app_name": "Local Music Library",
             "nav_items": _nav_items(),
+            "active_section": _active_section(request.url.path),
             **context,
         },
     )
@@ -370,24 +436,33 @@ def _suggestion_summary(reports_dir: Path) -> dict[str, Any]:
     }
 
 
-def _track_rows(rows: list[dict[str, str]]) -> list[dict[str, Any]]:
+def _track_rows(rows: list[dict[str, str]], library_root: Path) -> list[dict[str, Any]]:
     tracks = []
+    root = library_root.resolve()
     for row in rows:
         if row.get("status") != "library_present":
             continue
         path = Path(row.get("path", ""))
+        resolved = path.resolve() if path.is_absolute() else (root / path).resolve()
+        try:
+            relative_path = resolved.relative_to(root)
+        except ValueError:
+            relative_path = None
         parts = path.parts
+        playable = relative_path is not None and resolved.is_file()
+        media_path = relative_path.as_posix() if relative_path else ""
         tracks.append(
             {
                 "path": row.get("path", ""),
+                "relative_path": media_path,
                 "title": path.stem,
                 "artist": parts[-2] if len(parts) >= 2 else "",
                 "genre": parts[-4] if len(parts) >= 4 else "",
                 "subgenre": parts[-3] if len(parts) >= 3 else "",
                 "extension": row.get("extension", path.suffix),
                 "size_bytes": row.get("size_bytes", ""),
-                "playable": path.is_file(),
-                "url": path.as_uri() if path.is_absolute() and path.is_file() else "",
+                "playable": playable,
+                "url": f"/media/audio?path={quote(media_path)}" if playable else "",
             }
         )
     return sorted(tracks, key=lambda item: item["path"].casefold())
@@ -418,3 +493,33 @@ def _nav_items() -> list[tuple[str, str]]:
         ("/player", "Player"),
         ("/settings", "Settings"),
     ]
+
+
+def _active_section(path: str) -> str:
+    if path == "/":
+        return "/"
+    parts = [part for part in path.split("/") if part]
+    if not parts:
+        return "/"
+    if parts[0] == "media":
+        return "/player"
+    if parts[0] == "library":
+        return "/library"
+    if parts[0] == "review":
+        return "/review"
+    return f"/{parts[0]}"
+
+
+def _audio_media_type(path: Path) -> str:
+    extension = path.suffix.casefold()
+    if extension == ".flac":
+        return "audio/flac"
+    if extension == ".mp3":
+        return "audio/mpeg"
+    if extension == ".m4a":
+        return "audio/mp4"
+    if extension == ".ogg":
+        return "audio/ogg"
+    if extension == ".wav":
+        return "audio/wav"
+    return "application/octet-stream"

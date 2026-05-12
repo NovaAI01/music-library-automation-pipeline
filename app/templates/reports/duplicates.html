@@ -1,5 +1,15 @@
 {% extends "reports/base.html" %}
 {% block content %}
+{% if cards %}
+  <section class="cards">
+    {% for label, value in cards %}
+      <article class="card">
+        <div class="label">{{ label }}</div>
+        <div class="value">{{ value }}</div>
+      </article>
+    {% endfor %}
+  </section>
+{% endif %}
 <div class="stack">
   <section class="group">
     <h2>Active Duplicate Groups</h2>

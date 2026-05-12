@@ -49,7 +49,8 @@ SCREENSHOT_TARGETS = (
     ScreenshotTarget("/", "01_dashboard.png"),
     ScreenshotTarget("/library", "02_library_browser.png"),
     ScreenshotTarget("/review", "03_review_hub.png"),
-    ScreenshotTarget("/player", "04_player.png"),
+    ScreenshotTarget("/review/metadata", "04_metadata_review.png"),
+    ScreenshotTarget("/player", "05_player.png"),
 )
 
 

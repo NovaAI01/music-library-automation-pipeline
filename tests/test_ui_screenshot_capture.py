@@ -20,7 +20,8 @@ def test_route_mapping_is_deterministic():
         ("/", "01_dashboard.png"),
         ("/library", "02_library_browser.png"),
         ("/review", "03_review_hub.png"),
-        ("/player", "04_player.png"),
+        ("/review/metadata", "04_metadata_review.png"),
+        ("/player", "05_player.png"),
     ]
 
 
@@ -31,7 +32,8 @@ def test_filename_generation_uses_output_directory(tmp_path):
         tmp_path / "01_dashboard.png",
         tmp_path / "02_library_browser.png",
         tmp_path / "03_review_hub.png",
-        tmp_path / "04_player.png",
+        tmp_path / "04_metadata_review.png",
+        tmp_path / "05_player.png",
     ]
 
 
@@ -61,11 +63,12 @@ def test_capture_uses_mocked_browser_and_stable_urls(tmp_path):
         "http://127.0.0.1:8000/",
         "http://127.0.0.1:8000/library",
         "http://127.0.0.1:8000/review",
+        "http://127.0.0.1:8000/review/metadata",
         "http://127.0.0.1:8000/player",
     ]
-    assert fake.page.goto_waits == ["domcontentloaded"] * 4
-    assert fake.page.selectors == [("body", 10000)] * 4
-    assert fake.page.waits == [25, 25, 25, 25]
+    assert fake.page.goto_waits == ["domcontentloaded"] * 5
+    assert fake.page.selectors == [("body", 10000)] * 5
+    assert fake.page.waits == [25, 25, 25, 25, 25]
     assert fake.page.screenshot_paths == [str(path) for path in generated]
     assert generated.failed_count == 0
 
@@ -99,7 +102,8 @@ def test_capture_records_route_failure_and_continues(tmp_path, capsys):
     assert generated == [
         tmp_path / "01_dashboard.png",
         tmp_path / "03_review_hub.png",
-        tmp_path / "04_player.png",
+        tmp_path / "04_metadata_review.png",
+        tmp_path / "05_player.png",
     ]
     assert generated.failed_count == 1
     assert generated.failures[0].route == "/library"
@@ -127,7 +131,7 @@ def test_command_registration_behavior(monkeypatch, capsys):
             [
                 ScreenshotFailure(
                     route="/player",
-                    path=DEFAULT_OUTPUT_DIR / "04_player.png",
+                    path=DEFAULT_OUTPUT_DIR / "05_player.png",
                     error="timeout",
                 )
             ],

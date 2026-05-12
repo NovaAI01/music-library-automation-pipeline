@@ -92,6 +92,9 @@ def test_app_dashboard_route_renders_unified_navigation(tmp_path):
     assert "/import" in response.text
     assert "/library/tracks" in response.text
     assert "/player" in response.text
+    assert 'class="active">Dashboard' in response.text
+    assert "dark" in response.text
+    assert "Your home base for importing" in response.text
 
 
 def test_import_page_renders_workflow(tmp_path):
@@ -123,6 +126,9 @@ def test_library_listing_routes_render(tmp_path):
     assert "Alternative Metal" in genres.text
     assert tracks.status_code == 200
     assert "Static-X - Push It.flac" in tracks.text
+    assert "/media/audio?path=Alternative%20Metal/Nu%20Metal/Static-X/Static-X%20-%20Push%20It.flac" in tracks.text
+    assert "Back to Library" in tracks.text
+    assert "Dashboard</a>" in tracks.text
 
 
 def test_unified_review_and_metadata_routes_render(tmp_path):
@@ -143,6 +149,8 @@ def test_unified_review_and_metadata_routes_render(tmp_path):
     assert metadata.status_code == 200
     assert "Metadata suggestions are review-only" in metadata.text
     assert "missing_album_artist" in metadata.text
+    assert "Back to Review" in metadata.text
+    assert "confidence-high" in metadata.text
 
 
 def test_player_and_settings_routes_render(tmp_path):
@@ -154,14 +162,43 @@ def test_player_and_settings_routes_render(tmp_path):
 
     assert player.status_code == 200
     assert "<audio" in player.text
-    assert "Open local file" in player.text
+    assert "Play file" in player.text
+    assert "Alternative Metal/Nu Metal/Static-X/Static-X - Push It.flac" in player.text
     assert settings.status_code == 200
     assert "Library root" in settings.text
     assert "Reports directory" in settings.text
+    assert str(tmp_path / "library") in settings.text
+
+
+def test_audio_route_serves_file_under_library_root(tmp_path):
+    client = _client(tmp_path)
+    _write_report_fixture(tmp_path)
+
+    response = client.get(
+        "/media/audio",
+        params={"path": "Alternative Metal/Nu Metal/Static-X/Static-X - Push It.flac"},
+    )
+
+    assert response.status_code == 200
+    assert response.content == b"audio"
+    assert response.headers["content-type"].startswith("audio/flac")
+
+
+def test_audio_route_blocks_path_traversal(tmp_path):
+    client = _client(tmp_path)
+    _write_report_fixture(tmp_path)
+    outside = tmp_path / "outside.flac"
+    outside.write_bytes(b"outside")
+
+    response = client.get("/media/audio", params={"path": "../outside.flac"})
+
+    assert response.status_code == 404
 
 
 def _client(tmp_path):
     app.state.reports_dir = tmp_path / "reports"
+    app.state.library_root = tmp_path / "library"
+    app.state.quarantine_root = tmp_path / "quarantine"
     return TestClient(app)
 
 

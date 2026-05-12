@@ -149,11 +149,12 @@ def test_generate_demo_orders_frames_from_current_screenshot_targets(tmp_path):
         ffmpeg_path="",
     )
 
-    assert [path.name for path in result.frames[:4]] == [
+    assert [path.name for path in result.frames[:5]] == [
         "01_dashboard.png",
         "02_library_browser.png",
         "03_review_hub.png",
-        "04_player.png",
+        "04_metadata_review.png",
+        "05_player.png",
     ]
 
 
@@ -180,9 +181,9 @@ def test_generate_demo_includes_player_in_frames_and_manifest(tmp_path):
     frames_txt = (demo_dir / "frames.txt").read_text(encoding="utf-8")
     manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
 
-    player_frame = str((demo_dir / "frames" / "04_player.png"))
+    player_frame = str((demo_dir / "frames" / "05_player.png"))
     assert player_frame in [str(path) for path in result.frames]
-    assert "04_player.png" in frames_txt
+    assert "05_player.png" in frames_txt
     assert player_frame in manifest["frames"]
 
 

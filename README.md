@@ -1,9 +1,9 @@
 # Local Music Library
 
-A local-first music library management app powered by a deterministic
-audit/review pipeline.
+A local-first music library management application powered by deterministic
+audit and remediation workflows.
 
-Local Music Library helps organize and review a messy local music collection
+Local Music Library helps organize, review, and play a messy local music collection
 without cloud services, accounts, streaming integrations, or destructive
 automation. It observes files, records evidence, plans changes, exposes review
 checkpoints, quarantines known duplicate candidates, and restores from an audit
@@ -68,6 +68,8 @@ evidence preserved at each review boundary.
 - Restores quarantined files from recorded ledger information.
 - Serves a read-only FastAPI/Jinja2 local music library UI over generated
   reports.
+- Plays organized local tracks through an HTML5 audio player when the browser
+  supports the file format.
 
 The project does not claim AI recognition, audio fingerprinting, automatic tag
 writing, or unsupervised destructive cleanup.
@@ -279,6 +281,10 @@ The metadata review pages are inspection-only: they show proposed values,
 confidence, rationale, and source evidence without writing tags or modifying
 media files.
 
+Local playback is supported for organized library files. Audio is served through
+`/media/audio?path=<relative_library_path>`, and the server restricts playback
+to files that resolve inside the configured library root.
+
 Set `MUSIC_LIBRARY_REPORTS_DIR` before startup to read reports from a directory
 other than `reports`.
 
@@ -299,7 +305,8 @@ python -m app.main capture-ui-screenshots
 ```
 
 Screenshots are written to `docs/screenshots/` using stable filenames for the
-dashboard, library browser, unified review hub, and player views. The command prints `captured=<count>`,
+dashboard, library browser, unified review hub, metadata review, and player
+views. The command prints `captured=<count>`,
 `failed=<count>`, and each generated file path; individual route failures are
 reported without stopping remaining captures.
 
@@ -392,7 +399,7 @@ python -m pytest -q
 Current result:
 
 ```text
-269 passed
+271 passed
 ```
 
 ## 13. Repository Structure
@@ -427,7 +434,7 @@ docs/
 | Dashboard | Library | Review |
 | --- | --- | --- |
 | <img src="docs/screenshots/01_dashboard.png" alt="Dashboard" width="240"><br><sub>Dashboard</sub> | <img src="docs/screenshots/02_library_browser.png" alt="Library browser" width="240"><br><sub>Library browser</sub> | <img src="docs/screenshots/03_review_hub.png" alt="Review hub" width="240"><br><sub>Review hub</sub> |
-| <img src="docs/screenshots/04_player.png" alt="Player" width="240"><br><sub>Player</sub> |  |  |
+| <img src="docs/screenshots/04_metadata_review.png" alt="Metadata review" width="240"><br><sub>Metadata review</sub> | <img src="docs/screenshots/05_player.png" alt="Player" width="240"><br><sub>Player</sub> |  |
 
 ## 15. Roadmap
 

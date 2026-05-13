@@ -230,6 +230,7 @@ def _nav_items() -> list[tuple[str, str]]:
         ("/review", "Review"),
         ("/review/duplicates", "Duplicates"),
         ("/review/metadata", "Metadata"),
+        ("/review/knowledge", "Knowledge"),
         ("/player", "Player"),
         ("/settings", "Settings"),
     ]

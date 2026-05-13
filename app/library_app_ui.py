@@ -339,6 +339,7 @@ def review_hub(request: Request):
             "review_links": [
                 ("Duplicate Review", "/review/duplicates", "Keep/remove candidates and active duplicate groups."),
                 ("Metadata Review", "/review/metadata", "Review-only tag cleanup suggestions."),
+                ("Knowledge Review", "/review/knowledge", "Reusable evidence from approved and rejected decisions."),
                 ("Blocked Items", "/review/blocked", "Items that need manual classification."),
             ],
             "confidence_counts": suggestions["confidence_counts"],
@@ -681,6 +682,7 @@ def _nav_items() -> list[tuple[str, str]]:
         ("/review", "Review"),
         ("/review/duplicates", "Duplicates"),
         ("/review/metadata", "Metadata"),
+        ("/review/knowledge", "Knowledge"),
         ("/player", "Player"),
         ("/settings", "Settings"),
     ]

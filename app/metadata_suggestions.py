@@ -11,6 +11,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
+from app.normalization_knowledge import influence_suggestion, rule_lookup_by_signature
 from app.review_decisions import suggestion_key_for
 
 
@@ -78,12 +79,14 @@ def generate_metadata_suggestions(
     metadata_plan_path: str | Path,
     metadata_audit_dir: str | Path,
     out_dir: str | Path = "reports",
+    db_path: str | Path | None = None,
 ) -> MetadataSuggestionResult:
     """Generate review-only metadata suggestions from existing report evidence."""
 
     plan_rows = _read_csv(_resolve_plan_path(Path(metadata_plan_path).expanduser()))
     audit_evidence = _read_audit_evidence(Path(metadata_audit_dir).expanduser())
     suggestions = _suggestions_from_rows(plan_rows, audit_evidence)
+    suggestions = _with_normalization_knowledge(suggestions, db_path=db_path)
 
     ai_enrichment_used = False
     if os.environ.get("OPENAI_API_KEY"):
@@ -258,6 +261,21 @@ def _with_enriched_rationale(suggestion: MetadataSuggestion) -> MetadataSuggesti
         requires_human_review=suggestion.requires_human_review,
         source_evidence=suggestion.source_evidence,
     )
+
+
+def _with_normalization_knowledge(
+    suggestions: list[MetadataSuggestion],
+    *,
+    db_path: str | Path | None,
+) -> list[MetadataSuggestion]:
+    rules = rule_lookup_by_signature(db_path=db_path)
+    if not rules:
+        return suggestions
+    influenced: list[MetadataSuggestion] = []
+    for suggestion in suggestions:
+        payload = influence_suggestion(asdict(suggestion), rules)
+        influenced.append(MetadataSuggestion(**payload))
+    return influenced
 
 
 def _source_evidence(row: dict[str, str], evidence: list[dict[str, str]]) -> list[str]:

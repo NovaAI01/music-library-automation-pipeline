@@ -123,6 +123,11 @@ Review decision ledger
   - audit trail for future reusable normalization rules
   |
   v
+Normalization knowledge engine
+  - reusable evidence from approved and rejected decisions
+  - improves future suggestion confidence without auto-approval
+  |
+  v
 Duplicate review
   - keep, remove-candidate, and manual-review outcomes
   |
@@ -198,6 +203,14 @@ approve future actions automatically. The ledger will later feed reusable
 normalization rules for artist casing, title cleanup, album artist handling, and
 rejected cleanup patterns.
 
+## Normalization Knowledge Engine
+
+The normalization knowledge engine derives reusable rules from the review
+decision ledger. Approved decisions become future evidence for matching metadata
+suggestions, and rejected decisions are retained as rejected patterns. Knowledge
+can improve suggestion confidence and rationale, but it never writes metadata
+tags, moves files, deletes files, or auto-approves suggestions.
+
 ## 7. CLI Workflow
 
 Initialize the local ledger:
@@ -227,6 +240,7 @@ python -m app.main metadata-suggestions ...
 python -m app.main review-decision ...
 python -m app.main import-review-decisions ...
 python -m app.main review-decision-report --out reports
+python -m app.main build-normalization-knowledge --out reports
 python -m app.main discover-albums ...
 python -m app.main duplicate-report ...
 python -m app.main duplicate-review ...
@@ -260,6 +274,7 @@ python -m app.main import-review-decisions \
   --suggestions reports/metadata_suggestions/metadata_suggestions.csv \
   --decisions decisions.csv
 python -m app.main review-decision-report --out reports
+python -m app.main build-normalization-knowledge --out reports
 python -m app.main plan-album-organization \
   --library-root ~/Music/Organised_Library \
   --out reports

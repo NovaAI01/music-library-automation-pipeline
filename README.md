@@ -370,9 +370,11 @@ Legacy report/review URLs remain available for compatibility, including
 `/reports`, `/reports/duplicates`, `/review/quarantine`, `/review/conflicts`,
 `/review/blocked`, and `/review/metadata-suggestions`.
 
-The metadata review pages are inspection-only: they show proposed values,
-confidence, rationale, and source evidence without writing tags or modifying
-media files.
+The metadata review pages show proposed values, confidence, rationale, and
+source evidence without writing tags or modifying media files. Metadata
+suggestions can be approved, rejected, or deferred from the UI. These decisions
+update the review ledger and can later be converted into reusable normalization
+knowledge with `python -m app.main build-normalization-knowledge --out reports`.
 
 Local playback is supported for organized library files. Audio is served through
 `/media/audio?path=<relative_library_path>`, and the server restricts playback

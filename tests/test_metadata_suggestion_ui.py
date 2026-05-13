@@ -3,7 +3,11 @@ import json
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.review_decisions import record_review_decision, suggestion_key_from_row
+from app.review_decisions import (
+    decisions_by_key,
+    record_review_decision,
+    suggestion_key_from_row,
+)
 from app.ui_screenshot_capture import screenshot_targets
 
 
@@ -59,6 +63,116 @@ def test_metadata_suggestions_display_decision_state(tmp_path):
     assert "approved" in response.text
     assert "album artist confirmed" in response.text
     assert "No decision" in response.text
+
+
+def test_metadata_suggestion_approve_post_creates_decision(tmp_path):
+    client = _client(tmp_path)
+    _write_suggestions_fixture(tmp_path)
+    suggestion = _fixture_suggestions()[0]
+    key = suggestion_key_from_row(suggestion)
+
+    response = client.post(
+        "/review/metadata-suggestions/decision",
+        data={
+            "suggestion_key": key,
+            "decision": "approved",
+            "reason": "confirmed in UI",
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/review/metadata"
+    decision = decisions_by_key(tmp_path / "ledger.sqlite3")[key]
+    assert decision["decision"] == "approved"
+    assert decision["decision_reason"] == "confirmed in UI"
+    assert decision["file_path"] == suggestion["file_path"]
+
+
+def test_metadata_suggestion_reject_post_creates_decision(tmp_path):
+    client = _client(tmp_path)
+    _write_suggestions_fixture(tmp_path)
+    key = suggestion_key_from_row(_fixture_suggestions()[1])
+
+    response = client.post(
+        "/review/metadata-suggestions/decision",
+        data={"suggestion_key": key, "decision": "rejected", "reason": "bad cleanup"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    assert decisions_by_key(tmp_path / "ledger.sqlite3")[key]["decision"] == "rejected"
+
+
+def test_metadata_suggestion_defer_post_creates_decision(tmp_path):
+    client = _client(tmp_path)
+    _write_suggestions_fixture(tmp_path)
+    key = suggestion_key_from_row(_fixture_suggestions()[2])
+
+    response = client.post(
+        "/review/metadata-suggestions/decision",
+        data={"suggestion_key": key, "decision": "deferred", "reason": "needs album check"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    assert decisions_by_key(tmp_path / "ledger.sqlite3")[key]["decision"] == "deferred"
+
+
+def test_metadata_suggestion_duplicate_post_updates_decision(tmp_path):
+    client = _client(tmp_path)
+    _write_suggestions_fixture(tmp_path)
+    key = suggestion_key_from_row(_fixture_suggestions()[0])
+
+    client.post(
+        "/review/metadata-suggestions/decision",
+        data={"suggestion_key": key, "decision": "approved", "reason": "first"},
+    )
+    client.post(
+        "/review/metadata-suggestions/decision",
+        data={"suggestion_key": key, "decision": "rejected", "reason": "second"},
+    )
+
+    decisions = decisions_by_key(tmp_path / "ledger.sqlite3")
+    assert list(decisions) == [key]
+    assert decisions[key]["decision"] == "rejected"
+    assert decisions[key]["decision_reason"] == "second"
+
+
+def test_metadata_suggestion_post_invalid_decision_rejected(tmp_path):
+    client = _client(tmp_path)
+    _write_suggestions_fixture(tmp_path)
+    key = suggestion_key_from_row(_fixture_suggestions()[0])
+
+    response = client.post(
+        "/review/metadata-suggestions/decision",
+        data={"suggestion_key": key, "decision": "maybe", "reason": "unsafe"},
+    )
+
+    assert response.status_code == 400
+    assert decisions_by_key(tmp_path / "ledger.sqlite3") == {}
+
+
+def test_metadata_review_route_shows_decision_badges(tmp_path):
+    client = _client(tmp_path)
+    _write_suggestions_fixture(tmp_path)
+    suggestion = _fixture_suggestions()[0]
+    record_review_decision(
+        suggestion_key=suggestion_key_from_row(suggestion),
+        decision="approved",
+        reason="shown on metadata page",
+        suggestion=suggestion,
+        db_path=tmp_path / "ledger.sqlite3",
+    )
+
+    response = client.get("/review/metadata")
+
+    assert response.status_code == 200
+    assert "decision-approved" in response.text
+    assert "shown on metadata page" in response.text
+    assert "Approve" in response.text
+    assert "Reject" in response.text
+    assert "Defer" in response.text
 
 
 def test_metadata_suggestions_filtering_behavior(tmp_path):
@@ -120,6 +234,26 @@ def test_metadata_suggestion_review_does_not_mutate_report_file(tmp_path):
 
     assert response.status_code == 200
     assert report_path.read_bytes() == before
+
+
+def test_metadata_suggestion_decision_post_does_not_mutate_reports_or_media(tmp_path):
+    client = _client(tmp_path)
+    report_path = _write_suggestions_fixture(tmp_path)
+    media_path = tmp_path / "library" / "Push It.flac"
+    media_path.parent.mkdir()
+    media_path.write_bytes(b"fake flac bytes")
+    before_report = report_path.read_bytes()
+    before_media = media_path.read_bytes()
+    key = suggestion_key_from_row(_fixture_suggestions()[0])
+
+    response = client.post(
+        "/review/metadata-suggestions/decision",
+        data={"suggestion_key": key, "decision": "approved", "reason": "ledger only"},
+    )
+
+    assert response.status_code == 200
+    assert report_path.read_bytes() == before_report
+    assert media_path.read_bytes() == before_media
 
 
 def _client(tmp_path):

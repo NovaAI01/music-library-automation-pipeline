@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import json
 import os
 from collections import Counter
 from pathlib import Path
@@ -30,6 +31,12 @@ from app.report_ui import (
     _int_value,
     _library_qa,
     _read_json,
+)
+from app.review_decisions import (
+    attach_decisions_to_suggestions,
+    decisions_by_key,
+    list_review_decisions,
+    review_decision_summary,
 )
 
 
@@ -64,7 +71,7 @@ def dashboard(request: Request):
     qa = _library_qa(reports_dir)
     duplicate_groups = _duplicate_groups(reports_dir)
     metadata = _metadata_summary(reports_dir)
-    suggestions = _suggestion_summary(reports_dir)
+    suggestions = _suggestion_summary(reports_dir, db_path=_db_path(request))
     summary = qa["summary"]
     tracks = _album_browser_tracks(
         reports_dir,
@@ -319,7 +326,9 @@ def review_hub(request: Request):
     qa = _library_qa(reports_dir)
     duplicate_groups = _duplicate_groups(reports_dir)
     review = _review_data(reports_dir)
-    suggestions = _suggestion_summary(reports_dir)
+    suggestions = _suggestion_summary(reports_dir, db_path=_db_path(request))
+    decision_counts = review_decision_summary(list_review_decisions(_db_path(request)))
+    learned_rule_count = _learned_rule_count(reports_dir)
     return _render(
         request,
         "reports/review.html",
@@ -332,6 +341,8 @@ def review_hub(request: Request):
                 ("Active duplicate groups", len(duplicate_groups["active"])),
                 ("Quarantined duplicate files", review["quarantine_count"]),
                 ("Metadata suggestions", suggestions["total"]),
+                ("Metadata decisions", decision_counts["total_decisions"]),
+                ("Learned rules", learned_rule_count),
                 ("Blocked classification", review["blocked_classification_count"]),
                 ("Conflicts", len(review["conflicts"])),
                 ("Low confidence", suggestions["confidence_counts"].get("low", 0)),
@@ -343,6 +354,8 @@ def review_hub(request: Request):
                 ("Blocked Items", "/review/blocked", "Items that need manual classification."),
             ],
             "confidence_counts": suggestions["confidence_counts"],
+            "decision_counts": decision_counts,
+            "learned_rule_count": learned_rule_count,
             "missing_files": [
                 *qa["missing_files"],
                 *duplicate_groups["missing_files"],
@@ -384,7 +397,7 @@ def review_duplicates(request: Request):
 def review_metadata(request: Request, q: str = ""):
     reports_dir = _reports_dir(request)
     metadata = _metadata_summary(reports_dir)
-    suggestions = _suggestion_summary(reports_dir)
+    suggestions = _suggestion_summary(reports_dir, db_path=_db_path(request))
     return _render(
         request,
         "reports/metadata.html",
@@ -399,9 +412,14 @@ def review_metadata(request: Request, q: str = ""):
                 ("Proposed updates", metadata["proposed_updates"]),
                 ("Suggestions", suggestions["total"]),
                 ("Requires review", suggestions["requires_human_review"]),
+                ("Approved", suggestions["decision_counts"]["approved_count"]),
+                ("Rejected", suggestions["decision_counts"]["rejected_count"]),
+                ("Deferred", suggestions["decision_counts"]["deferred_count"]),
+                ("Undecided", suggestions["decision_counts"]["undecided_count"]),
             ],
             "suggestions": _filter_rows(suggestions["suggestions"], q),
             "confidence_counts": suggestions["confidence_counts"],
+            "decision_counts": suggestions["decision_counts"],
             "query": q,
             "timestamp": metadata["timestamp"],
             "missing_files": [*metadata["missing_files"], *suggestions["missing_files"]],
@@ -488,6 +506,11 @@ def _quarantine_root(request: Request) -> Path:
     return Path(configured).expanduser()
 
 
+def _db_path(request: Request) -> Path:
+    configured = getattr(request.app.state, "db_path", db.DEFAULT_DB_PATH)
+    return Path(configured).expanduser()
+
+
 def _metadata_summary(reports_dir: Path) -> dict[str, Any]:
     audit, missing_audit = _read_json(
         reports_dir / "metadata_audit" / "metadata_summary.json"
@@ -513,21 +536,38 @@ def _metadata_summary(reports_dir: Path) -> dict[str, Any]:
     }
 
 
-def _suggestion_summary(reports_dir: Path) -> dict[str, Any]:
+def _suggestion_summary(reports_dir: Path, *, db_path: Path | str) -> dict[str, Any]:
     suggestions, missing_files = _read_suggestions(reports_dir)
+    suggestions = attach_decisions_to_suggestions(suggestions, decisions_by_key(db_path))
     confidence_counts = Counter({"high": 0, "medium": 0, "low": 0})
     requires_human_review = 0
     for suggestion in suggestions:
         confidence_counts[suggestion["confidence"]] += 1
         if suggestion["requires_human_review"]:
             requires_human_review += 1
+    decided = [suggestion for suggestion in suggestions if suggestion.get("decision")]
+    decision_counts = review_decision_summary(decided)
+    decision_counts["undecided_count"] = len(suggestions) - decision_counts["total_decisions"]
     return {
         "suggestions": suggestions,
         "total": len(suggestions),
         "requires_human_review": requires_human_review,
         "confidence_counts": dict(confidence_counts),
+        "decision_counts": decision_counts,
         "missing_files": missing_files,
     }
+
+
+def _learned_rule_count(reports_dir: Path) -> int:
+    path = reports_dir / "normalization_knowledge" / "normalization_knowledge_rules.json"
+    if not path.exists():
+        return 0
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return 0
+    rules = payload.get("rules", []) if isinstance(payload, dict) else []
+    return len(rules) if isinstance(rules, list) else 0
 
 
 def _album_browser_tracks(

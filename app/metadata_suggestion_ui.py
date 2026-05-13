@@ -7,14 +7,17 @@ import os
 from collections import Counter
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qs
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from app import db
 from app.review_decisions import (
     attach_decisions_to_suggestions,
     decisions_by_key,
+    record_review_decision,
     review_decision_summary,
     suggestion_key_from_row,
 )
@@ -48,6 +51,34 @@ def low_confidence(request: Request):
     return _metadata_suggestions(request, confidence="low")
 
 
+@router.post("/decision")
+async def metadata_suggestion_decision(request: Request):
+    form = parse_qs((await request.body()).decode("utf-8"), keep_blank_values=True)
+    suggestion_key = _form_value(form, "suggestion_key")
+    decision = _form_value(form, "decision")
+    reason = _form_value(form, "reason")
+    suggestion_lookup = {
+        suggestion["suggestion_key"]: suggestion
+        for suggestion in _read_suggestions(_reports_dir(request))[0]
+    }
+    suggestion = suggestion_lookup.get(suggestion_key)
+    if suggestion is None:
+        raise HTTPException(status_code=404, detail="Unknown metadata suggestion")
+
+    try:
+        record_review_decision(
+            suggestion_key=suggestion_key,
+            decision=decision,
+            reason=reason,
+            suggestion=suggestion,
+            db_path=_db_path(request),
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+    return RedirectResponse(url=_safe_review_redirect(request), status_code=303)
+
+
 def _metadata_suggestions(request: Request, *, confidence: str | None):
     suggestions, missing_files = _read_suggestions(_reports_dir(request))
     suggestions = attach_decisions_to_suggestions(
@@ -76,6 +107,7 @@ def _metadata_suggestions(request: Request, *, confidence: str | None):
                 ("Approved", summary["decision_counts"]["approved_count"]),
                 ("Rejected", summary["decision_counts"]["rejected_count"]),
                 ("Deferred", summary["decision_counts"]["deferred_count"]),
+                ("Undecided", summary["decision_counts"]["undecided_count"]),
             ],
             "confidence_counts": summary["confidence_counts"],
             "type_counts": summary["type_counts"],
@@ -145,12 +177,14 @@ def _summary(suggestions: list[dict[str, Any]]) -> dict[str, Any]:
         if suggestion["requires_human_review"]:
             requires_human_review += 1
     decided = [suggestion for suggestion in suggestions if suggestion.get("decision")]
+    decision_counts = review_decision_summary(decided)
+    decision_counts["undecided_count"] = len(suggestions) - decision_counts["total_decisions"]
     return {
         "total": len(suggestions),
         "requires_human_review": requires_human_review,
         "confidence_counts": dict(confidence_counts),
         "type_counts": dict(sorted(type_counts.items())),
-        "decision_counts": review_decision_summary(decided),
+        "decision_counts": decision_counts,
     }
 
 
@@ -186,3 +220,15 @@ def _nav_items() -> list[tuple[str, str]]:
         ("/player", "Player"),
         ("/settings", "Settings"),
     ]
+
+
+def _safe_review_redirect(request: Request) -> str:
+    referer = request.headers.get("referer", "")
+    if "/review/metadata-suggestions" in referer:
+        return referer
+    return "/review/metadata"
+
+
+def _form_value(form: dict[str, list[str]], key: str) -> str:
+    values = form.get(key, [""])
+    return str(values[0]) if values else ""

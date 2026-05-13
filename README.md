@@ -170,6 +170,8 @@ Evidence is represented in generated report artifacts under:
 - FLAC metadata audit and proposed normalization plan generation.
 - Review-only metadata cleanup suggestions generated from audit and plan
   evidence.
+- Review-only album metadata discovery for tracks currently missing album tags
+  or grouped as `Unknown Album`.
 - Unified read-only web UI for import workflow, dashboard, library browsing,
   review queues, local playback, and settings.
 
@@ -209,6 +211,7 @@ python -m app.main library-qa ...
 python -m app.main metadata-audit ...
 python -m app.main metadata-plan ...
 python -m app.main metadata-suggestions ...
+python -m app.main discover-albums ...
 python -m app.main duplicate-report ...
 python -m app.main duplicate-review ...
 python -m app.main quarantine-duplicates --dry-run
@@ -236,6 +239,9 @@ python -m app.main metadata-suggestions \
 python -m app.main plan-album-organization \
   --library-root ~/Music/Organised_Library \
   --out reports
+python -m app.main discover-albums \
+  --library-root ~/Music/Organised_Library \
+  --out reports
 python -m app.main duplicate-report \
   --scan-run-id 1 \
   --library-root ~/Music/Organised_Library \
@@ -256,6 +262,25 @@ Genre/
 `plan-album-organization` does not move, delete, copy, or write metadata tags.
 It exists to make album folders reviewable before any future migration step, and
 to prepare the UI for proper artist -> album -> track browsing.
+
+Album metadata discovery is also review-only. The `discover-albums` command
+looks at existing tags, filenames, and local path evidence for tracks with
+missing or `Unknown Album` album values, then writes suggestions under
+`reports/album_discovery/`:
+
+```text
+album_discovery_summary.json
+album_discovery_suggestions.csv
+album_discovery_suggestions.json
+cache/
+```
+
+Network metadata lookup is opt-in with `--use-network`. When enabled, lookup
+responses are cached under `reports/album_discovery/cache/` so repeated runs are
+stable. Without `--use-network`, the command still runs using deterministic
+local evidence only. It does not write tags, move files, rename files, or
+auto-approve album matches. Every suggestion is marked as requiring human
+review, and suggestions must be reviewed before any future execution workflow.
 
 Run duplicate quarantine and restore in dry-run mode:
 

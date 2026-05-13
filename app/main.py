@@ -7,6 +7,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 
+from app.album_discovery import generate_album_discovery
 from app.album_organization import generate_album_organization_plan
 from app import db
 from app.classifier import classify_scan_run
@@ -218,6 +219,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     album_organization_parser.add_argument("--library-root", required=True)
     album_organization_parser.add_argument("--out", default="reports")
+
+    album_discovery_parser = subparsers.add_parser(
+        "discover-albums",
+        help="Create review-only album metadata suggestions for Unknown Album tracks.",
+    )
+    album_discovery_parser.add_argument("--library-root", required=True)
+    album_discovery_parser.add_argument("--out", default="reports")
+    album_discovery_parser.add_argument("--use-network", action="store_true")
 
     subparsers.add_parser(
         "capture-ui-screenshots",
@@ -551,6 +560,23 @@ def main(argv: list[str] | None = None) -> int:
         print(f"low_confidence={result.low_confidence}")
         print(f"requires_review={result.requires_review}")
         print(f"unknown_album_count={result.unknown_album_count}")
+        return 0
+
+    if args.command == "discover-albums":
+        result = generate_album_discovery(
+            library_root=args.library_root,
+            out_dir=args.out,
+            use_network=args.use_network,
+        )
+        print(f"report_path={result.report_path}")
+        print(f"total_tracks_checked={result.total_tracks_checked}")
+        print(f"unknown_album_tracks={result.unknown_album_tracks}")
+        print(f"total_suggestions={result.total_suggestions}")
+        print(f"high_confidence_count={result.high_confidence_count}")
+        print(f"medium_confidence_count={result.medium_confidence_count}")
+        print(f"low_confidence_count={result.low_confidence_count}")
+        print(f"network_lookup_used={str(result.network_lookup_used).lower()}")
+        print(f"cache_entries={result.cache_entries}")
         return 0
 
     if args.command == "capture-ui-screenshots":

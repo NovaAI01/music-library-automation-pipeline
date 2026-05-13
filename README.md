@@ -288,6 +288,8 @@ python -m app.main duplicate-report \
 python -m app.main duplicate-review --duplicate-report-id 1 --out reports
 ```
 
+Bulk decision imports can identify suggestions by `suggestion_key` or by the visible suggestion fields: `file_path`, `field`, `current_value`, `proposed_value`, and optionally `suggestion_type`.
+
 Album-aware organization is plan-first. The generated report lives under
 `reports/album_organization_plan/` and proposes paths in this shape:
 

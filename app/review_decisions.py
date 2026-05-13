@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import csv
 import hashlib
 import json
@@ -197,8 +198,13 @@ def import_review_decisions(
     decisions_path: str | Path,
     db_path: str | Path = db.DEFAULT_DB_PATH,
 ) -> ReviewDecisionImportResult:
-    suggestions_by_key = {
-        suggestion_key_from_row(row): row for row in _read_csv(Path(suggestions_path))
+    suggestion_rows = _read_csv(Path(suggestions_path))
+    suggestions_by_key = {suggestion_key_from_row(row): row for row in suggestion_rows}
+    suggestions_by_visible = {
+        _visible_suggestion_signature(row, include_type=True): row for row in suggestion_rows
+    }
+    suggestions_by_visible_without_type = {
+        _visible_suggestion_signature(row, include_type=False): row for row in suggestion_rows
     }
     imported_count = 0
     updated_count = 0
@@ -206,21 +212,30 @@ def import_review_decisions(
 
     db.init_db(db_path)
     for row in _read_csv(Path(decisions_path)):
-        suggestion_key = str(row.get("suggestion_key", "")).strip()
-        if not suggestion_key:
+        resolved = _resolve_import_suggestion(
+            row=row,
+            suggestions_by_key=suggestions_by_key,
+            suggestions_by_visible=suggestions_by_visible,
+            suggestions_by_visible_without_type=suggestions_by_visible_without_type,
+        )
+        if resolved is None:
             skipped_count += 1
             continue
+        suggestion_key, suggestion = resolved
         decision = str(row.get("decision", "")).strip()
         reason = str(row.get("decision_reason", "") or row.get("reason", ""))
-        suggestion = suggestions_by_key.get(suggestion_key)
         existed = _decision_exists(suggestion_key, db_path)
-        record_review_decision(
-            suggestion_key=suggestion_key,
-            decision=decision,
-            reason=reason,
-            suggestion=suggestion,
-            db_path=db_path,
-        )
+        try:
+            record_review_decision(
+                suggestion_key=suggestion_key,
+                decision=decision,
+                reason=reason,
+                suggestion=suggestion,
+                db_path=db_path,
+            )
+        except ValueError:
+            skipped_count += 1
+            continue
         if existed:
             updated_count += 1
         else:
@@ -387,7 +402,11 @@ def _source_evidence_json(suggestion: dict[str, Any]) -> str:
             parsed = json.loads(evidence)
             evidence = parsed if isinstance(parsed, list) else [evidence]
         except json.JSONDecodeError:
-            evidence = [evidence] if evidence else []
+            try:
+                parsed = ast.literal_eval(evidence)
+                evidence = parsed if isinstance(parsed, list) else [evidence]
+            except (SyntaxError, ValueError):
+                evidence = [evidence] if evidence else []
     elif not isinstance(evidence, list):
         evidence = []
     return json.dumps([str(item) for item in evidence], sort_keys=True)
@@ -402,6 +421,41 @@ def _decision_exists(suggestion_key: str, db_path: str | Path) -> bool:
             ).fetchone()
             is not None
         )
+
+
+def _resolve_import_suggestion(
+    *,
+    row: dict[str, Any],
+    suggestions_by_key: dict[str, dict[str, Any]],
+    suggestions_by_visible: dict[tuple[str, ...], dict[str, Any]],
+    suggestions_by_visible_without_type: dict[tuple[str, ...], dict[str, Any]],
+) -> tuple[str, dict[str, Any]] | None:
+    suggestion_key = suggestion_key_from_row(row)
+    suggestion = suggestions_by_key.get(suggestion_key)
+    if suggestion is None:
+        if str(row.get("suggestion_type", "")).strip():
+            suggestion = suggestions_by_visible.get(
+                _visible_suggestion_signature(row, include_type=True)
+            )
+        else:
+            suggestion = suggestions_by_visible_without_type.get(
+                _visible_suggestion_signature(row, include_type=False)
+            )
+    if suggestion is None:
+        return None
+    return suggestion_key_from_row(suggestion), suggestion
+
+
+def _visible_suggestion_signature(
+    row: dict[str, Any],
+    *,
+    include_type: bool,
+) -> tuple[str, ...]:
+    fields = ("file_path", "field", "current_value", "proposed_value")
+    signature = tuple(str(row.get(field, "") or "").strip() for field in fields)
+    if include_type:
+        return signature + (str(row.get("suggestion_type", "") or "").strip(),)
+    return signature
 
 
 def _row_dict(row: Any) -> dict[str, Any]:

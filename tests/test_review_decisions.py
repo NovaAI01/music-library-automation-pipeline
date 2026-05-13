@@ -66,7 +66,7 @@ def test_duplicate_suggestion_decision_updates_existing_row(tmp_path):
     assert rows[0]["file_path"] == suggestion["file_path"]
 
 
-def test_import_review_decisions_enriches_from_suggestions(tmp_path):
+def test_import_review_decisions_with_suggestion_key_enriches_from_suggestions(tmp_path):
     db_path = tmp_path / "ledger.sqlite3"
     suggestion = _suggestion()
     suggestion_key = suggestion_key_from_row(suggestion)
@@ -109,6 +109,177 @@ def test_import_review_decisions_enriches_from_suggestions(tmp_path):
     assert result.updated_count == 0
     assert row["proposed_value"] == "Chevelle"
     assert row["decision"] == "approved"
+    assert row["confidence"] == "medium"
+    assert json.loads(row["source_evidence_json"]) == ["metadata_plan:artist folder"]
+
+
+def test_import_review_decisions_with_visible_fields_and_type(tmp_path):
+    db_path = tmp_path / "ledger.sqlite3"
+    suggestion = _suggestion()
+    suggestion_key = suggestion_key_from_row(suggestion)
+    suggestions_path = tmp_path / "metadata_suggestions.csv"
+    decisions_path = tmp_path / "decisions.csv"
+    _write_csv(
+        suggestions_path,
+        (
+            "file_path",
+            "field",
+            "current_value",
+            "proposed_value",
+            "suggestion_type",
+            "confidence",
+            "source_evidence",
+        ),
+        [suggestion],
+    )
+    _write_csv(
+        decisions_path,
+        (
+            "file_path",
+            "field",
+            "current_value",
+            "proposed_value",
+            "suggestion_type",
+            "decision",
+            "decision_reason",
+        ),
+        [
+            {
+                "file_path": suggestion["file_path"],
+                "field": suggestion["field"],
+                "current_value": suggestion["current_value"],
+                "proposed_value": suggestion["proposed_value"],
+                "suggestion_type": suggestion["suggestion_type"],
+                "decision": "approved",
+                "decision_reason": "visible match",
+            }
+        ],
+    )
+
+    result = import_review_decisions(
+        suggestions_path=suggestions_path,
+        decisions_path=decisions_path,
+        db_path=db_path,
+    )
+    row = _fetch_one(db_path, "SELECT * FROM review_decisions")
+
+    assert result.imported_count == 1
+    assert result.updated_count == 0
+    assert result.skipped_count == 0
+    assert row["suggestion_key"] == suggestion_key
+    assert row["decision_reason"] == "visible match"
+    assert json.loads(row["source_evidence_json"]) == ["metadata_plan:artist folder"]
+
+
+def test_import_review_decisions_without_type_matches_visible_fields(tmp_path):
+    db_path = tmp_path / "ledger.sqlite3"
+    suggestion = _suggestion()
+    suggestion_key = suggestion_key_from_row(suggestion)
+    suggestions_path = tmp_path / "metadata_suggestions.csv"
+    decisions_path = tmp_path / "decisions.csv"
+    _write_csv(
+        suggestions_path,
+        (
+            "suggestion_key",
+            "file_path",
+            "field",
+            "current_value",
+            "proposed_value",
+            "suggestion_type",
+            "confidence",
+            "source_evidence",
+        ),
+        [{**suggestion, "suggestion_key": suggestion_key}],
+    )
+    _write_csv(
+        decisions_path,
+        ("file_path", "field", "current_value", "proposed_value", "decision", "reason"),
+        [
+            {
+                "file_path": suggestion["file_path"],
+                "field": suggestion["field"],
+                "current_value": suggestion["current_value"],
+                "proposed_value": suggestion["proposed_value"],
+                "decision": "rejected",
+                "reason": "not enough evidence",
+            }
+        ],
+    )
+
+    result = import_review_decisions(
+        suggestions_path=suggestions_path,
+        decisions_path=decisions_path,
+        db_path=db_path,
+    )
+    row = _fetch_one(db_path, "SELECT * FROM review_decisions")
+
+    assert result.imported_count == 1
+    assert result.updated_count == 0
+    assert result.skipped_count == 0
+    assert row["suggestion_key"] == suggestion_key
+    assert row["suggestion_type"] == "artist_casing"
+    assert row["decision"] == "rejected"
+
+
+def test_import_review_decisions_skips_unmatched_rows(tmp_path):
+    db_path = tmp_path / "ledger.sqlite3"
+    suggestion = _suggestion()
+    suggestions_path = tmp_path / "metadata_suggestions.csv"
+    decisions_path = tmp_path / "decisions.csv"
+    _write_csv(
+        suggestions_path,
+        (
+            "file_path",
+            "field",
+            "current_value",
+            "proposed_value",
+            "suggestion_type",
+        ),
+        [
+            {
+                "file_path": suggestion["file_path"],
+                "field": suggestion["field"],
+                "current_value": suggestion["current_value"],
+                "proposed_value": suggestion["proposed_value"],
+                "suggestion_type": suggestion["suggestion_type"],
+            }
+        ],
+    )
+    _write_csv(
+        decisions_path,
+        (
+            "file_path",
+            "field",
+            "current_value",
+            "proposed_value",
+            "suggestion_type",
+            "decision",
+            "reason",
+        ),
+        [
+            {
+                "file_path": "Missing/Missing.flac",
+                "field": "artist",
+                "current_value": "Missing",
+                "proposed_value": "Found",
+                "suggestion_type": "artist_casing",
+                "decision": "approved",
+                "reason": "no matching suggestion",
+            }
+        ],
+    )
+
+    result = import_review_decisions(
+        suggestions_path=suggestions_path,
+        decisions_path=decisions_path,
+        db_path=db_path,
+    )
+    rows = _fetch_all(db_path, "SELECT * FROM review_decisions")
+
+    assert result.imported_count == 0
+    assert result.updated_count == 0
+    assert result.skipped_count == 1
+    assert rows == []
 
 
 def test_report_generation_and_summary_counts(tmp_path):

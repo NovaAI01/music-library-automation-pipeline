@@ -36,6 +36,11 @@ from app.purchase_gateway import (
 )
 from app.quarantine_restore import restore_quarantine
 from app.report_ui import router as report_ui_router
+from app.review_decisions import (
+    generate_review_decision_report,
+    import_review_decisions,
+    record_review_decision,
+)
 from app.review_report import generate_review_report
 from app.scanner import scan
 from app.ui_screenshot_capture import capture_ui_screenshots
@@ -212,6 +217,29 @@ def build_parser() -> argparse.ArgumentParser:
     metadata_suggestions_parser.add_argument("--metadata-plan", required=True)
     metadata_suggestions_parser.add_argument("--metadata-audit", required=True)
     metadata_suggestions_parser.add_argument("--out", default="reports")
+
+    review_decision_parser = subparsers.add_parser(
+        "review-decision",
+        help="Record a human decision for one metadata suggestion.",
+    )
+    review_decision_parser.add_argument("--suggestion-key", required=True)
+    review_decision_parser.add_argument(
+        "--decision", required=True, choices=("approved", "rejected", "deferred")
+    )
+    review_decision_parser.add_argument("--reason", required=True)
+
+    import_review_decisions_parser = subparsers.add_parser(
+        "import-review-decisions",
+        help="Import human review decisions from CSV into the audit ledger.",
+    )
+    import_review_decisions_parser.add_argument("--suggestions", required=True)
+    import_review_decisions_parser.add_argument("--decisions", required=True)
+
+    review_decision_report_parser = subparsers.add_parser(
+        "review-decision-report",
+        help="Export persisted review decision summary reports.",
+    )
+    review_decision_report_parser.add_argument("--out", default="reports")
 
     album_organization_parser = subparsers.add_parser(
         "plan-album-organization",
@@ -546,6 +574,39 @@ def main(argv: list[str] | None = None) -> int:
         print(f"low_confidence_count={result.low_confidence_count}")
         print(f"requires_human_review_count={result.requires_human_review_count}")
         print(f"ai_enrichment_used={str(result.ai_enrichment_used).lower()}")
+        return 0
+
+    if args.command == "review-decision":
+        result = record_review_decision(
+            suggestion_key=args.suggestion_key,
+            decision=args.decision,
+            reason=args.reason,
+            db_path=db_path,
+        )
+        print(f"decision_id={result.decision_id}")
+        print(f"suggestion_key={result.suggestion_key}")
+        print(f"decision={result.decision}")
+        print(f"decided_at={result.decided_at}")
+        return 0
+
+    if args.command == "import-review-decisions":
+        result = import_review_decisions(
+            suggestions_path=args.suggestions,
+            decisions_path=args.decisions,
+            db_path=db_path,
+        )
+        print(f"imported={result.imported_count}")
+        print(f"updated={result.updated_count}")
+        print(f"skipped={result.skipped_count}")
+        return 0
+
+    if args.command == "review-decision-report":
+        result = generate_review_decision_report(out_dir=args.out, db_path=db_path)
+        print(f"report_path={result.report_path}")
+        print(f"total_decisions={result.total_decisions}")
+        print(f"approved={result.approved_count}")
+        print(f"rejected={result.rejected_count}")
+        print(f"deferred={result.deferred_count}")
         return 0
 
     if args.command == "plan-album-organization":

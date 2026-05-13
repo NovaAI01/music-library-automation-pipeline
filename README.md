@@ -118,6 +118,11 @@ Metadata suggestions
   - optional rationale wording enrichment when configured
   |
   v
+Review decision ledger
+  - approved, rejected, and deferred human decisions
+  - audit trail for future reusable normalization rules
+  |
+  v
 Duplicate review
   - keep, remove-candidate, and manual-review outcomes
   |
@@ -185,6 +190,14 @@ Evidence is represented in generated report artifacts under:
 - Audit-first workflow for duplicate, metadata, QA, and remediation decisions.
 - Review checkpoints before file movement or recovery operations.
 
+## Review Decision Ledger
+
+Review decisions are persisted as an audit ledger for metadata suggestions.
+Approved, rejected, and deferred decisions do not write tags, move files, or
+approve future actions automatically. The ledger will later feed reusable
+normalization rules for artist casing, title cleanup, album artist handling, and
+rejected cleanup patterns.
+
 ## 7. CLI Workflow
 
 Initialize the local ledger:
@@ -211,6 +224,9 @@ python -m app.main library-qa ...
 python -m app.main metadata-audit ...
 python -m app.main metadata-plan ...
 python -m app.main metadata-suggestions ...
+python -m app.main review-decision ...
+python -m app.main import-review-decisions ...
+python -m app.main review-decision-report --out reports
 python -m app.main discover-albums ...
 python -m app.main duplicate-report ...
 python -m app.main duplicate-review ...
@@ -236,6 +252,14 @@ python -m app.main metadata-suggestions \
   --metadata-plan reports/metadata_plan/metadata_plan.csv \
   --metadata-audit reports/metadata_audit \
   --out reports
+python -m app.main review-decision \
+  --suggestion-key <key> \
+  --decision approved \
+  --reason "confirmed by review"
+python -m app.main import-review-decisions \
+  --suggestions reports/metadata_suggestions/metadata_suggestions.csv \
+  --decisions decisions.csv
+python -m app.main review-decision-report --out reports
 python -m app.main plan-album-organization \
   --library-root ~/Music/Organised_Library \
   --out reports

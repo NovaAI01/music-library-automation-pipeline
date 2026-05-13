@@ -399,6 +399,27 @@ CREATE TABLE IF NOT EXISTS quarantine_restore_items (
     FOREIGN KEY (restore_run_id) REFERENCES quarantine_restore_runs(id),
     FOREIGN KEY (quarantine_item_id) REFERENCES duplicate_quarantine_items(id)
 );
+
+CREATE TABLE IF NOT EXISTS review_decisions (
+    decision_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    suggestion_key TEXT NOT NULL UNIQUE,
+    file_path TEXT NOT NULL DEFAULT '',
+    field TEXT NOT NULL DEFAULT '',
+    current_value TEXT NOT NULL DEFAULT '',
+    proposed_value TEXT NOT NULL DEFAULT '',
+    suggestion_type TEXT NOT NULL DEFAULT '',
+    confidence TEXT NOT NULL DEFAULT '',
+    decision TEXT NOT NULL CHECK (
+        decision IN (
+            'approved',
+            'rejected',
+            'deferred'
+        )
+    ),
+    decision_reason TEXT NOT NULL DEFAULT '',
+    source_evidence_json TEXT NOT NULL DEFAULT '[]',
+    decided_at TEXT NOT NULL
+);
 """
 
 

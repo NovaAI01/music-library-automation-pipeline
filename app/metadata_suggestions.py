@@ -11,8 +11,11 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
+from app.review_decisions import suggestion_key_for
+
 
 SUGGESTION_HEADERS: tuple[str, ...] = (
+    "suggestion_key",
     "file_path",
     "field",
     "current_value",
@@ -47,6 +50,7 @@ _JUNK_SUFFIX_RE = re.compile(
 
 @dataclass(frozen=True)
 class MetadataSuggestion:
+    suggestion_key: str
     file_path: str
     field: str
     current_value: str
@@ -121,8 +125,16 @@ def _suggestions_from_rows(
 
         source_evidence = _source_evidence(row, evidence)
         confidence = _confidence(current_value, proposed_value, evidence)
+        suggestion_key = suggestion_key_for(
+            file_path=path,
+            field=field,
+            current_value=current_value,
+            proposed_value=proposed_value,
+            suggestion_type=suggestion_type,
+        )
         suggestions.append(
             MetadataSuggestion(
+                suggestion_key=suggestion_key,
                 file_path=path,
                 field=field,
                 current_value=current_value,
@@ -235,6 +247,7 @@ def _with_enriched_rationale(suggestion: MetadataSuggestion) -> MetadataSuggesti
         "review wording; the proposed value remains deterministic."
     )
     return MetadataSuggestion(
+        suggestion_key=suggestion.suggestion_key,
         file_path=suggestion.file_path,
         field=suggestion.field,
         current_value=suggestion.current_value,

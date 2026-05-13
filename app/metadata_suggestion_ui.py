@@ -11,6 +11,14 @@ from typing import Any
 from fastapi import APIRouter, Request
 from fastapi.templating import Jinja2Templates
 
+from app import db
+from app.review_decisions import (
+    attach_decisions_to_suggestions,
+    decisions_by_key,
+    review_decision_summary,
+    suggestion_key_from_row,
+)
+
 
 DEFAULT_REPORTS_DIR = Path(os.environ.get("MUSIC_LIBRARY_REPORTS_DIR", "reports"))
 TEMPLATE_DIR = Path(__file__).parent / "templates"
@@ -42,6 +50,10 @@ def low_confidence(request: Request):
 
 def _metadata_suggestions(request: Request, *, confidence: str | None):
     suggestions, missing_files = _read_suggestions(_reports_dir(request))
+    suggestions = attach_decisions_to_suggestions(
+        suggestions,
+        decisions_by_key(_db_path(request)),
+    )
     summary = _summary(suggestions)
     visible_suggestions = _filter_suggestions(suggestions, confidence)
     title = "Metadata Suggestions"
@@ -61,9 +73,13 @@ def _metadata_suggestions(request: Request, *, confidence: str | None):
                 ("Total suggestions", summary["total"]),
                 ("Requires human review", summary["requires_human_review"]),
                 ("Visible suggestions", len(visible_suggestions)),
+                ("Approved", summary["decision_counts"]["approved_count"]),
+                ("Rejected", summary["decision_counts"]["rejected_count"]),
+                ("Deferred", summary["decision_counts"]["deferred_count"]),
             ],
             "confidence_counts": summary["confidence_counts"],
             "type_counts": summary["type_counts"],
+            "decision_counts": summary["decision_counts"],
             "active_confidence": confidence or "all",
             "empty_message": _empty_message(confidence, missing_files),
         },
@@ -72,6 +88,11 @@ def _metadata_suggestions(request: Request, *, confidence: str | None):
 
 def _reports_dir(request: Request) -> Path:
     configured = getattr(request.app.state, "reports_dir", DEFAULT_REPORTS_DIR)
+    return Path(configured).expanduser()
+
+
+def _db_path(request: Request) -> Path:
+    configured = getattr(request.app.state, "db_path", db.DEFAULT_DB_PATH)
     return Path(configured).expanduser()
 
 
@@ -110,6 +131,7 @@ def _normalize_suggestion(item: dict[str, Any]) -> dict[str, Any]:
         "rationale": str(item.get("rationale", "")),
         "source_evidence": [str(value) for value in source_evidence],
         "requires_human_review": bool(item.get("requires_human_review", False)),
+        "suggestion_key": suggestion_key_from_row(item),
     }
 
 
@@ -122,11 +144,13 @@ def _summary(suggestions: list[dict[str, Any]]) -> dict[str, Any]:
         type_counts[suggestion["suggestion_type"]] += 1
         if suggestion["requires_human_review"]:
             requires_human_review += 1
+    decided = [suggestion for suggestion in suggestions if suggestion.get("decision")]
     return {
         "total": len(suggestions),
         "requires_human_review": requires_human_review,
         "confidence_counts": dict(confidence_counts),
         "type_counts": dict(sorted(type_counts.items())),
+        "decision_counts": review_decision_summary(decided),
     }
 
 

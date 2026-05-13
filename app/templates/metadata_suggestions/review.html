@@ -50,6 +50,22 @@
       </tbody>
     </table>
   </div>
+  <div>
+    <h2>Review Decisions</h2>
+    <table>
+      <thead>
+        <tr><th>Decision</th><th class="num">Count</th></tr>
+      </thead>
+      <tbody>
+        {% for decision in ["approved", "rejected", "deferred"] %}
+          <tr>
+            <td><span class="badge decision-{{ decision }}">{{ decision }}</span></td>
+            <td class="num">{{ decision_counts.get(decision ~ "_count", 0) }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </section>
 
 <section class="review-table">
@@ -66,6 +82,7 @@
         <th>Rationale</th>
         <th>Source Evidence</th>
         <th>Requires Human Review</th>
+        <th>Decision</th>
       </tr>
     </thead>
     <tbody>
@@ -86,9 +103,22 @@
             {% endfor %}
           </td>
           <td>{{ suggestion.requires_human_review }}</td>
+          <td>
+            {% if suggestion.decision %}
+              <span class="badge decision-{{ suggestion.decision }}">{{ suggestion.decision }}</span>
+              {% if suggestion.decision_reason %}
+                <div>{{ suggestion.decision_reason }}</div>
+              {% endif %}
+              {% if suggestion.decided_at %}
+                <div class="muted">{{ suggestion.decided_at }}</div>
+              {% endif %}
+            {% else %}
+              <span class="muted">No decision</span>
+            {% endif %}
+          </td>
         </tr>
       {% else %}
-        <tr><td class="empty" colspan="9">{{ empty_message }}</td></tr>
+        <tr><td class="empty" colspan="10">{{ empty_message }}</td></tr>
       {% endfor %}
     </tbody>
   </table>

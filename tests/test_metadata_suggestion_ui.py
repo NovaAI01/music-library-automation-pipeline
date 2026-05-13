@@ -3,6 +3,7 @@ import json
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.review_decisions import record_review_decision, suggestion_key_from_row
 from app.ui_screenshot_capture import screenshot_targets
 
 
@@ -35,6 +36,29 @@ def test_metadata_suggestions_summary_counts(tmp_path):
     assert "missing_album_artist" in response.text
     assert "separator_cleanup" in response.text
     assert "artist_casing" in response.text
+
+
+def test_metadata_suggestions_display_decision_state(tmp_path):
+    client = _client(tmp_path)
+    _write_suggestions_fixture(tmp_path)
+    suggestion = _fixture_suggestions()[0]
+    record_review_decision(
+        suggestion_key=suggestion_key_from_row(suggestion),
+        decision="approved",
+        reason="album artist confirmed",
+        suggestion=suggestion,
+        db_path=tmp_path / "ledger.sqlite3",
+    )
+
+    response = client.get("/review/metadata-suggestions")
+
+    assert response.status_code == 200
+    assert "Approved" in response.text
+    assert "Rejected" in response.text
+    assert "Deferred" in response.text
+    assert "approved" in response.text
+    assert "album artist confirmed" in response.text
+    assert "No decision" in response.text
 
 
 def test_metadata_suggestions_filtering_behavior(tmp_path):
@@ -100,6 +124,7 @@ def test_metadata_suggestion_review_does_not_mutate_report_file(tmp_path):
 
 def _client(tmp_path):
     app.state.reports_dir = tmp_path / "reports"
+    app.state.db_path = tmp_path / "ledger.sqlite3"
     return TestClient(app)
 
 
@@ -109,48 +134,50 @@ def _write_suggestions_fixture(tmp_path):
     path = suggestions_dir / "metadata_suggestions.json"
     _write_json(
         path,
-        {
-            "suggestions": [
-                {
-                    "file_path": "Alternative Metal/Static-X/Push It.flac",
-                    "field": "album_artist",
-                    "current_value": "",
-                    "proposed_value": "Static-X",
-                    "confidence": "high",
-                    "suggestion_type": "missing_album_artist",
-                    "rationale": "missing_album_artist suggested from album_artist should equal artist.",
-                    "source_evidence": [
-                        "metadata_plan:album_artist should equal artist",
-                        "missing_tags:missing_tag",
-                    ],
-                    "requires_human_review": True,
-                },
-                {
-                    "file_path": "Alternative Metal/Static-X/Wisconsin Death Trip.flac",
-                    "field": "title",
-                    "current_value": "Static-X - Wisconsin Death Trip",
-                    "proposed_value": "Wisconsin Death Trip",
-                    "confidence": "medium",
-                    "suggestion_type": "separator_cleanup",
-                    "rationale": "separator_cleanup suggested from filename.",
-                    "source_evidence": ["metadata_plan:filename"],
-                    "requires_human_review": True,
-                },
-                {
-                    "file_path": "Alternative Metal/Spineshank/Spineshank.flac",
-                    "field": "artist",
-                    "current_value": "spineshank",
-                    "proposed_value": "Spineshank",
-                    "confidence": "low",
-                    "suggestion_type": "artist_casing",
-                    "rationale": "artist_casing suggested from inconsistent artist evidence.",
-                    "source_evidence": ["inconsistent_artists:artist_case"],
-                    "requires_human_review": True,
-                },
-            ]
-        },
+        {"suggestions": _fixture_suggestions()},
     )
     return path
+
+
+def _fixture_suggestions():
+    return [
+        {
+            "file_path": "Alternative Metal/Static-X/Push It.flac",
+            "field": "album_artist",
+            "current_value": "",
+            "proposed_value": "Static-X",
+            "confidence": "high",
+            "suggestion_type": "missing_album_artist",
+            "rationale": "missing_album_artist suggested from album_artist should equal artist.",
+            "source_evidence": [
+                "metadata_plan:album_artist should equal artist",
+                "missing_tags:missing_tag",
+            ],
+            "requires_human_review": True,
+        },
+        {
+            "file_path": "Alternative Metal/Static-X/Wisconsin Death Trip.flac",
+            "field": "title",
+            "current_value": "Static-X - Wisconsin Death Trip",
+            "proposed_value": "Wisconsin Death Trip",
+            "confidence": "medium",
+            "suggestion_type": "separator_cleanup",
+            "rationale": "separator_cleanup suggested from filename.",
+            "source_evidence": ["metadata_plan:filename"],
+            "requires_human_review": True,
+        },
+        {
+            "file_path": "Alternative Metal/Spineshank/Spineshank.flac",
+            "field": "artist",
+            "current_value": "spineshank",
+            "proposed_value": "Spineshank",
+            "confidence": "low",
+            "suggestion_type": "artist_casing",
+            "rationale": "artist_casing suggested from inconsistent artist evidence.",
+            "source_evidence": ["inconsistent_artists:artist_case"],
+            "requires_human_review": True,
+        },
+    ]
 
 
 def _write_json(path, payload):

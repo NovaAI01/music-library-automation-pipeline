@@ -27,6 +27,7 @@ from app.canonical_entity_classifier import (
     classify_candidate,
     classification_summary,
 )
+from app.entity_roles import EntityRoleRecord, aggregate_entity_roles, entity_role_summary
 from app.evidence_reliability import read_evidence_reliability_report, score_evidence
 from app.filename_parser import parse_filename
 from app.normalization_knowledge import derive_normalization_rules
@@ -184,6 +185,7 @@ def build_canonical_graph(
         reports_dir=reports_dir,
         db_path=db_path,
     )
+    role_records = _graph_role_records(track_evidence)
 
     artist_aliases = _artist_alias_map(decisions, rules)
     artists, artist_lookup, artist_conflicts = _build_artists(
@@ -229,7 +231,7 @@ def build_canonical_graph(
         now=now,
     ))
     unresolved = sorted(
-        [*artist_conflicts, *album_conflicts_out, *track_conflicts],
+        [*artist_conflicts, *album_conflicts_out, *track_conflicts, *_role_conflicts(role_records, now)],
         key=lambda item: (item.entity_type, item.entity_key),
     )
     summary = _summary(
@@ -241,6 +243,7 @@ def build_canonical_graph(
         unresolved=unresolved,
         reliability_summary=reliability_summary,
         classification_summary=classification_summary(entity_classifications.values()),
+        role_summary=entity_role_summary(role_records),
         now=now,
     )
     return CanonicalGraph(
@@ -740,6 +743,48 @@ def _classify_graph_candidates(
     return classifications
 
 
+def _graph_role_records(track_evidence: list[TrackEvidence]) -> list[EntityRoleRecord]:
+    rows: list[dict[str, Any]] = []
+    for item in track_evidence:
+        metadata_tags = {"artist": item.artist, "title": item.title, "album": item.album}
+        base = {
+            "file_path": item.file_path,
+            "folder_artist": item.source_folder,
+            "filename_artist": item.filename_artist,
+            "filename_title": item.filename_title,
+            "metadata_tags": metadata_tags,
+        }
+        for field_name, value in (
+            ("artist", item.artist),
+            ("filename_artist", item.filename_artist),
+            ("title", item.title),
+            ("album", item.album),
+        ):
+            if value:
+                rows.append({**base, "field_name": field_name, "value": value})
+    return aggregate_entity_roles(rows)
+
+
+def _role_conflicts(role_records: list[EntityRoleRecord], now: str) -> list[UnresolvedConflict]:
+    conflicts: list[UnresolvedConflict] = []
+    for record in role_records:
+        if record.role_status not in {"conflicted"} and record.entity_role != "ambiguous":
+            continue
+        conflicts.append(
+            _conflict(
+                record.entity_role,
+                record.normalized_value,
+                [record.entity_value],
+                record.evidence_count,
+                1,
+                "role-aware classification left this contextual entity unresolved: "
+                + " | ".join(record.rationale[:3]),
+                now,
+            )
+        )
+    return conflicts
+
+
 def _classification_for(
     classifications: dict[tuple[str, str, str], EntityClassification],
     field_name: str,
@@ -789,6 +834,7 @@ def _summary(
     unresolved: list[UnresolvedConflict],
     reliability_summary: dict[str, Any],
     classification_summary: dict[str, Any],
+    role_summary: dict[str, Any],
     now: str,
 ) -> dict[str, Any]:
     entities = [*artists, *albums, *tracks, *versions]
@@ -801,6 +847,9 @@ def _summary(
         "canonical_version_count": len(versions),
         "blocked_candidate_count": int(classification_summary.get("blocked_candidates", 0) or 0),
         "ambiguous_candidate_count": int(classification_summary.get("ambiguous_candidates", 0) or 0),
+        "role_record_count": int(role_summary.get("total_role_records", 0) or 0),
+        "multi_role_entities": int(role_summary.get("multi_role_entities", 0) or 0),
+        "blocked_role_collisions": int(role_summary.get("blocked_role_collisions", 0) or 0),
         "alias_relationships": sum(1 for item in relationships if item.relationship_type == "alias_of"),
         "duplicate_relationships": sum(1 for item in relationships if item.relationship_type in {"probable_duplicate", "probable_same_track"}),
         "unresolved_conflicts": len(unresolved),

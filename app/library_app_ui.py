@@ -23,6 +23,7 @@ from app.album_organization import (
 )
 from app.canonical_entity_graph import read_canonical_graph_report
 from app.canonical_entity_classifier import read_entity_classification_report
+from app.entity_roles import read_entity_role_report
 from app.evidence_reliability import read_evidence_reliability_report
 from app.manual_review_ui import _review_data
 from app.metadata_suggestion_ui import _read_suggestions
@@ -369,6 +370,7 @@ def review_hub(request: Request):
                 ("Metadata Review", "/review/metadata", "Review-only tag cleanup suggestions."),
                 ("Canonical Graph", "/review/canonical-graph", "Canonical artists, albums, tracks, relationships, and unresolved ambiguity."),
                 ("Entity Classification", "/review/entity-classification", "Blocked, ambiguous, source, and misclassified canonical candidates."),
+                ("Entity Roles", "/review/entity-roles", "Role-aware entity evidence, multi-role values, conflicts, and blocked collisions."),
                 ("Album Cohesion", "/review/albums", "Repeated-evidence album grouping, conflicts, singles, and orphans."),
                 ("Evidence Reliability", "/review/reliability", "Uploader artifacts, polluted names, canonical matches, and reliability tiers."),
                 ("Knowledge Review", "/review/knowledge", "Reusable evidence from approved and rejected decisions."),
@@ -615,6 +617,37 @@ def review_entity_classification(request: Request, q: str = ""):
     )
 
 
+@router.get("/review/entity-roles")
+def review_entity_roles(request: Request, q: str = ""):
+    entity_roles = _entity_role_summary(_reports_dir(request))
+    records = _filter_rows(entity_roles["records"], q)
+    return _render(
+        request,
+        "reports/entity_roles.html",
+        {
+            "title": "Entity Roles",
+            "eyebrow": "Contextual Roles",
+            "intro": "Inspect role-aware entity evidence without globally blocking values that appear in more than one role. This page is read-only.",
+            "breadcrumbs": [("Review", "/review"), ("Entity Roles", "")],
+            "back_links": [("Back to Review", "/review")],
+            "cards": [
+                ("Role records", entity_roles["summary"].get("total_role_records", 0)),
+                ("Multi-role entities", entity_roles["summary"].get("multi_role_entities", 0)),
+                ("Conflicted roles", entity_roles["summary"].get("conflicted_roles", 0)),
+                ("Canonical agreements", entity_roles["summary"].get("canonical_role_agreements", 0)),
+                ("Blocked collisions", entity_roles["summary"].get("blocked_role_collisions", 0)),
+            ],
+            "records": records,
+            "multi_role": _filter_rows(entity_roles["multi_role"], q),
+            "conflicted": _filter_rows(entity_roles["conflicted"], q),
+            "blocked": _filter_rows(entity_roles["blocked"], q),
+            "query": q,
+            "timestamp": entity_roles["summary"].get("created_at"),
+            "missing_files": entity_roles["missing_files"],
+        },
+    )
+
+
 @router.get("/player")
 def player(request: Request, q: str = ""):
     qa = _library_qa(_reports_dir(request))
@@ -810,6 +843,18 @@ def _entity_classification_summary(reports_dir: Path) -> dict[str, Any]:
     }
 
 
+def _entity_role_summary(reports_dir: Path) -> dict[str, Any]:
+    summary, records, multi_role, conflicted, blocked, missing_files = read_entity_role_report(reports_dir)
+    return {
+        "summary": summary,
+        "records": records,
+        "multi_role": multi_role,
+        "conflicted": conflicted,
+        "blocked": blocked,
+        "missing_files": missing_files,
+    }
+
+
 def _learned_rule_count(reports_dir: Path) -> int:
     path = reports_dir / "normalization_knowledge" / "normalization_knowledge_rules.json"
     if not path.exists():
@@ -976,6 +1021,7 @@ def _nav_items() -> list[tuple[str, str]]:
         ("/review/metadata", "Metadata"),
         ("/review/canonical-graph", "Canonical Graph"),
         ("/review/entity-classification", "Entity Classification"),
+        ("/review/entity-roles", "Entity Roles"),
         ("/review/albums", "Album Cohesion"),
         ("/review/reliability", "Reliability"),
         ("/review/knowledge", "Knowledge"),

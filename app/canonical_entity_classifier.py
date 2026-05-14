@@ -17,6 +17,7 @@ from typing import Any, Iterable
 
 from app import db
 from app.album_cohesion import read_album_cohesion_report
+from app.entity_roles import aggregate_entity_roles, best_role_record, role_records_by_value
 from app.filename_parser import parse_filename
 from app.normalization_knowledge import derive_normalization_rules
 from app.review_decisions import list_review_decisions
@@ -88,6 +89,10 @@ class CandidateContext:
     artist_folder_conflict_count: int = 0
     total_artist_count: int = 0
     low_reliability_conflicts: int = 0
+    role_evidence_count: int = 0
+    role_status: str = ""
+    active_roles: list[str] = field(default_factory=list)
+    role_flags: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -129,6 +134,9 @@ def classify_candidate(context: CandidateContext) -> EntityClassification:
     folder_artist_norm = _norm(Path(context.folder_artist).name)
     tag_title_norm = _norm(context.metadata_tags.get("title", ""))
     tag_album_norm = _norm(context.metadata_tags.get("album", ""))
+    active_roles = set(context.active_roles)
+    supported_current_role = context.role_status in {"candidate", "probationary", "canonical"} and context.role_evidence_count > 0
+    strong_current_role = context.role_status in {"probationary", "canonical"} or context.role_evidence_count >= 2
 
     if not value:
         proposed = AMBIGUOUS_TYPE
@@ -148,6 +156,13 @@ def classify_candidate(context: CandidateContext) -> EntityClassification:
         score -= 0.20
         flags.append("rejected_review_conflict")
         rationale.append("review history rejects this value or pattern")
+    if "multi_role_entity" in context.role_flags:
+        flags.append("multi_role_entity")
+        rationale.append("role context preserves this value separately across roles")
+    if supported_current_role:
+        score += min(0.12, 0.04 + context.role_evidence_count * 0.02)
+        flags.append("role_context_support")
+        rationale.append(f"role context supports {context.field_name} evidence independently")
 
     if field_name in {"artist", "album_artist", "filename_artist"}:
         if value_norm and value_norm == folder_artist_norm:
@@ -168,7 +183,7 @@ def classify_candidate(context: CandidateContext) -> EntityClassification:
             score = max(score, 0.91)
             flags.append("matches_title_context")
             rationale.append("artist candidate matches filename or tag title")
-        elif context.other_title_count:
+        elif context.other_title_count and not (strong_current_role or "artist" in active_roles):
             proposed = "track_title_misclassified_as_artist"
             score = max(score, 0.82)
             flags.append("appears_as_title_elsewhere")
@@ -190,11 +205,14 @@ def classify_candidate(context: CandidateContext) -> EntityClassification:
             score = max(score, 0.88)
             flags.append("source_or_uploader_signature")
             rationale.append("candidate resembles source, label, channel, or uploader residue")
-        elif value_norm and value_norm == tag_album_norm:
+        elif value_norm and value_norm == tag_album_norm and not (strong_current_role or "artist" in active_roles):
             proposed = "album_title_misclassified_as_artist"
             score = max(score, 0.78)
             flags.append("matches_album_context")
             rationale.append("artist candidate matches album title context")
+        elif context.value_album_count and "album" in active_roles:
+            flags.append("cross_role_album_collision")
+            rationale.append("same value also has album role evidence; artist role remains separate")
         elif (
             context.value_artist_count <= 1
             and folder_artist_norm
@@ -217,11 +235,17 @@ def classify_candidate(context: CandidateContext) -> EntityClassification:
             score = max(score, 0.76)
             flags.append("version_descriptor_terms")
             rationale.append("album candidate is dominated by version descriptor wording")
-        elif _is_source_artifact(value, context):
+        elif _is_source_artifact(value, context) and not (strong_current_role or "album" in active_roles):
             proposed = "source_or_label_artifact"
             score = max(score, 0.84)
             flags.append("source_or_label_signature")
             rationale.append("album candidate resembles source or label residue")
+        elif _is_source_artifact(value, context):
+            flags.append("weak_source_artifact_collision")
+            rationale.append("album role evidence overrides weak source-artifact suspicion")
+        if context.value_artist_count and "artist" in active_roles:
+            flags.append("cross_role_artist_collision")
+            rationale.append("same value also has artist role evidence; album role remains separate")
 
     elif field_name == "title":
         if context.value_title_count >= 1:
@@ -287,6 +311,8 @@ def build_candidate_contexts(
     db_path: str | Path = db.DEFAULT_DB_PATH,
 ) -> list[CandidateContext]:
     materialized = [_normalize_row(row) for row in rows]
+    role_records = aggregate_entity_roles(materialized)
+    roles_by_value = role_records_by_value(role_records)
     artist_counts = Counter(_norm(row["value"]) for row in materialized if row["field_name"] in {"artist", "album_artist", "filename_artist"} and row["value"])
     album_counts = Counter(_norm(row["value"]) for row in materialized if row["field_name"] == "album" and row["value"])
     title_counts = Counter(_norm(row["value"]) for row in materialized if row["field_name"] == "title" and row["value"])
@@ -297,6 +323,9 @@ def build_candidate_contexts(
     for row in materialized:
         value_norm = _norm(row["value"])
         field_name = row["field_name"]
+        role = _role_for_field(field_name)
+        role_record = best_role_record(role_records, value_norm, role)
+        value_role_records = roles_by_value.get(value_norm, [])
         folder_conflict = 0
         if field_name in {"artist", "album_artist", "filename_artist"} and row["folder_artist"]:
             folder_conflict = 0 if _compatible(row["value"], row["folder_artist"]) else 1
@@ -321,6 +350,14 @@ def build_candidate_contexts(
                 artist_folder_conflict_count=folder_conflict,
                 total_artist_count=sum(artist_counts.values()),
                 low_reliability_conflicts=sum(1 for flag in row["evidence_reliability_flags"] if "conflict" in flag),
+                role_evidence_count=role_record.evidence_count if role_record else 0,
+                role_status=role_record.role_status if role_record else "",
+                active_roles=sorted(
+                    record.entity_role
+                    for record in value_role_records
+                    if record.role_status in {"candidate", "probationary", "canonical", "conflicted"}
+                ),
+                role_flags=sorted({flag for record in value_role_records for flag in record.flags}),
             )
         )
     return contexts
@@ -510,6 +547,16 @@ def _default_entity_type(field_name: str) -> str:
     if field_name == "title":
         return "canonical_track"
     return AMBIGUOUS_TYPE
+
+
+def _role_for_field(field_name: str) -> str:
+    if field_name in {"artist", "album_artist", "filename_artist"}:
+        return "artist"
+    if field_name == "album":
+        return "album"
+    if field_name == "title":
+        return "track"
+    return "ambiguous"
 
 
 def _is_source_artifact(value: str, context: CandidateContext) -> bool:

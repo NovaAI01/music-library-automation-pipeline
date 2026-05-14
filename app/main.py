@@ -18,6 +18,7 @@ from app.demo_generator import generate_demo
 from app.duplicate_quarantine import quarantine_duplicates
 from app.duplicate_report import generate_duplicate_report
 from app.duplicate_review import generate_duplicate_review_plan
+from app.entity_roles import generate_entity_role_report
 from app.evidence_reliability import generate_evidence_reliability_report
 from app.identity_engine import identify_scan_run
 from app.intake import run_intake
@@ -290,6 +291,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Classify canonical entity candidates before graph promotion.",
     )
     entity_classification_parser.add_argument("--out", default="reports")
+
+    entity_roles_parser = subparsers.add_parser(
+        "entity-roles",
+        help="Aggregate role-aware canonical entity evidence without mutating media.",
+    )
+    entity_roles_parser.add_argument("--out", default="reports")
 
     album_discovery_parser = subparsers.add_parser(
         "discover-albums",
@@ -734,6 +741,16 @@ def main(argv: list[str] | None = None) -> int:
         print(f"ambiguous_candidates={result.ambiguous_candidates}")
         print(f"source_artifacts={result.source_artifacts}")
         print(f"misclassified_track_titles={result.misclassified_track_titles}")
+        return 0
+
+    if args.command == "entity-roles":
+        result = generate_entity_role_report(out_dir=args.out, db_path=db_path)
+        print(f"report_path={result.report_path}")
+        print(f"total_role_records={result.total_role_records}")
+        print(f"multi_role_entities={result.multi_role_entities}")
+        print(f"conflicted_roles={result.conflicted_roles}")
+        print(f"canonical_role_agreements={result.canonical_role_agreements}")
+        print(f"blocked_role_collisions={result.blocked_role_collisions}")
         return 0
 
     if args.command == "discover-albums":

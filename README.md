@@ -45,6 +45,7 @@ appropriate, and preserve recovery information.
 - [Evidence reliability](docs/evidence-reliability.md)
 - [Canonical entity graph](docs/canonical-entity-graph.md)
 - [Canonical entity classification](docs/canonical-entity-classification.md)
+- [Entity roles](docs/entity-roles.md)
 - [Sample outputs](docs/sample-outputs/)
 
 ## 2. Problem Statement
@@ -390,6 +391,25 @@ deterministic classifications to keep blocked artist and album candidates out
 of active canonical entities while retaining the rationale as unresolved
 conflict evidence. It never mutates media files or writes metadata.
 
+Entity Role reports are review-only. The `entity-roles` command separates
+`entity_value` from `entity_value + entity_role + context`, so legitimate
+multi-role values such as artist names that also appear as album titles are not
+blocked globally:
+
+```text
+reports/entity_roles/
+  entity_role_summary.json
+  entity_roles.csv
+  multi_role_entities.csv
+  conflicted_roles.csv
+  blocked_role_collisions.csv
+```
+
+The classifier and canonical graph use role context to preserve valid
+multi-role artists, albums, and tracks while keeping source-artifact and
+uploader-artifact blocking role-specific. It never mutates media files or
+writes metadata.
+
 Canonical Entity Graph reports are review-only and persistent. The
 `canonical-graph` command rebuilds canonical artists, albums, tracks, versions,
 and relationships from accumulated local evidence, then writes:
@@ -472,6 +492,7 @@ Available routes include:
 /review/metadata
 /review/canonical-graph
 /review/entity-classification
+/review/entity-roles
 /review/reliability
 /player
 /settings

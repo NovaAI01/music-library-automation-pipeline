@@ -43,6 +43,7 @@ appropriate, and preserve recovery information.
 - [Demo script](docs/demo-script.md)
 - [Normalization rules](docs/normalization-rules.md)
 - [Evidence reliability](docs/evidence-reliability.md)
+- [Canonical entity graph](docs/canonical-entity-graph.md)
 - [Sample outputs](docs/sample-outputs/)
 
 ## 2. Problem Statement
@@ -69,6 +70,8 @@ evidence preserved at each review boundary.
   placement structure, and normalization knowledge evidence when present.
 - Adds an Evidence Reliability Engine that scores metadata evidence before
   album cohesion and metadata suggestions rely on it.
+- Adds a Canonical Entity Graph that persists canonical artists, albums, tracks,
+  versions, and evidence-governed relationships without auto-merging conflicts.
 - Classifies files using deterministic artist and genre rules.
 - Plans album-aware organized placement paths before copying files.
 - Generates library QA, duplicate, metadata audit, metadata normalization, and
@@ -257,6 +260,7 @@ python -m app.main review-decision-report --out reports
 python -m app.main build-normalization-knowledge --out reports
 python -m app.main album-cohesion --out reports
 python -m app.main evidence-reliability --out reports
+python -m app.main canonical-graph --out reports
 python -m app.main discover-albums ...
 python -m app.main duplicate-report ...
 python -m app.main duplicate-review ...
@@ -293,6 +297,7 @@ python -m app.main review-decision-report --out reports
 python -m app.main build-normalization-knowledge --out reports
 python -m app.main album-cohesion --out reports
 python -m app.main evidence-reliability --out reports
+python -m app.main canonical-graph --out reports
 python -m app.main plan-album-organization \
   --library-root ~/Music/Organised_Library \
   --out reports
@@ -363,6 +368,28 @@ when repeated canonical agreement, normalization knowledge, album cohesion,
 sequential tracks, folder consistency, prior approvals, or low conflict rates
 support the value. It never mutates media files or removes metadata.
 
+Canonical Entity Graph reports are review-only and persistent. The
+`canonical-graph` command rebuilds canonical artists, albums, tracks, versions,
+and relationships from accumulated local evidence, then writes:
+
+```text
+reports/canonical_graph/
+  canonical_artists.csv
+  canonical_albums.csv
+  canonical_tracks.csv
+  canonical_versions.csv
+  entity_relationships.csv
+  unresolved_conflicts.csv
+  graph_summary.json
+```
+
+The graph supports `alias_of`, `belongs_to_album`, `probable_duplicate`,
+`probable_live_version`, `probable_remaster`, `probable_single`,
+`probable_compilation_member`, and `probable_same_track` relationships. It
+records unresolved ambiguity instead of silently collapsing conflicting
+entities, and it never writes tags, moves files, deletes files, calls external
+APIs, or uses embeddings.
+
 Album metadata discovery is also review-only. The `discover-albums` command
 looks at existing tags, filenames, and local path evidence for tracks with
 missing or `Unknown Album` album values, then writes suggestions under
@@ -421,6 +448,7 @@ Available routes include:
 /review
 /review/duplicates
 /review/metadata
+/review/canonical-graph
 /review/reliability
 /player
 /settings

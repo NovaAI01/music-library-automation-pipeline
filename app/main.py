@@ -12,6 +12,7 @@ from app.album_discovery import generate_album_discovery
 from app.album_organization import generate_album_organization_plan
 from app import db
 from app.classifier import classify_scan_run
+from app.canonical_entity_graph import generate_canonical_graph
 from app.demo_generator import generate_demo
 from app.duplicate_quarantine import quarantine_duplicates
 from app.duplicate_report import generate_duplicate_report
@@ -276,6 +277,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Score metadata evidence reliability from existing reports and review knowledge.",
     )
     evidence_reliability_parser.add_argument("--out", default="reports")
+
+    canonical_graph_parser = subparsers.add_parser(
+        "canonical-graph",
+        help="Build persistent canonical entities and evidence-governed relationships.",
+    )
+    canonical_graph_parser.add_argument("--out", default="reports")
 
     album_discovery_parser = subparsers.add_parser(
         "discover-albums",
@@ -692,6 +699,20 @@ def main(argv: list[str] | None = None) -> int:
         print(f"noisy_titles_detected={result.noisy_titles_detected}")
         print(f"conflicting_artist_patterns={result.conflicting_artist_patterns}")
         print(f"canonical_matches={result.canonical_matches}")
+        return 0
+
+    if args.command == "canonical-graph":
+        result = generate_canonical_graph(out_dir=args.out, db_path=db_path)
+        print(f"report_path={result.report_path}")
+        print(f"canonical_artist_count={result.canonical_artist_count}")
+        print(f"canonical_album_count={result.canonical_album_count}")
+        print(f"canonical_track_count={result.canonical_track_count}")
+        print(f"alias_relationships={result.alias_relationships}")
+        print(f"duplicate_relationships={result.duplicate_relationships}")
+        print(f"unresolved_conflicts={result.unresolved_conflicts}")
+        print(f"high_confidence_entities={result.high_confidence_entities}")
+        print(f"medium_confidence_entities={result.medium_confidence_entities}")
+        print(f"low_confidence_entities={result.low_confidence_entities}")
         return 0
 
     if args.command == "discover-albums":

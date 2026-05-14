@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from app.album_cohesion import album_cohesion_by_file
+from app.canonical_entity_graph import canonical_artist_lookup
 from app.evidence_reliability import score_evidence
 from app.normalization_knowledge import influence_suggestion, rule_lookup_by_signature
 from app.review_decisions import suggestion_key_for
@@ -29,6 +30,9 @@ SUGGESTION_HEADERS: tuple[str, ...] = (
     "reliability_score",
     "reliability_flags",
     "reliability_rationale",
+    "canonical_entity_id",
+    "canonical_confidence",
+    "unresolved_ambiguity",
     "requires_human_review",
     "source_evidence",
 )
@@ -69,6 +73,9 @@ class MetadataSuggestion:
     reliability_score: float = 0.0
     reliability_flags: list[str] | None = None
     reliability_rationale: list[str] | None = None
+    canonical_entity_id: str = ""
+    canonical_confidence: str = ""
+    unresolved_ambiguity: str = ""
 
 
 @dataclass(frozen=True)
@@ -98,6 +105,11 @@ def generate_metadata_suggestions(
     suggestions = _with_normalization_knowledge(suggestions, db_path=db_path)
     suggestions = _with_album_cohesion_evidence(suggestions, reports_dir=audit_dir.parent)
     suggestions = _with_reliability_evidence(suggestions, reports_dir=audit_dir.parent)
+    suggestions = _with_canonical_references(
+        suggestions,
+        reports_dir=audit_dir.parent,
+        db_path=db_path,
+    )
 
     ai_enrichment_used = False
     if os.environ.get("OPENAI_API_KEY"):
@@ -393,6 +405,46 @@ def _with_reliability_evidence(
     return influenced
 
 
+def _with_canonical_references(
+    suggestions: list[MetadataSuggestion],
+    *,
+    reports_dir: Path,
+    db_path: str | Path | None,
+) -> list[MetadataSuggestion]:
+    if db_path is None:
+        return suggestions
+    artist_lookup = canonical_artist_lookup(reports_dir=reports_dir, db_path=db_path)
+    influenced: list[MetadataSuggestion] = []
+    for suggestion in suggestions:
+        canonical: dict[str, Any] = {}
+        if suggestion.field in {"artist", "album_artist"}:
+            canonical = artist_lookup.get(_norm(suggestion.proposed_value), {})
+        unresolved = ""
+        if int(canonical.get("conflict_count", 0) or 0):
+            unresolved = "canonical entity has unresolved ambiguity"
+        influenced.append(
+            MetadataSuggestion(
+                suggestion_key=suggestion.suggestion_key,
+                file_path=suggestion.file_path,
+                field=suggestion.field,
+                current_value=suggestion.current_value,
+                proposed_value=suggestion.proposed_value,
+                suggestion_type=suggestion.suggestion_type,
+                confidence=suggestion.confidence,
+                rationale=suggestion.rationale,
+                requires_human_review=suggestion.requires_human_review,
+                source_evidence=suggestion.source_evidence,
+                reliability_score=suggestion.reliability_score,
+                reliability_flags=suggestion.reliability_flags,
+                reliability_rationale=suggestion.reliability_rationale,
+                canonical_entity_id=str(canonical.get("canonical_id", "")),
+                canonical_confidence=str(canonical.get("confidence_tier", "")),
+                unresolved_ambiguity=unresolved,
+            )
+        )
+    return influenced
+
+
 def _decrease_confidence(confidence: str) -> str:
     if confidence == "high":
         return "medium"
@@ -441,6 +493,12 @@ def _resolve_plan_path(path: Path) -> Path:
 
 def _split_pipe_list(value: str) -> list[str]:
     return [part.strip() for part in value.split("|") if part.strip()]
+
+
+def _norm(value: str) -> str:
+    text = re.sub(r"\s+", " ", str(value or "")).strip().casefold()
+    text = re.sub(r"[\W_]+", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def _summary(

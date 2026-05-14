@@ -420,6 +420,88 @@ CREATE TABLE IF NOT EXISTS review_decisions (
     source_evidence_json TEXT NOT NULL DEFAULT '[]',
     decided_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS canonical_artists (
+    canonical_id TEXT PRIMARY KEY,
+    canonical_name TEXT NOT NULL,
+    confidence_score REAL NOT NULL,
+    confidence_tier TEXT NOT NULL,
+    evidence_count INTEGER NOT NULL,
+    conflict_count INTEGER NOT NULL,
+    first_seen TEXT NOT NULL,
+    last_seen TEXT NOT NULL,
+    status TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS canonical_albums (
+    canonical_id TEXT PRIMARY KEY,
+    canonical_name TEXT NOT NULL,
+    confidence_score REAL NOT NULL,
+    confidence_tier TEXT NOT NULL,
+    evidence_count INTEGER NOT NULL,
+    conflict_count INTEGER NOT NULL,
+    first_seen TEXT NOT NULL,
+    last_seen TEXT NOT NULL,
+    status TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS canonical_tracks (
+    canonical_id TEXT PRIMARY KEY,
+    canonical_name TEXT NOT NULL,
+    confidence_score REAL NOT NULL,
+    confidence_tier TEXT NOT NULL,
+    evidence_count INTEGER NOT NULL,
+    conflict_count INTEGER NOT NULL,
+    first_seen TEXT NOT NULL,
+    last_seen TEXT NOT NULL,
+    status TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS canonical_versions (
+    canonical_id TEXT PRIMARY KEY,
+    canonical_name TEXT NOT NULL,
+    confidence_score REAL NOT NULL,
+    confidence_tier TEXT NOT NULL,
+    evidence_count INTEGER NOT NULL,
+    conflict_count INTEGER NOT NULL,
+    first_seen TEXT NOT NULL,
+    last_seen TEXT NOT NULL,
+    status TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS entity_relationships (
+    relationship_id TEXT PRIMARY KEY,
+    source_entity TEXT NOT NULL,
+    target_entity TEXT NOT NULL,
+    relationship_type TEXT NOT NULL CHECK (
+        relationship_type IN (
+            'alias_of',
+            'belongs_to_album',
+            'probable_duplicate',
+            'probable_live_version',
+            'probable_remaster',
+            'probable_single',
+            'probable_compilation_member',
+            'probable_same_track'
+        )
+    ),
+    confidence_score REAL NOT NULL,
+    supporting_evidence_count INTEGER NOT NULL,
+    conflicting_evidence_count INTEGER NOT NULL,
+    rationale TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS canonical_unresolved_conflicts (
+    conflict_id TEXT PRIMARY KEY,
+    entity_type TEXT NOT NULL,
+    entity_key TEXT NOT NULL,
+    variants TEXT NOT NULL,
+    evidence_count INTEGER NOT NULL,
+    conflict_count INTEGER NOT NULL,
+    rationale TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
 """
 
 

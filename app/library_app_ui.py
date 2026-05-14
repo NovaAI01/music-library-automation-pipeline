@@ -21,6 +21,7 @@ from app.album_organization import (
     read_album_plan_rows,
     read_album_plan_summary,
 )
+from app.canonical_entity_graph import read_canonical_graph_report
 from app.evidence_reliability import read_evidence_reliability_report
 from app.manual_review_ui import _review_data
 from app.metadata_suggestion_ui import _read_suggestions
@@ -331,6 +332,7 @@ def review_hub(request: Request):
     suggestions = _suggestion_summary(reports_dir, db_path=_db_path(request))
     album_cohesion = _album_cohesion_summary(reports_dir)
     reliability = _reliability_summary(reports_dir)
+    canonical_graph = _canonical_graph_summary(reports_dir)
     decision_counts = review_decision_summary(list_review_decisions(_db_path(request)))
     learned_rule_count = _learned_rule_count(reports_dir)
     return _render(
@@ -347,6 +349,7 @@ def review_hub(request: Request):
                 ("Metadata suggestions", suggestions["total"]),
                 ("Metadata decisions", decision_counts["total_decisions"]),
                 ("Album groups", album_cohesion["summary"].get("total_album_groups", 0)),
+                ("Canonical artists", canonical_graph["summary"].get("canonical_artist_count", 0)),
                 ("Low reliability evidence", reliability["summary"].get("low_reliability", 0)),
                 ("Learned rules", learned_rule_count),
                 ("Blocked classification", review["blocked_classification_count"]),
@@ -355,11 +358,13 @@ def review_hub(request: Request):
                     len(review["conflicts"])
                     + album_cohesion["summary"].get("conflicting_album_groups", 0),
                 ),
+                ("Graph conflicts", canonical_graph["summary"].get("unresolved_conflicts", 0)),
                 ("Low confidence", suggestions["confidence_counts"].get("low", 0)),
             ],
             "review_links": [
                 ("Duplicate Review", "/review/duplicates", "Keep/remove candidates and active duplicate groups."),
                 ("Metadata Review", "/review/metadata", "Review-only tag cleanup suggestions."),
+                ("Canonical Graph", "/review/canonical-graph", "Canonical artists, albums, tracks, relationships, and unresolved ambiguity."),
                 ("Album Cohesion", "/review/albums", "Repeated-evidence album grouping, conflicts, singles, and orphans."),
                 ("Evidence Reliability", "/review/reliability", "Uploader artifacts, polluted names, canonical matches, and reliability tiers."),
                 ("Knowledge Review", "/review/knowledge", "Reusable evidence from approved and rejected decisions."),
@@ -375,6 +380,7 @@ def review_hub(request: Request):
                 *suggestions["missing_files"],
                 *album_cohesion["missing_files"],
                 *reliability["missing_files"],
+                *canonical_graph["missing_files"],
             ],
         },
     )
@@ -515,6 +521,44 @@ def review_reliability(request: Request, q: str = ""):
             "query": q,
             "timestamp": reliability["summary"].get("created_at"),
             "missing_files": reliability["missing_files"],
+        },
+    )
+
+
+@router.get("/review/canonical-graph")
+def review_canonical_graph(request: Request, q: str = ""):
+    graph = _canonical_graph_summary(_reports_dir(request))
+    query_rows = lambda rows: _filter_rows(rows, q)
+    relationships = query_rows(graph["relationships"])
+    aliases = [row for row in relationships if row.get("relationship_type") == "alias_of"]
+    return _render(
+        request,
+        "reports/canonical_graph.html",
+        {
+            "title": "Canonical Graph",
+            "eyebrow": "Entity Resolution",
+            "intro": "Inspect persistent canonical entity hypotheses and evidence-governed relationships without applying metadata changes.",
+            "breadcrumbs": [("Review", "/review"), ("Canonical Graph", "")],
+            "back_links": [("Back to Review", "/review")],
+            "cards": [
+                ("Canonical artists", graph["summary"].get("canonical_artist_count", 0)),
+                ("Canonical albums", graph["summary"].get("canonical_album_count", 0)),
+                ("Canonical tracks", graph["summary"].get("canonical_track_count", 0)),
+                ("Alias relationships", graph["summary"].get("alias_relationships", 0)),
+                ("Duplicate relationships", graph["summary"].get("duplicate_relationships", 0)),
+                ("Unresolved conflicts", graph["summary"].get("unresolved_conflicts", 0)),
+                ("High confidence", graph["summary"].get("high_confidence_entities", 0)),
+                ("Low confidence", graph["summary"].get("low_confidence_entities", 0)),
+            ],
+            "artists": query_rows(graph["artists"]),
+            "albums": query_rows(graph["albums"]),
+            "tracks": query_rows(graph["tracks"]),
+            "aliases": aliases,
+            "relationships": relationships,
+            "conflicts": query_rows(graph["conflicts"]),
+            "query": q,
+            "timestamp": graph["summary"].get("created_at"),
+            "missing_files": graph["missing_files"],
         },
     )
 
@@ -690,6 +734,19 @@ def _reliability_summary(reports_dir: Path) -> dict[str, Any]:
     }
 
 
+def _canonical_graph_summary(reports_dir: Path) -> dict[str, Any]:
+    summary, artists, albums, tracks, relationships, conflicts, missing_files = read_canonical_graph_report(reports_dir)
+    return {
+        "summary": summary,
+        "artists": artists,
+        "albums": albums,
+        "tracks": tracks,
+        "relationships": relationships,
+        "conflicts": conflicts,
+        "missing_files": missing_files,
+    }
+
+
 def _learned_rule_count(reports_dir: Path) -> int:
     path = reports_dir / "normalization_knowledge" / "normalization_knowledge_rules.json"
     if not path.exists():
@@ -854,6 +911,7 @@ def _nav_items() -> list[tuple[str, str]]:
         ("/review", "Review"),
         ("/review/duplicates", "Duplicates"),
         ("/review/metadata", "Metadata"),
+        ("/review/canonical-graph", "Canonical Graph"),
         ("/review/albums", "Album Cohesion"),
         ("/review/reliability", "Reliability"),
         ("/review/knowledge", "Knowledge"),

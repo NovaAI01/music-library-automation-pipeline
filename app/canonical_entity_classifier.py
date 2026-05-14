@@ -67,6 +67,7 @@ _UPLOADER_STYLE_RE = re.compile(
 _PLATFORM_RE = re.compile(r"\b(?:youtube|soundcloud|bandcamp|auto-generated|provided to youtube)\b", re.I)
 _TRACK_PHRASE_RE = re.compile(r"^(?:\d+\.\s*)?[a-z0-9][a-z0-9'’]*(?:\s+[a-z0-9][a-z0-9'’]*){1,6}$", re.I)
 _TRACK_NUMBER_PREFIX_RE = re.compile(r"^\s*\d+\.\s+\S+")
+_COLLABORATION_ARTIST_RE = re.compile(r"(?:\s&\s|,\s|\s(?:feat\.?|ft\.?|featuring)\s)", re.I)
 
 
 @dataclass(frozen=True)
@@ -210,6 +211,11 @@ def classify_candidate(context: CandidateContext) -> EntityClassification:
         elif _is_source_artifact(value, context):
             flags.append("weak_artifact_signal_overridden")
             rationale.append("weighted canonical evidence overrides weak artifact signal")
+        elif _COLLABORATION_ARTIST_RE.search(value) and not (strong_current_role or context.approved_review_support):
+            proposed = AMBIGUOUS_TYPE
+            score = min(score, 0.49)
+            flags.append("collaboration_artist_collision")
+            rationale.append("compound artist candidate needs explicit evidence before canonical promotion")
         elif value_norm and value_norm == tag_album_norm and not (strong_current_role or "artist" in active_roles):
             proposed = "album_title_misclassified_as_artist"
             score = max(score, 0.78)

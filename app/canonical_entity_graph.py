@@ -1066,7 +1066,7 @@ def _best_name(values: Iterable[str], preferred: Iterable[str] = ()) -> str:
 
 def _base_title(value: str) -> str:
     value = _clean(value)
-    value = re.sub(r"\s*[\[(](?:live|live at .+?|remaster(?:ed)?|[0-9]{4} remaster|radio edit|single version)[\])]\s*", "", value, flags=re.IGNORECASE)
+    value = re.sub(r"\s*[\[(](?:live|live at .+?|remaster(?:ed)?(?:\s+[0-9]{4})?|[0-9]{4} remaster|radio edit|single version)[\])]\s*", "", value, flags=re.IGNORECASE)
     value = re.sub(r"\s+-\s+(?:live|remaster(?:ed)?|radio edit|single version)\s*$", "", value, flags=re.IGNORECASE)
     return value.strip() or _clean(value)
 

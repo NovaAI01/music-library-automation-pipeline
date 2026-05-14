@@ -1,0 +1,9 @@
+case_id,candidate_value,field_name,folder_artist,filename_artist,filename_title,tag_title,tag_album,value_artist_count,value_album_count,value_title_count,other_title_count,role_status,role_evidence_count,active_roles,role_flags,approved_review_support,normalization_knowledge_support,expected_proposed_entity_type,expected_classifier_confidence_tier,scoring_profile,expected_weighted_confidence_tier,expected_lifecycle_state,expected_blocked,expected_roles,expected_alias_target,expected_base_title
+album_001,Audioslave,artist,Audioslave,,,,Audioslave,3,2,0,0,canonical,3,artist|album,multi_role_entity,false,false,canonical_artist,high,canonical_artist,high,canonical,false,artist|album,,
+album_002,Audioslave,album,Audioslave,,,,Audioslave,3,2,0,0,canonical,3,artist|album,multi_role_entity,false,false,canonical_album,high,canonical_album,high,canonical,false,artist|album,,
+album_003,Flyleaf,artist,Flyleaf,,,,Flyleaf,3,2,0,0,canonical,3,artist|album,multi_role_entity,false,false,canonical_artist,high,canonical_artist,high,canonical,false,artist|album,,
+album_004,Flyleaf,album,Flyleaf,,,,Flyleaf,3,2,0,0,canonical,3,artist|album,multi_role_entity,false,false,canonical_album,high,canonical_album,high,canonical,false,artist|album,,
+album_005,Alice in Chains,artist,Alice in Chains,,,,Alice in Chains,3,2,0,0,canonical,3,artist|album,multi_role_entity,false,false,canonical_artist,high,canonical_artist,high,canonical,false,artist|album,,
+album_006,Alice in Chains,album,Alice in Chains,,,,Alice in Chains,3,2,0,0,canonical,3,artist|album,multi_role_entity,false,false,canonical_album,high,canonical_album,high,canonical,false,artist|album,,
+album_007,Badmotorfinger,album,Soundgarden,,,,Badmotorfinger,0,3,0,0,canonical,3,album,,false,false,canonical_album,high,canonical_album,high,canonical,false,album,,
+album_008,L.D. 50,album,Mudvayne,,,,L.D. 50,0,3,0,0,canonical,3,album,,false,false,canonical_album,high,canonical_album,high,canonical,false,album,,

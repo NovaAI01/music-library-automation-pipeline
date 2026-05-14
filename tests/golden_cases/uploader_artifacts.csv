@@ -1,0 +1,8 @@
+case_id,candidate_value,field_name,folder_artist,filename_artist,filename_title,tag_title,tag_album,value_artist_count,value_album_count,value_title_count,other_title_count,role_status,role_evidence_count,active_roles,role_flags,approved_review_support,normalization_knowledge_support,expected_proposed_entity_type,expected_classifier_confidence_tier,scoring_profile,expected_weighted_confidence_tier,expected_lifecycle_state,expected_blocked,expected_roles,expected_alias_target,expected_base_title
+uploader_001,Warner Records Vault,artist,Static-X,,,,,1,0,0,0,,0,,,false,false,source_or_label_artifact,high,artifact,blocked,blocked,true,uploader_artifact|label_artifact,,
+uploader_002,David Rolfe's Rock & Metal Channel,artist,Static-X,,,,,1,0,0,0,,0,,,false,false,uploader_channel_artifact,high,artifact,blocked,blocked,true,uploader_artifact,,
+uploader_003,UNFD,artist,Beartooth,,,,,1,0,0,0,,0,,,false,false,source_or_label_artifact,high,artifact,blocked,blocked,true,source_artifact,,
+uploader_004,BEARTOOTHband,artist,Beartooth,,,,,1,0,0,0,,0,,,false,false,source_or_label_artifact,high,artifact,blocked,blocked,true,source_artifact,,
+uploader_005,The Korn Projekt,artist,Korn,,,,,1,0,0,0,,0,,,false,false,source_or_label_artifact,high,artifact,blocked,blocked,true,source_artifact,,
+uploader_006,Lagu Pre Studio,artist,Static-X,,,,,1,0,0,0,,0,,,false,false,source_or_label_artifact,high,artifact,blocked,blocked,true,source_artifact,,
+uploader_007,MrKculnalyd,artist,Dylan,,,,,1,0,0,0,,0,,,false,false,uploader_channel_artifact,high,artifact,blocked,blocked,true,uploader_artifact,,

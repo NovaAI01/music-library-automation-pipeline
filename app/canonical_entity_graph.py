@@ -27,6 +27,8 @@ from app.canonical_entity_classifier import (
     classify_candidate,
     classification_summary,
 )
+from app.canonical_confidence import confidence_tier as weighted_confidence_tier
+from app.canonical_confidence import score_canonical_entity
 from app.entity_roles import EntityRoleRecord, aggregate_entity_roles, entity_role_summary
 from app.evidence_reliability import read_evidence_reliability_report, score_evidence
 from app.filename_parser import parse_filename
@@ -473,10 +475,15 @@ def _build_artists(
             conflict_count = 0
         canonical_name = _best_name(names, preferred=approved_targets)
         score = _score_entity(
+            entity_type="artist",
+            entity_value=canonical_name,
             evidence_count=len(values),
             conflict_count=conflict_count,
             average_reliability=sum(score for _, score, _ in values) / len(values),
             approvals=len(approved_targets),
+            seen_values=[seen for _, _, seen in values],
+            folder_agreement=True,
+            role_agreement=True,
         )
         entity = _entity("artist", key, canonical_name, score, len(values), conflict_count, [seen for _, _, seen in values], now)
         entities.append(entity)
@@ -538,7 +545,18 @@ def _build_albums(
         if _norm(key) in conflict_keys:
             conflict_count += 1
         canonical_name = _best_name(names)
-        score = _score_entity(len(values), conflict_count, sum(score for _, score, _ in values) / len(values), approvals=0)
+        score = _score_entity(
+            entity_type="album",
+            entity_value=canonical_name,
+            evidence_count=len(values),
+            conflict_count=conflict_count,
+            average_reliability=sum(score for _, score, _ in values) / len(values),
+            approvals=0,
+            seen_values=[seen for _, _, seen in values],
+            role_agreement=True,
+            album_cohesion_count=sum(1 for _, score, _ in values if score >= 0.7),
+            weak_album_cohesion=any(score < 0.55 for _, score, _ in values),
+        )
         entity = _entity("album", key, canonical_name, score, len(values), conflict_count, [seen for _, _, seen in values], now)
         entities.append(entity)
         lookup[key] = entity.canonical_id
@@ -569,7 +587,16 @@ def _build_tracks(
         conflict_count = max(0, len({_version_marker(title) for title in titles if _version_marker(title)}) - 1)
         canonical_name = _best_name([_base_title(title) for title in titles]) or _best_name(titles)
         avg_reliability = sum(item.reliability for item in values) / len(values)
-        score = _score_entity(len(values), conflict_count, avg_reliability, approvals=0)
+        score = _score_entity(
+            entity_type="track",
+            entity_value=canonical_name,
+            evidence_count=len(values),
+            conflict_count=conflict_count,
+            average_reliability=avg_reliability,
+            approvals=0,
+            seen_values=[item.observed_at for item in values],
+            role_agreement=True,
+        )
         entity = _entity("track", key, canonical_name, score, len(values), conflict_count, [item.observed_at for item in values], now)
         entities.append(entity)
         lookup[key] = entity.canonical_id
@@ -586,7 +613,16 @@ def _build_versions(track_evidence: list[TrackEvidence], track_lookup: dict[str,
         if marker:
             version_name = f"{_base_title(item.title)} ({marker})"
         key = f"{item.file_path}:{_norm(version_name)}"
-        score = _score_entity(1, 0, item.reliability, approvals=0)
+        score = _score_entity(
+            entity_type="version",
+            entity_value=version_name,
+            evidence_count=1,
+            conflict_count=0,
+            average_reliability=item.reliability,
+            approvals=0,
+            seen_values=[item.observed_at],
+            role_agreement=False,
+        )
         versions.append(_entity("version", key, version_name, score, 1, 0, [item.observed_at], now))
     return sorted(versions, key=lambda item: item.canonical_name.casefold())
 
@@ -957,22 +993,41 @@ def _conflict(entity_type: str, key: str, variants: list[str], evidence_count: i
     )
 
 
-def _score_entity(evidence_count: int, conflict_count: int, average_reliability: float, approvals: int) -> float:
-    score = 0.32 + min(0.26, evidence_count * 0.04) + min(0.18, approvals * 0.09)
-    score += max(0.0, min(1.0, average_reliability)) * 0.26
-    if conflict_count:
-        score -= min(0.34, conflict_count * 0.12)
-    if evidence_count == 1:
-        score -= 0.08
-    return score
+def _score_entity(
+    *,
+    entity_type: str,
+    entity_value: str,
+    evidence_count: int,
+    conflict_count: int,
+    average_reliability: float,
+    approvals: int,
+    seen_values: list[str],
+    folder_agreement: bool = False,
+    role_agreement: bool = False,
+    album_cohesion_count: int = 0,
+    weak_album_cohesion: bool = False,
+) -> float:
+    scored = score_canonical_entity(
+        entity_type=entity_type,
+        entity_key=_norm(entity_value),
+        entity_value=entity_value,
+        evidence_count=evidence_count,
+        conflict_count=conflict_count,
+        average_reliability=average_reliability,
+        approvals=approvals,
+        first_seen=min(seen_values) if seen_values else "",
+        last_seen=max(seen_values) if seen_values else "",
+        folder_agreement=folder_agreement,
+        role_agreement=role_agreement,
+        album_cohesion_count=album_cohesion_count,
+        graph_reinforcement=evidence_count >= 2,
+        weak_album_cohesion=weak_album_cohesion,
+    )
+    return scored.normalized_confidence
 
 
 def _tier(score: float) -> str:
-    if score >= 0.74:
-        return "high"
-    if score >= 0.5:
-        return "medium"
-    return "low"
+    return weighted_confidence_tier(score)
 
 
 def _case_conflict_count(values: Iterable[str]) -> int:

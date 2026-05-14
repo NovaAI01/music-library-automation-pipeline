@@ -45,6 +45,7 @@ appropriate, and preserve recovery information.
 - [Evidence reliability](docs/evidence-reliability.md)
 - [Canonical entity graph](docs/canonical-entity-graph.md)
 - [Canonical entity classification](docs/canonical-entity-classification.md)
+- [Canonical confidence](docs/canonical-confidence.md)
 - [Entity roles](docs/entity-roles.md)
 - [Sample outputs](docs/sample-outputs/)
 
@@ -409,6 +410,25 @@ The classifier and canonical graph use role context to preserve valid
 multi-role artists, albums, and tracks while keeping source-artifact and
 uploader-artifact blocking role-specific. It never mutates media files or
 writes metadata.
+
+Canonical Confidence reports are review-only. The `canonical-confidence`
+command scores canonical entity evidence with deterministic positive and
+negative weights, then normalizes the score into high, medium, low, or blocked
+confidence:
+
+```text
+reports/canonical_confidence/
+  confidence_summary.json
+  scored_entities.csv
+  high_confidence_entities.csv
+  blocked_entities.csv
+  confidence_breakdowns.json
+```
+
+The weighted engine explains each score with positive evidence, negative
+evidence, raw totals, normalized confidence, and rationale. It has no AI,
+embedding, vector database, or external API dependency, and it never mutates
+media files or writes metadata.
 
 Canonical Entity Graph reports are review-only and persistent. The
 `canonical-graph` command rebuilds canonical artists, albums, tracks, versions,

@@ -17,6 +17,7 @@ from typing import Any, Iterable
 
 from app import db
 from app.album_cohesion import read_album_cohesion_report
+from app.canonical_confidence import score_canonical_entity
 from app.entity_roles import aggregate_entity_roles, best_role_record, role_records_by_value
 from app.filename_parser import parse_filename
 from app.normalization_knowledge import derive_normalization_rules
@@ -137,6 +138,7 @@ def classify_candidate(context: CandidateContext) -> EntityClassification:
     active_roles = set(context.active_roles)
     supported_current_role = context.role_status in {"candidate", "probationary", "canonical"} and context.role_evidence_count > 0
     strong_current_role = context.role_status in {"probationary", "canonical"} or context.role_evidence_count >= 2
+    weighted = _weighted_support(context, field_name, value)
 
     if not value:
         proposed = AMBIGUOUS_TYPE
@@ -200,11 +202,14 @@ def classify_candidate(context: CandidateContext) -> EntityClassification:
             score = max(score, 0.86)
             flags.append("version_suffix_on_artist_candidate")
             rationale.append("artist candidate contains track/version suffix wording")
-        elif _is_source_artifact(value, context):
+        elif _is_source_artifact(value, context) and not _positive_evidence_dominates(weighted):
             proposed = _artifact_type(value)
             score = max(score, 0.88)
             flags.append("source_or_uploader_signature")
-            rationale.append("candidate resembles source, label, channel, or uploader residue")
+            rationale.append("dominant weighted negative evidence resembles source, label, channel, or uploader residue")
+        elif _is_source_artifact(value, context):
+            flags.append("weak_artifact_signal_overridden")
+            rationale.append("weighted canonical evidence overrides weak artifact signal")
         elif value_norm and value_norm == tag_album_norm and not (strong_current_role or "artist" in active_roles):
             proposed = "album_title_misclassified_as_artist"
             score = max(score, 0.78)
@@ -235,11 +240,11 @@ def classify_candidate(context: CandidateContext) -> EntityClassification:
             score = max(score, 0.76)
             flags.append("version_descriptor_terms")
             rationale.append("album candidate is dominated by version descriptor wording")
-        elif _is_source_artifact(value, context) and not (strong_current_role or "album" in active_roles):
+        elif _is_source_artifact(value, context) and not (strong_current_role or "album" in active_roles or _positive_evidence_dominates(weighted)):
             proposed = "source_or_label_artifact"
             score = max(score, 0.84)
             flags.append("source_or_label_signature")
-            rationale.append("album candidate resembles source or label residue")
+            rationale.append("dominant weighted negative evidence resembles source or label residue")
         elif _is_source_artifact(value, context):
             flags.append("weak_source_artifact_collision")
             rationale.append("album role evidence overrides weak source-artifact suspicion")
@@ -259,6 +264,10 @@ def classify_candidate(context: CandidateContext) -> EntityClassification:
 
     if proposed == _default_entity_type(field_name) and not rationale:
         rationale.append("candidate is consistent with its source field")
+    if proposed == _default_entity_type(field_name):
+        score = max(score, weighted.normalized_confidence)
+        flags.append("weighted_confidence")
+        rationale.append("weighted positive and negative evidence supports canonical role")
 
     if proposed == AMBIGUOUS_TYPE:
         score = min(score, 0.49)
@@ -557,6 +566,32 @@ def _role_for_field(field_name: str) -> str:
     if field_name == "title":
         return "track"
     return "ambiguous"
+
+
+def _weighted_support(context: CandidateContext, field_name: str, value: str) -> Any:
+    role = _role_for_field(field_name)
+    artifact_flags: list[str] = []
+    if _is_source_artifact(value, context):
+        artifact_flags.append("uploader_signature" if _artifact_type(value) == "uploader_channel_artifact" else "source_artifact_pattern")
+    if "multi_role_entity" in context.role_flags and role not in set(context.active_roles):
+        artifact_flags.append("conflicting_role_pattern")
+    return score_canonical_entity(
+        entity_type=role if role in {"artist", "album", "track"} else "artist",
+        entity_key=_norm(value),
+        entity_value=value,
+        evidence_count=max(context.role_evidence_count, context.value_artist_count if role == "artist" else context.value_album_count if role == "album" else context.value_title_count),
+        conflict_count=1 if context.rejected_review_conflict else 0,
+        average_reliability=0.68 if context.low_reliability_conflicts == 0 else 0.45,
+        approvals=1 if context.approved_review_support or context.normalization_knowledge_support else 0,
+        folder_agreement=bool(_norm(value) and _norm(value) == _norm(Path(context.folder_artist).name)),
+        role_agreement=context.role_status in {"probationary", "canonical"},
+        artifact_flags=artifact_flags,
+        title_like_artist=role == "artist" and bool(_TRACK_PHRASE_RE.search(_strip_version(value))),
+    )
+
+
+def _positive_evidence_dominates(weighted: Any) -> bool:
+    return weighted.raw_positive_score >= weighted.raw_negative_score + 0.25 and weighted.normalized_confidence >= 0.62
 
 
 def _is_source_artifact(value: str, context: CandidateContext) -> bool:

@@ -14,6 +14,7 @@ from app import db
 from app.classifier import classify_scan_run
 from app.canonical_entity_graph import generate_canonical_graph
 from app.canonical_entity_classifier import generate_canonical_entity_classification_report
+from app.canonical_confidence import generate_canonical_confidence_report
 from app.demo_generator import generate_demo
 from app.duplicate_quarantine import quarantine_duplicates
 from app.duplicate_report import generate_duplicate_report
@@ -297,6 +298,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Aggregate role-aware canonical entity evidence without mutating media.",
     )
     entity_roles_parser.add_argument("--out", default="reports")
+
+    canonical_confidence_parser = subparsers.add_parser(
+        "canonical-confidence",
+        help="Score canonical entities with weighted positive and negative evidence.",
+    )
+    canonical_confidence_parser.add_argument("--out", default="reports")
 
     album_discovery_parser = subparsers.add_parser(
         "discover-albums",
@@ -751,6 +758,19 @@ def main(argv: list[str] | None = None) -> int:
         print(f"conflicted_roles={result.conflicted_roles}")
         print(f"canonical_role_agreements={result.canonical_role_agreements}")
         print(f"blocked_role_collisions={result.blocked_role_collisions}")
+        return 0
+
+    if args.command == "canonical-confidence":
+        result = generate_canonical_confidence_report(out_dir=args.out, db_path=db_path)
+        print(f"report_path={result.report_path}")
+        print(f"total_scored_entities={result.total_scored_entities}")
+        print(f"high_confidence_count={result.high_confidence_count}")
+        print(f"medium_confidence_count={result.medium_confidence_count}")
+        print(f"low_confidence_count={result.low_confidence_count}")
+        print(f"blocked_confidence_count={result.blocked_confidence_count}")
+        print(f"average_confidence={result.average_confidence}")
+        print(f"average_positive_score={result.average_positive_score}")
+        print(f"average_negative_score={result.average_negative_score}")
         return 0
 
     if args.command == "discover-albums":

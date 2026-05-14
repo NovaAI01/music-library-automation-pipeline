@@ -18,6 +18,12 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from app import db
+from app.alias_equivalence import (
+    deterministic_artist_alias_equivalence,
+    has_artifact_marker,
+    has_collaboration_marker,
+    has_official_version_suffix,
+)
 from app.canonical_confidence import ScoredEntity, collect_scored_entities, score_canonical_entity
 from app.canonical_entity_graph import CanonicalGraph, UnresolvedConflict, build_canonical_graph
 from app.normalization_knowledge import derive_normalization_rules
@@ -221,27 +227,50 @@ def evaluate_conflict(
     raw_positive = float(snapshot.get("raw_positive_score", 0.0) or 0.0)
     raw_negative = float(snapshot.get("raw_negative_score", 0.0) or 0.0)
     confidence = float(snapshot.get("normalized_confidence", 0.0) or 0.0)
+    confidence_tier = str(snapshot.get("confidence_tier", "") or "")
     confidence_gap = abs(raw_positive - raw_negative)
     artifact_dominates = _artifact_dominates(negative)
     role_conflict = conflict_type == "role_collision" or "conflicting_role_pattern" in negative_types
-    collaboration_conflict = conflict_type == "ambiguous_collaboration" or _collaboration_single_artist_conflict(source_entity, target_entity)
+    blocked_alias_marker_text = f"{source_entity} {target_entity}"
+    version_suffix_conflict = conflict_type == "alias_collision" and has_official_version_suffix(blocked_alias_marker_text)
+    artifact_marker_conflict = conflict_type == "alias_collision" and has_artifact_marker(blocked_alias_marker_text)
+    collaboration_conflict = (
+        conflict_type == "ambiguous_collaboration"
+        or _collaboration_single_artist_conflict(source_entity, target_entity)
+        or (conflict_type == "alias_collision" and has_collaboration_marker(blocked_alias_marker_text))
+    )
     lifecycle_blocked = lifecycle_state in {"conflicted", "blocked", "deprecated"}
     low_negative = raw_negative <= 0.34 and not artifact_dominates and conflict_count <= 1
     same_role = entity_role in {"artist", "album", "track", "version"} and not role_conflict
     strong_alias = source_norm == target_norm or conflict_type == "alias_collision" or "approved_normalization_rule" in positive_types
     approved_review = approved_alias or normalization_knowledge or "approved_normalization_rule" in positive_types
     merge_ready_lifecycle = lifecycle_state in {"probationary", "canonical"}
+    deterministic_alias = deterministic_artist_alias_equivalence(
+        conflict_type=conflict_type,
+        entity_role=entity_role,
+        source_entity=source_entity,
+        target_entity=target_entity,
+        positive_evidence_types=positive_types,
+        negative_evidence_types=negative_types,
+        confidence_tier=confidence_tier,
+        lifecycle_state=lifecycle_state,
+        artifact_dominates=artifact_dominates,
+    )
 
     vetoes: list[str] = []
     if role_conflict and not approved_review:
         vetoes.append("roles conflict and no approved review decision exists")
     if artifact_dominates:
         vetoes.append("dominant artifact evidence blocks merge")
+    if artifact_marker_conflict:
+        vetoes.append("uploader/channel/label artifact marker blocks merge")
+    if version_suffix_conflict:
+        vetoes.append("official/version suffix blocks merge")
     if collaboration_conflict:
         vetoes.append("collaboration string conflicts with single artist identity")
     if lifecycle_blocked:
         vetoes.append(f"lifecycle state is {lifecycle_state}")
-    if confidence_gap < 0.16 and not approved_review:
+    if confidence_gap < 0.16 and not approved_review and not deterministic_alias.safe_to_merge_candidate:
         vetoes.append("confidence gap is too small to determine canonical winner")
 
     if vetoes:
@@ -249,6 +278,11 @@ def evaluate_conflict(
         severity = "high" if artifact_dominates or role_conflict or lifecycle_blocked else "medium"
         action = "do not merge; keep entities separate until human review resolves the contradiction"
         reason = " | ".join(vetoes)
+    elif deterministic_alias.safe_to_merge_candidate:
+        status = "safe_to_merge_candidate"
+        severity = "low"
+        action = "safe alias candidate; merge only through reviewed canonical alias workflow"
+        reason = deterministic_alias.reason
     elif same_role and strong_alias and low_negative and approved_review and merge_ready_lifecycle:
         status = "safe_to_merge_candidate"
         severity = "low"

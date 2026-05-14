@@ -36,6 +36,7 @@ reports/conflict_governance/blocked_merges.csv
 ## Safe Merge Candidate Logic
 
 `safe_to_merge_candidate` is only a review label. It does not execute a merge.
+The merge still has to happen through the reviewed canonical alias workflow.
 
 A conflict can enter that bucket only when all of these are true:
 
@@ -45,6 +46,22 @@ A conflict can enter that bucket only when all of these are true:
 - Approved review evidence or normalization knowledge exists.
 - Artifact flags do not dominate.
 - Lifecycle state is `probationary` or `canonical`.
+
+Deterministic artist alias equivalence is a narrower path for common false
+positive casing and punctuation conflicts. Before governance escalates an
+artist `alias_collision`, it compares both sides with an alphanumeric
+casefolded normalizer. The conflict can be marked as a safe candidate only when
+the normalized values match, the visible difference is casing, spacing,
+apostrophes, hyphens, colons, or punctuation, repeated artist metadata is
+present, confidence is medium or high, lifecycle is not blocked, and no role,
+album-membership, collaboration, official-version suffix, uploader/channel, or
+dominant artifact marker is present.
+
+Examples that can become safe candidates when the evidence and lifecycle gates
+pass include `Tool` -> `TOOL`, `Red` -> `RED`, and `System of a Down` ->
+`System Of A Down`. Examples that must not become safe candidates include
+`Heavy Is the Crown (Official Audio)`, `Tom Morello, BEARTOOTHband`, album
+membership conflicts, role collisions, and blocked lifecycle states.
 
 Rows are written to:
 

@@ -133,6 +133,130 @@ def test_safe_merge_candidate_with_approved_alias_evidence():
     assert "no automatic merge" in conflict.recommended_action
 
 
+def test_deterministic_alias_equivalence_safe_candidates():
+    for source, target in (
+        ("Tool", "TOOL"),
+        ("Red", "RED"),
+        ("System of a Down", "System Of A Down"),
+        ("Bring Me the Horizon", "Bring Me The Horizon"),
+    ):
+        conflict = evaluate_conflict(
+            conflict_type="alias_collision",
+            source_entity=source,
+            target_entity=target,
+            entity_role="artist",
+            evidence_count=3,
+            confidence_snapshot={
+                "confidence_tier": "medium",
+                "normalized_confidence": 0.61,
+                "raw_positive_score": 0.7,
+                "raw_negative_score": 0.34,
+            },
+            positive_evidence_json=_evidence_json("repeated_artist_metadata", "metadata", 0.7),
+            negative_evidence_json="[]",
+            lifecycle_state="probationary",
+        )
+
+        assert conflict.conflict_status == "safe_to_merge_candidate"
+        assert conflict.recommended_action == (
+            "safe alias candidate; merge only through reviewed canonical alias workflow"
+        )
+
+
+def test_deterministic_alias_equivalence_blocked_lifecycle_not_safe():
+    conflict = evaluate_conflict(
+        conflict_type="alias_collision",
+        source_entity="Bring Me the Horizon",
+        target_entity="Bring Me The Horizon",
+        entity_role="artist",
+        evidence_count=3,
+        confidence_snapshot={
+            "confidence_tier": "medium",
+            "normalized_confidence": 0.61,
+            "raw_positive_score": 0.7,
+            "raw_negative_score": 0.1,
+        },
+        positive_evidence_json=_evidence_json("repeated_artist_metadata", "metadata", 0.7),
+        negative_evidence_json="[]",
+        lifecycle_state="blocked",
+    )
+
+    assert conflict.conflict_status == "blocked_merge"
+    assert "lifecycle state is blocked" in conflict.contradiction_reason
+
+
+def test_deterministic_alias_non_equivalence_stays_blocked_or_review():
+    official = evaluate_conflict(
+        conflict_type="alias_collision",
+        source_entity="Heavy Is the Crown",
+        target_entity="Heavy Is the Crown (Official Audio)",
+        entity_role="artist",
+        evidence_count=3,
+        confidence_snapshot={
+            "confidence_tier": "medium",
+            "normalized_confidence": 0.61,
+            "raw_positive_score": 0.7,
+            "raw_negative_score": 0.1,
+        },
+        positive_evidence_json=_evidence_json("repeated_artist_metadata", "metadata", 0.7),
+        negative_evidence_json="[]",
+        lifecycle_state="probationary",
+    )
+    collaboration = evaluate_conflict(
+        conflict_type="alias_collision",
+        source_entity="Tom Morello BEARTOOTHband",
+        target_entity="Tom Morello, BEARTOOTHband",
+        entity_role="artist",
+        evidence_count=3,
+        confidence_snapshot={
+            "confidence_tier": "medium",
+            "normalized_confidence": 0.61,
+            "raw_positive_score": 0.7,
+            "raw_negative_score": 0.1,
+        },
+        positive_evidence_json=_evidence_json("repeated_artist_metadata", "metadata", 0.7),
+        negative_evidence_json="[]",
+        lifecycle_state="probationary",
+    )
+    album = evaluate_conflict(
+        conflict_type="album_membership_conflict",
+        source_entity="Shallow Bay The Best Of Breaking Benjamin",
+        target_entity="Shallow Bay: The Best Of Breaking Benjamin",
+        entity_role="artist",
+        evidence_count=3,
+        confidence_snapshot={
+            "confidence_tier": "medium",
+            "normalized_confidence": 0.61,
+            "raw_positive_score": 0.7,
+            "raw_negative_score": 0.1,
+        },
+        positive_evidence_json=_evidence_json("repeated_artist_metadata", "metadata", 0.7),
+        negative_evidence_json="[]",
+        lifecycle_state="probationary",
+    )
+    role = evaluate_conflict(
+        conflict_type="role_collision",
+        source_entity="Tool",
+        target_entity="TOOL",
+        entity_role="artist",
+        evidence_count=3,
+        confidence_snapshot={
+            "confidence_tier": "medium",
+            "normalized_confidence": 0.61,
+            "raw_positive_score": 0.7,
+            "raw_negative_score": 0.1,
+        },
+        positive_evidence_json=_evidence_json("repeated_artist_metadata", "metadata", 0.7),
+        negative_evidence_json=_evidence_json("conflicting_role_pattern", "role_conflict", 0.32),
+        lifecycle_state="probationary",
+    )
+
+    assert official.conflict_status == "blocked_merge"
+    assert collaboration.conflict_status == "blocked_merge"
+    assert album.conflict_status == "needs_review"
+    assert role.conflict_status == "blocked_merge"
+
+
 def test_report_generation_and_cli(tmp_path, capsys):
     db_path = tmp_path / "music.sqlite3"
     reports = tmp_path / "reports"
@@ -146,7 +270,9 @@ def test_report_generation_and_cli(tmp_path, capsys):
     assert (report_dir / "conflict_summary.json").exists()
     assert (report_dir / "blocked_merges.csv").exists()
     rows = _read_csv(report_dir / "conflicts.csv")
-    assert rows[0]["conflict_status"] in {"blocked_merge", "needs_review", "deferred"}
+    assert rows[0]["conflict_status"] in {"blocked_merge", "needs_review", "deferred", "safe_to_merge_candidate"}
+    safe_rows = _read_csv(report_dir / "safe_merge_candidates.csv")
+    assert len(safe_rows) == result.safe_merge_candidates
 
     exit_code = main(["--db", str(db_path), "conflict-governance", "--out", str(reports)])
     assert exit_code == 0

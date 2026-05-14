@@ -477,6 +477,15 @@ records unresolved ambiguity instead of silently collapsing conflicting
 entities, and it never writes tags, moves files, deletes files, calls external
 APIs, or uses embeddings.
 
+Conflict governance includes deterministic artist alias equivalence for safe
+casing and punctuation variants such as `Tool` -> `TOOL` or `System of a Down`
+-> `System Of A Down`. These rows are only `safe_to_merge_candidate` review
+items in `reports/conflict_governance/safe_merge_candidates.csv`; they are not
+auto-merged and still require the reviewed canonical alias workflow. Role
+collisions, collaboration strings, official audio/video/version suffixes,
+album-membership conflicts, uploader or channel artifacts, blocked lifecycle
+states, and dominant artifact evidence remain protected.
+
 Album metadata discovery is also review-only. The `discover-albums` command
 looks at existing tags, filenames, and local path evidence for tracks with
 missing or `Unknown Album` album values, then writes suggestions under

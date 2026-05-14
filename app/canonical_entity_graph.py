@@ -193,8 +193,11 @@ def build_canonical_graph(
         artist_aliases=artist_aliases,
         now=now,
     )
-    versions = _build_versions(track_evidence, track_lookup, now=now)
-    relationships = _relationships(
+    versions = _dedupe_entities(_build_versions(track_evidence, track_lookup, now=now))
+    artists = _dedupe_entities(artists)
+    albums = _dedupe_entities(albums)
+    tracks = _dedupe_entities(tracks)
+    relationships = _dedupe_relationships(_relationships(
         artists=artists,
         artist_lookup=artist_lookup,
         artist_aliases=artist_aliases,
@@ -208,7 +211,7 @@ def build_canonical_graph(
         album_groups=album_groups,
         reliability_records=reliability_records,
         now=now,
-    )
+    ))
     unresolved = sorted(
         [*artist_conflicts, *album_conflicts_out, *track_conflicts],
         key=lambda item: (item.entity_type, item.entity_key),
@@ -252,11 +255,11 @@ def persist_canonical_graph(
             "canonical_unresolved_conflicts",
         ):
             connection.execute(f"DELETE FROM {table}")
-        _insert_entities(connection, "canonical_artists", graph.artists)
-        _insert_entities(connection, "canonical_albums", graph.albums)
-        _insert_entities(connection, "canonical_tracks", graph.tracks)
-        _insert_entities(connection, "canonical_versions", graph.versions)
-        _insert_relationships(connection, graph.relationships)
+        _insert_entities(connection, "canonical_artists", _dedupe_entities(graph.artists))
+        _insert_entities(connection, "canonical_albums", _dedupe_entities(graph.albums))
+        _insert_entities(connection, "canonical_tracks", _dedupe_entities(graph.tracks))
+        _insert_entities(connection, "canonical_versions", _dedupe_entities(graph.versions))
+        _insert_relationships(connection, _dedupe_relationships(graph.relationships))
         _insert_conflicts(connection, graph.unresolved_conflicts)
 
 
@@ -851,9 +854,97 @@ def _version_marker(value: str) -> str:
     return ""
 
 
+def _dedupe_entities(entities: list[CanonicalEntity]) -> list[CanonicalEntity]:
+    merged: dict[str, CanonicalEntity] = {}
+    for entity in sorted(
+        entities,
+        key=lambda item: (
+            item.canonical_id,
+            item.first_seen,
+            item.last_seen,
+            item.canonical_name.casefold(),
+            item.status.casefold(),
+        ),
+    ):
+        existing = merged.get(entity.canonical_id)
+        if existing is None:
+            merged[entity.canonical_id] = entity
+            continue
+        score = max(existing.confidence_score, entity.confidence_score)
+        evidence_count = existing.evidence_count + entity.evidence_count
+        conflict_count = existing.conflict_count + entity.conflict_count
+        canonical_name = _merged_name(existing.canonical_name, entity.canonical_name)
+        merged[entity.canonical_id] = CanonicalEntity(
+            canonical_id=entity.canonical_id,
+            canonical_name=canonical_name,
+            confidence_score=score,
+            confidence_tier=_tier(score),
+            evidence_count=evidence_count,
+            conflict_count=conflict_count,
+            first_seen=min(existing.first_seen, entity.first_seen),
+            last_seen=max(existing.last_seen, entity.last_seen),
+            status=_merged_status(existing.status, entity.status, conflict_count),
+        )
+    return sorted(merged.values(), key=lambda item: (item.canonical_name.casefold(), item.canonical_id))
+
+
 def _dedupe_relationships(relationships: list[EntityRelationship]) -> list[EntityRelationship]:
-    deduped = {relationship.relationship_id: relationship for relationship in relationships}
-    return sorted(deduped.values(), key=lambda item: (item.relationship_type, item.source_entity, item.target_entity))
+    merged: dict[str, EntityRelationship] = {}
+    for relationship in sorted(
+        relationships,
+        key=lambda item: (
+            item.relationship_id,
+            item.relationship_type,
+            item.source_entity,
+            item.target_entity,
+            item.created_at,
+            item.rationale,
+        ),
+    ):
+        existing = merged.get(relationship.relationship_id)
+        if existing is None:
+            merged[relationship.relationship_id] = relationship
+            continue
+        merged[relationship.relationship_id] = EntityRelationship(
+            relationship_id=relationship.relationship_id,
+            source_entity=existing.source_entity or relationship.source_entity,
+            target_entity=existing.target_entity or relationship.target_entity,
+            relationship_type=existing.relationship_type or relationship.relationship_type,
+            confidence_score=max(existing.confidence_score, relationship.confidence_score),
+            supporting_evidence_count=existing.supporting_evidence_count + relationship.supporting_evidence_count,
+            conflicting_evidence_count=existing.conflicting_evidence_count + relationship.conflicting_evidence_count,
+            rationale=_merge_rationale(existing.rationale, relationship.rationale),
+            created_at=min(existing.created_at, relationship.created_at),
+        )
+    return sorted(merged.values(), key=lambda item: (item.relationship_type, item.source_entity, item.target_entity, item.relationship_id))
+
+
+def _merged_name(left: str, right: str) -> str:
+    for name in (left, right):
+        if name and _norm(name) != "unknown":
+            return name
+    return left or right or "Unknown"
+
+
+def _merged_status(left: str, right: str, conflict_count: int) -> str:
+    statuses = {left, right}
+    if conflict_count or "conflicted" in statuses:
+        return "conflicted"
+    if "active" in statuses:
+        return "active"
+    return sorted(status for status in statuses if status)[0] if any(statuses) else "active"
+
+
+def _merge_rationale(left: str, right: str) -> str:
+    parts: list[str] = []
+    seen: set[str] = set()
+    for rationale in (left, right):
+        for part in [item.strip() for item in rationale.split(" | ") if item.strip()]:
+            key = part.casefold()
+            if key not in seen:
+                parts.append(part)
+                seen.add(key)
+    return " | ".join(parts)
 
 
 def _clean(value: Any) -> str:

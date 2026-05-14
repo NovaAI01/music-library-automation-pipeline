@@ -5,7 +5,14 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from app import db
-from app.canonical_entity_graph import build_canonical_graph, generate_canonical_graph
+from app.canonical_entity_graph import (
+    CanonicalEntity,
+    CanonicalGraph,
+    EntityRelationship,
+    build_canonical_graph,
+    generate_canonical_graph,
+    persist_canonical_graph,
+)
 from app.main import app, main
 from app.review_decisions import record_review_decision, suggestion_key_for
 
@@ -80,6 +87,107 @@ def test_graph_report_generation_and_persistence(tmp_path):
     assert json.loads((report_dir / "graph_summary.json").read_text())["canonical_artist_count"] == 1
     with db.connect(db_path) as connection:
         assert connection.execute("SELECT COUNT(*) FROM canonical_artists").fetchone()[0] == 1
+
+
+def test_duplicate_canonical_versions_merge_before_persistence(tmp_path):
+    db_path = tmp_path / "music.sqlite3"
+    entity_id = "version_duplicate"
+    graph = CanonicalGraph(
+        artists=[],
+        albums=[],
+        tracks=[],
+        versions=[
+            CanonicalEntity(entity_id, "", 0.41, "low", 1, 0, "2026-01-02T00:00:00+00:00", "2026-01-02T00:00:00+00:00", "active"),
+            CanonicalEntity(entity_id, "Push It", 0.82, "high", 2, 1, "2026-01-01T00:00:00+00:00", "2026-01-03T00:00:00+00:00", "conflicted"),
+        ],
+        relationships=[],
+        unresolved_conflicts=[],
+        summary={},
+    )
+
+    persist_canonical_graph(graph, db_path=db_path)
+
+    with db.connect(db_path) as connection:
+        rows = connection.execute("SELECT * FROM canonical_versions").fetchall()
+    assert len(rows) == 1
+    assert rows[0]["canonical_name"] == "Push It"
+    assert rows[0]["confidence_score"] == 0.82
+    assert rows[0]["confidence_tier"] == "high"
+    assert rows[0]["evidence_count"] == 3
+    assert rows[0]["conflict_count"] == 1
+    assert rows[0]["first_seen"] == "2026-01-01T00:00:00+00:00"
+    assert rows[0]["last_seen"] == "2026-01-03T00:00:00+00:00"
+    assert rows[0]["status"] == "conflicted"
+
+
+def test_duplicate_entities_are_merged_deterministically_in_generated_graph(tmp_path):
+    db_path = tmp_path / "music.sqlite3"
+    _insert_observation(db_path, "Static-X", "Push It", "Wisconsin Death Trip", "same.flac")
+    _insert_observation(db_path, "Static-X", "Push It", "Wisconsin Death Trip", "same.flac")
+
+    graph = build_canonical_graph(db_path=db_path, reports_dir=tmp_path / "reports")
+
+    assert len({version.canonical_id for version in graph.versions}) == len(graph.versions)
+    assert len(graph.versions) == 1
+    assert graph.versions[0].evidence_count == 2
+
+
+def test_repeated_canonical_graph_generation_is_idempotent(tmp_path):
+    db_path = tmp_path / "music.sqlite3"
+    reports = tmp_path / "reports"
+    _insert_observation(db_path, "Static-X", "Push It", "Wisconsin Death Trip", "same.flac")
+    _insert_observation(db_path, "Static-X", "Push It", "Wisconsin Death Trip", "same.flac")
+
+    first = generate_canonical_graph(out_dir=reports, db_path=db_path)
+    second = generate_canonical_graph(out_dir=reports, db_path=db_path)
+
+    assert first.canonical_artist_count == second.canonical_artist_count == 1
+    assert first.canonical_track_count == second.canonical_track_count == 1
+    with db.connect(db_path) as connection:
+        assert connection.execute("SELECT COUNT(*) FROM canonical_versions").fetchone()[0] == 1
+
+
+def test_duplicate_relationships_are_merged_before_persistence(tmp_path):
+    db_path = tmp_path / "music.sqlite3"
+    relationship_id = "relationship_duplicate"
+    graph = CanonicalGraph(
+        artists=[],
+        albums=[],
+        tracks=[],
+        versions=[],
+        relationships=[
+            EntityRelationship(relationship_id, "canonical_tracks:a", "canonical_tracks:a", "probable_duplicate", 0.61, 1, 0, "same file evidence", "2026-01-02T00:00:00+00:00"),
+            EntityRelationship(relationship_id, "canonical_tracks:a", "canonical_tracks:a", "probable_duplicate", 0.79, 2, 1, "same file evidence | duplicate filename evidence", "2026-01-01T00:00:00+00:00"),
+        ],
+        unresolved_conflicts=[],
+        summary={},
+    )
+
+    persist_canonical_graph(graph, db_path=db_path)
+
+    with db.connect(db_path) as connection:
+        rows = connection.execute("SELECT * FROM entity_relationships").fetchall()
+    assert len(rows) == 1
+    assert rows[0]["confidence_score"] == 0.79
+    assert rows[0]["supporting_evidence_count"] == 3
+    assert rows[0]["conflicting_evidence_count"] == 1
+    assert rows[0]["rationale"] == "same file evidence | duplicate filename evidence"
+    assert rows[0]["created_at"] == "2026-01-01T00:00:00+00:00"
+
+
+def test_reports_write_successfully_with_duplicate_versions(tmp_path):
+    db_path = tmp_path / "music.sqlite3"
+    reports = tmp_path / "reports"
+    _insert_observation(db_path, "Static-X", "Push It", "Wisconsin Death Trip", "same.flac")
+    _insert_observation(db_path, "Static-X", "Push It", "Wisconsin Death Trip", "same.flac")
+
+    result = generate_canonical_graph(out_dir=reports, db_path=db_path)
+    report_dir = Path(result.report_path)
+
+    assert (report_dir / "canonical_versions.csv").exists()
+    with (report_dir / "canonical_versions.csv").open(newline="", encoding="utf-8") as file_handle:
+        rows = list(csv.DictReader(file_handle))
+    assert len(rows) == 1
 
 
 def test_canonical_graph_ui_renders(tmp_path):

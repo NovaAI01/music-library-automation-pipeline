@@ -104,7 +104,29 @@ def test_weighted_breakdown_is_explainable_json():
 
     assert breakdown["positive_total"] > 0
     assert breakdown["negative_total"] > 0
-    assert breakdown["formula"] == "normalized(raw_positive_score - raw_negative_score)"
+    assert breakdown["formula"] == "normalized(calibrated_positive_score - calibrated_negative_score)"
+    assert breakdown["positive_evidence_diversity"] == 2
+
+
+def test_high_confidence_requires_diverse_positive_evidence():
+    repeated_only = score_canonical_entity(
+        entity_type="track",
+        entity_key="toxicity",
+        entity_value="Toxicity",
+        evidence_count=6,
+    )
+    diverse = score_canonical_entity(
+        entity_type="track",
+        entity_key="toxicity",
+        entity_value="Toxicity",
+        evidence_count=6,
+        approvals=1,
+        role_agreement=True,
+    )
+
+    assert repeated_only.normalized_confidence < 0.74
+    assert repeated_only.confidence_tier == "medium"
+    assert diverse.confidence_tier == "high"
 
 
 def test_graph_scoring_integration_uses_weighted_confidence(tmp_path):

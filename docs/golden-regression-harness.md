@@ -16,3 +16,9 @@ The fixtures cover known failure categories:
 Each row records the expected classifier result, confidence tier, lifecycle state, blocked outcome, and any role, alias, or base-title preservation rule relevant to that case. Tests feed those rows through the existing deterministic classifier, weighted confidence scorer, lifecycle evaluator, role aggregator, and graph builder. They do not use the user's real library, mutate media files, call the network, or rely on AI APIs.
 
 These fixtures are intentionally exact. If calibration or entity-resolution logic changes, update the golden CSV expectations in the same change as the production change and explain why the new outcome is deliberate. Do not soften the tests to accept broad outcomes unless the underlying helper only exposes a numerical score and the accepted band is part of the intended contract.
+
+Calibration Refinement v1 deliberately moves remaster/version-title fixtures
+from high/canonical to medium/probationary when the supporting signal is only
+track metadata plus role agreement. The cases still classify as canonical
+tracks and preserve base-title identity; the lower confidence prevents version
+suffix evidence from promoting too early without additional diverse support.

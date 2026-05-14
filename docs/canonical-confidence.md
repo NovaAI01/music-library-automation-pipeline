@@ -15,6 +15,12 @@ normalizer. Confidence tiers are then assigned as `high`, `medium`, `low`, or
 `blocked`. A blocked tier requires dominant negative evidence; weak artifact
 signals alone do not override strong repeated canonical evidence.
 
+Calibration Refinement v1 dampens repeated evidence from the same family before
+normalization. High confidence requires more than repeated metadata alone, so
+versioned track titles such as remasters can remain canonical-track evidence
+while staying medium confidence until folder, review, album-cohesion,
+reliability, or lifecycle-history evidence also supports them.
+
 Positive evidence includes repeated artist, album, or track metadata, folder
 agreement, canonical graph reinforcement, approved normalization rules, repeated
 album cohesion, stable temporal presence, and canonical role agreement.
@@ -39,6 +45,8 @@ reports/canonical_confidence/
   high_confidence_entities.csv
   blocked_entities.csv
   confidence_breakdowns.json
+reports/calibration/
+  calibration_summary.json
 ```
 
 Every scored entity exposes positive evidence, negative evidence, weighted

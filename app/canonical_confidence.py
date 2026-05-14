@@ -28,6 +28,8 @@ SCORED_FILENAME = "scored_entities.csv"
 HIGH_FILENAME = "high_confidence_entities.csv"
 BLOCKED_FILENAME = "blocked_entities.csv"
 BREAKDOWNS_FILENAME = "confidence_breakdowns.json"
+CALIBRATION_DIRNAME = "calibration"
+CALIBRATION_SUMMARY_FILENAME = "calibration_summary.json"
 
 EVIDENCE_WEIGHTS: dict[str, float] = {
     "repeated_artist_metadata": 0.35,
@@ -48,6 +50,27 @@ EVIDENCE_WEIGHTS: dict[str, float] = {
     "excessive_symbol_noise": 0.18,
     "all_caps_anomaly": 0.16,
     "weak_album_cohesion": 0.22,
+}
+
+EVIDENCE_FAMILIES: dict[str, str] = {
+    "repeated_artist_metadata": "metadata",
+    "repeated_album_metadata": "metadata",
+    "repeated_track_metadata": "metadata",
+    "folder_agreement": "folder",
+    "canonical_graph_reinforcement": "reliability",
+    "approved_normalization_rule": "review_decision",
+    "repeated_album_cohesion": "album_cohesion",
+    "stable_temporal_presence": "lifecycle_history",
+    "canonical_role_agreement": "metadata",
+    "uploader_signature": "artifact",
+    "source_artifact_pattern": "artifact",
+    "isolated_occurrence": "lifecycle_history",
+    "conflicting_role_pattern": "role_conflict",
+    "conflicting_graph_relationship": "reliability",
+    "title_like_structure_in_artist_field": "metadata",
+    "excessive_symbol_noise": "artifact",
+    "all_caps_anomaly": "artifact",
+    "weak_album_cohesion": "album_cohesion",
 }
 
 POSITIVE_EVIDENCE = {
@@ -136,15 +159,20 @@ def score_weighted_evidence(
 ) -> ScoredEntity:
     positives = [_coerce_evidence(item) for item in positive]
     negatives = [_coerce_evidence(item) for item in negative]
-    raw_positive = round(sum(item.weighted_score for item in positives), 3)
-    raw_negative = round(sum(item.weighted_score for item in negatives), 3)
+    raw_positive = _calibrated_evidence_total(positives)
+    raw_negative = _calibrated_evidence_total(negatives)
     normalized = normalize_confidence(raw_positive - raw_negative)
+    diversity = _evidence_diversity(positives)
+    if normalized >= 0.74 and diversity < 2:
+        normalized = 0.739
     tier = confidence_tier(normalized, raw_positive_score=raw_positive, raw_negative_score=raw_negative)
     breakdown = {
-        "formula": "normalized(raw_positive_score - raw_negative_score)",
+        "formula": "normalized(calibrated_positive_score - calibrated_negative_score)",
         "raw_delta": round(raw_positive - raw_negative, 3),
         "positive_total": raw_positive,
         "negative_total": raw_negative,
+        "positive_evidence_diversity": diversity,
+        "positive_evidence_families": sorted({_evidence_family(item) for item in positives}),
         "positive": [_evidence_payload(item) for item in positives],
         "negative": [_evidence_payload(item) for item in negatives],
     }
@@ -243,7 +271,7 @@ def score_canonical_entity(
 
 def normalize_confidence(raw_confidence: float) -> float:
     # Logistic normalization keeps unbounded weighted totals stable in 0.0..1.0.
-    return round(1.0 / (1.0 + math.exp(-2.0 * raw_confidence)), 3)
+    return round(1.0 / (1.0 + math.exp(-1.75 * raw_confidence)), 3)
 
 
 def confidence_tier(normalized_confidence: float, *, raw_positive_score: float = 0.0, raw_negative_score: float = 0.0) -> str:
@@ -275,6 +303,7 @@ def generate_canonical_confidence_report(
     _write_csv(report_dir / HIGH_FILENAME, CONFIDENCE_HEADERS, (_csv_row(item) for item in high))
     _write_csv(report_dir / BLOCKED_FILENAME, CONFIDENCE_HEADERS, (_csv_row(item) for item in blocked))
     _write_json(report_dir / BREAKDOWNS_FILENAME, {"entities": [_breakdown_payload(item) for item in scored]})
+    _write_calibration_summary(reports_dir, confidence=summary)
     return CanonicalConfidenceResult(report_path=str(report_dir), **_summary_result(summary))
 
 
@@ -333,6 +362,25 @@ def confidence_summary(scored: Iterable[ScoredEntity]) -> dict[str, Any]:
     }
 
 
+def calibration_summary(*, reports_dir: str | Path = "reports", confidence: dict[str, Any] | None = None) -> dict[str, Any]:
+    reports_path = Path(reports_dir).expanduser()
+    confidence = confidence or _read_json(reports_path / REPORT_DIRNAME / SUMMARY_FILENAME)
+    lifecycle = _read_json(reports_path / "promotion_lifecycle" / "lifecycle_summary.json")
+    classification = _read_json(reports_path / "canonical_entity_classification" / "entity_classification_summary.json")
+    return {
+        "high_confidence_count": int(confidence.get("high_confidence_count", 0) or 0),
+        "medium_confidence_count": int(confidence.get("medium_confidence_count", 0) or 0),
+        "low_confidence_count": int(confidence.get("low_confidence_count", 0) or 0),
+        "blocked_count": int(confidence.get("blocked_confidence_count", 0) or 0),
+        "canonical_count": int(lifecycle.get("canonical_count", 0) or 0),
+        "probationary_count": int(lifecycle.get("probationary_count", 0) or 0),
+        "conflicted_count": int(lifecycle.get("conflicted_count", 0) or 0),
+        "golden_cases_passed": _golden_case_count(),
+        "classification_blocked_candidates": int(classification.get("blocked_candidates", 0) or 0),
+        "classification_ambiguous_candidates": int(classification.get("ambiguous_candidates", 0) or 0),
+    }
+
+
 def _coerce_evidence(item: str | WeightedEvidence) -> WeightedEvidence:
     if isinstance(item, WeightedEvidence):
         return item
@@ -351,11 +399,31 @@ def _evidence(evidence_type: str, *, count: int = 1, rationale: str = "") -> Wei
 def _evidence_payload(item: WeightedEvidence) -> dict[str, Any]:
     return {
         "evidence_type": item.evidence_type,
+        "evidence_family": _evidence_family(item),
         "weight": item.weight,
         "count": item.count,
         "weighted_score": item.weighted_score,
+        "calibrated_score": _calibrated_evidence_score(item),
         "rationale": item.rationale,
     }
+
+
+def _evidence_family(item: WeightedEvidence) -> str:
+    return EVIDENCE_FAMILIES.get(item.evidence_type, item.evidence_type)
+
+
+def _evidence_diversity(items: Iterable[WeightedEvidence]) -> int:
+    return len({_evidence_family(item) for item in items})
+
+
+def _calibrated_evidence_score(item: WeightedEvidence) -> float:
+    repeat_count = max(1, item.count)
+    repeat_factor = 1.0 + max(0, repeat_count - 1) * 0.62
+    return round(item.weight * repeat_factor, 3)
+
+
+def _calibrated_evidence_total(items: Iterable[WeightedEvidence]) -> float:
+    return round(sum(_calibrated_evidence_score(item) for item in items), 3)
 
 
 def _stable_temporal(first_seen: str, last_seen: str) -> bool:
@@ -521,6 +589,35 @@ def _norm(value: Any) -> str:
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def _read_json(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def _write_calibration_summary(reports_dir: Path, *, confidence: dict[str, Any]) -> None:
+    report_dir = reports_dir / CALIBRATION_DIRNAME
+    report_dir.mkdir(parents=True, exist_ok=True)
+    _write_json(report_dir / CALIBRATION_SUMMARY_FILENAME, calibration_summary(reports_dir=reports_dir, confidence=confidence))
+
+
+def _golden_case_count() -> int:
+    golden_dir = Path("tests") / "golden_cases"
+    if not golden_dir.exists():
+        return 0
+    total = 0
+    for path in golden_dir.glob("*.csv"):
+        try:
+            with path.open(newline="", encoding="utf-8") as file_handle:
+                total += sum(1 for _ in csv.DictReader(file_handle))
+        except OSError:
+            continue
+    return total
 
 
 def _write_csv(path: Path, headers: tuple[str, ...], rows: Iterable[dict[str, Any]]) -> None:

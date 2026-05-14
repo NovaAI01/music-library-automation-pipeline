@@ -86,6 +86,7 @@ def evaluate_lifecycle(
     confidence = scored.normalized_confidence
     positive = scored.raw_positive_score
     negative = scored.raw_negative_score
+    diversity = _positive_evidence_diversity(scored)
     reasons: list[str] = []
 
     if previous_state in {"canonical", "probationary"} and (
@@ -99,12 +100,12 @@ def evaluate_lifecycle(
     elif conflict_count >= 1 or role_conflict or (positive >= 0.55 and negative >= 0.55):
         state = "conflicted"
         reasons.append("strong positive and negative evidence coexist")
-    elif confidence >= 0.74 and stable_temporal and graph_reinforced and conflict_count == 0:
+    elif confidence >= 0.74 and diversity >= 2 and stable_temporal and graph_reinforced and conflict_count == 0:
         state = "canonical"
         reasons.append("sustained high confidence with temporal and graph reinforcement")
-    elif confidence >= 0.55 and stable_temporal and graph_reinforced and conflict_count == 0:
+    elif confidence >= 0.60 and diversity >= 3 and stable_temporal and graph_reinforced and conflict_count == 0:
         state = "canonical"
-        reasons.append("medium confidence stabilized by long-lived evidence")
+        reasons.append("medium confidence stabilized by diverse long-lived evidence")
     elif confidence >= 0.55 or (confidence >= 0.50 and conflict_count == 0 and evidence_count >= 2):
         state = "probationary"
         reasons.append("moderate confidence with evidence beginning to stabilize")
@@ -144,6 +145,7 @@ def evaluate_lifecycle(
                 "temporal_days": temporal_days,
                 "evidence_count": evidence_count,
                 "stable_temporal": stable_temporal,
+                "positive_evidence_diversity": diversity,
             },
             sort_keys=True,
         ),
@@ -278,6 +280,26 @@ def _evidence_count(item: ScoredEntity) -> int:
         return 1
     counts = [int(row.get("count", 1) or 1) for row in [*positive, *negative] if isinstance(row, dict)]
     return max(1, max(counts) if counts else 1)
+
+
+def _positive_evidence_diversity(item: ScoredEntity) -> int:
+    try:
+        breakdown = json.loads(item.weighted_score_breakdown_json)
+    except json.JSONDecodeError:
+        return 0
+    if isinstance(breakdown, dict) and "positive_evidence_diversity" in breakdown:
+        return int(breakdown.get("positive_evidence_diversity") or 0)
+    try:
+        positive = json.loads(item.positive_evidence_json)
+    except json.JSONDecodeError:
+        return 0
+    families = {
+        str(row.get("evidence_family") or row.get("evidence_type") or "")
+        for row in positive
+        if isinstance(row, dict)
+    }
+    families.discard("")
+    return len(families)
 
 
 def _transition_source(previous: str, current: str) -> str:

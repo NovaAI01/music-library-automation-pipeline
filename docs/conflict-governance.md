@@ -100,6 +100,39 @@ report is available:
 - `safe_merge_candidates`
 - `needs_review_conflicts`
 
+## Alias Equivalence Audit
+
+The alias equivalence audit proves whether deterministic equivalence is
+actually reducing governance noise. It does not change merge decisions. It
+replays each governed conflict through the alias equivalence classifier and
+records the normalized values, equivalence category, pre-governance equivalence
+decision, final governance status, escalation reason, and whether escalation was
+prevented.
+
+Run it with:
+
+```bash
+python -m app.main alias-equivalence-audit --out reports
+```
+
+It writes:
+
+```text
+reports/alias_equivalence_audit/
+  alias_equivalence_summary.json
+  alias_equivalence_audit.csv
+  prevented_escalations.csv
+  missed_safe_aliases.csv
+  remaining_escalations.csv
+```
+
+`prevented_escalations.csv` contains deterministic safe alias matches that
+ended as `safe_to_merge_candidate`. `missed_safe_aliases.csv` highlights
+artist `alias_collision` rows whose alphanumeric casefolded forms match and
+have safe evidence, but still escalated to `needs_review` or `blocked_merge`.
+`remaining_escalations.csv` preserves the conflicts that still require review
+or remain blocked.
+
 ## No Mutation Boundary
 
 Conflict governance is observational. It may read SQLite observations,

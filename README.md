@@ -486,6 +486,16 @@ collisions, collaboration strings, official audio/video/version suffixes,
 album-membership conflicts, uploader or channel artifacts, blocked lifecycle
 states, and dominant artifact evidence remain protected.
 
+The `alias-equivalence-audit` command instruments that path without changing
+governance decisions:
+
+```bash
+python -m app.main alias-equivalence-audit --out reports
+```
+
+It writes `reports/alias_equivalence_audit/` with the full audit, prevented
+escalations, missed safe aliases, remaining escalations, and summary counts.
+
 Album metadata discovery is also review-only. The `discover-albums` command
 looks at existing tags, filenames, and local path evidence for tracks with
 missing or `Unknown Album` album values, then writes suggestions under

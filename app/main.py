@@ -11,6 +11,7 @@ from app.album_cohesion import generate_album_cohesion_report
 from app.album_discovery import generate_album_discovery
 from app.album_organization import generate_album_organization_plan
 from app import db
+from app.alias_equivalence_audit import generate_alias_equivalence_audit_report
 from app.classifier import classify_scan_run
 from app.canonical_entity_graph import generate_canonical_graph
 from app.canonical_entity_classifier import generate_canonical_entity_classification_report
@@ -294,6 +295,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Classify unresolved canonical conflicts into review-only governance buckets.",
     )
     conflict_governance_parser.add_argument("--out", default="reports")
+
+    alias_equivalence_audit_parser = subparsers.add_parser(
+        "alias-equivalence-audit",
+        help="Audit deterministic alias equivalence decisions against governance outcomes.",
+    )
+    alias_equivalence_audit_parser.add_argument("--out", default="reports")
 
     entity_classification_parser = subparsers.add_parser(
         "classify-canonical-entities",
@@ -763,6 +770,23 @@ def main(argv: list[str] | None = None) -> int:
         print(f"high_severity={result.high_severity}")
         print(f"medium_severity={result.medium_severity}")
         print(f"low_severity={result.low_severity}")
+        return 0
+
+    if args.command == "alias-equivalence-audit":
+        result = generate_alias_equivalence_audit_report(out_dir=args.out, db_path=db_path)
+        print(f"report_path={result.report_path}")
+        print(f"total_audited_conflicts={result.total_audited_conflicts}")
+        print(f"equivalence_matches={result.equivalence_matches}")
+        print(f"prevented_escalations={result.prevented_escalations}")
+        print(f"missed_safe_aliases={result.missed_safe_aliases}")
+        print(f"remaining_escalations={result.remaining_escalations}")
+        print(f"casing_only_matches={result.casing_only_matches}")
+        print(f"punctuation_only_matches={result.punctuation_only_matches}")
+        print(f"whitespace_only_matches={result.whitespace_only_matches}")
+        print(f"suffix_noise_rejections={result.suffix_noise_rejections}")
+        print(f"collaboration_rejections={result.collaboration_rejections}")
+        print(f"source_artifact_rejections={result.source_artifact_rejections}")
+        print(f"role_collision_rejections={result.role_collision_rejections}")
         return 0
 
     if args.command == "classify-canonical-entities":

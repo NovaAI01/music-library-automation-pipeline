@@ -21,6 +21,7 @@ from app.album_organization import (
     read_album_plan_rows,
     read_album_plan_summary,
 )
+from app.evidence_reliability import read_evidence_reliability_report
 from app.manual_review_ui import _review_data
 from app.metadata_suggestion_ui import _read_suggestions
 from app.report_ui import (
@@ -329,6 +330,7 @@ def review_hub(request: Request):
     review = _review_data(reports_dir)
     suggestions = _suggestion_summary(reports_dir, db_path=_db_path(request))
     album_cohesion = _album_cohesion_summary(reports_dir)
+    reliability = _reliability_summary(reports_dir)
     decision_counts = review_decision_summary(list_review_decisions(_db_path(request)))
     learned_rule_count = _learned_rule_count(reports_dir)
     return _render(
@@ -345,6 +347,7 @@ def review_hub(request: Request):
                 ("Metadata suggestions", suggestions["total"]),
                 ("Metadata decisions", decision_counts["total_decisions"]),
                 ("Album groups", album_cohesion["summary"].get("total_album_groups", 0)),
+                ("Low reliability evidence", reliability["summary"].get("low_reliability", 0)),
                 ("Learned rules", learned_rule_count),
                 ("Blocked classification", review["blocked_classification_count"]),
                 (
@@ -358,6 +361,7 @@ def review_hub(request: Request):
                 ("Duplicate Review", "/review/duplicates", "Keep/remove candidates and active duplicate groups."),
                 ("Metadata Review", "/review/metadata", "Review-only tag cleanup suggestions."),
                 ("Album Cohesion", "/review/albums", "Repeated-evidence album grouping, conflicts, singles, and orphans."),
+                ("Evidence Reliability", "/review/reliability", "Uploader artifacts, polluted names, canonical matches, and reliability tiers."),
                 ("Knowledge Review", "/review/knowledge", "Reusable evidence from approved and rejected decisions."),
                 ("Blocked Items", "/review/blocked", "Items that need manual classification."),
             ],
@@ -370,6 +374,7 @@ def review_hub(request: Request):
                 *review["missing_files"],
                 *suggestions["missing_files"],
                 *album_cohesion["missing_files"],
+                *reliability["missing_files"],
             ],
         },
     )
@@ -464,6 +469,52 @@ def review_albums(request: Request, q: str = ""):
             "query": q,
             "timestamp": album_cohesion["summary"].get("created_at"),
             "missing_files": album_cohesion["missing_files"],
+        },
+    )
+
+
+@router.get("/review/reliability")
+def review_reliability(request: Request, q: str = ""):
+    reliability = _reliability_summary(_reports_dir(request))
+    records = _filter_rows(reliability["records"], q)
+    unreliable = [record for record in records if record["reliability_tier"] == "low"]
+    uploader_artifacts = [
+        record
+        for record in records
+        if "uploader_or_channel_signature" in record["reliability_flags"]
+        or "label_channel_signature" in record["reliability_flags"]
+    ]
+    canonical_matches = [
+        record
+        for record in records
+        if "canonical_match" in record["reliability_flags"]
+        or "repeated_canonical_agreement" in record["reliability_flags"]
+    ]
+    return _render(
+        request,
+        "reports/evidence_reliability.html",
+        {
+            "title": "Evidence Reliability",
+            "eyebrow": "Evidence Quality",
+            "intro": "Review metadata evidence quality before downstream normalization and album inference use it.",
+            "breadcrumbs": [("Review", "/review"), ("Reliability", "")],
+            "back_links": [("Back to Review", "/review")],
+            "cards": [
+                ("Total records", reliability["summary"].get("total_records", 0)),
+                ("High reliability", reliability["summary"].get("high_reliability", 0)),
+                ("Medium reliability", reliability["summary"].get("medium_reliability", 0)),
+                ("Low reliability", reliability["summary"].get("low_reliability", 0)),
+                ("Uploader artifacts", reliability["summary"].get("uploader_artifacts_detected", 0)),
+                ("Noisy titles", reliability["summary"].get("noisy_titles_detected", 0)),
+                ("Canonical matches", reliability["summary"].get("canonical_matches", 0)),
+            ],
+            "records": records,
+            "unreliable": unreliable,
+            "uploader_artifacts": uploader_artifacts,
+            "canonical_matches": canonical_matches,
+            "query": q,
+            "timestamp": reliability["summary"].get("created_at"),
+            "missing_files": reliability["missing_files"],
         },
     )
 
@@ -624,6 +675,17 @@ def _album_cohesion_summary(reports_dir: Path) -> dict[str, Any]:
         "groups": normalized_groups,
         "conflicts": conflicts,
         "orphans": orphans,
+        "missing_files": missing_files,
+    }
+
+
+def _reliability_summary(reports_dir: Path) -> dict[str, Any]:
+    summary, records, unreliable, reliable, missing_files = read_evidence_reliability_report(reports_dir)
+    return {
+        "summary": summary,
+        "records": records,
+        "unreliable": unreliable,
+        "reliable": reliable,
         "missing_files": missing_files,
     }
 
@@ -793,6 +855,7 @@ def _nav_items() -> list[tuple[str, str]]:
         ("/review/duplicates", "Duplicates"),
         ("/review/metadata", "Metadata"),
         ("/review/albums", "Album Cohesion"),
+        ("/review/reliability", "Reliability"),
         ("/review/knowledge", "Knowledge"),
         ("/player", "Player"),
         ("/settings", "Settings"),

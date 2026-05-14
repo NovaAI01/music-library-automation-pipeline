@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from app.album_cohesion import album_cohesion_by_file
+from app.evidence_reliability import score_evidence
 from app.normalization_knowledge import influence_suggestion, rule_lookup_by_signature
 from app.review_decisions import suggestion_key_for
 
@@ -25,6 +26,9 @@ SUGGESTION_HEADERS: tuple[str, ...] = (
     "suggestion_type",
     "confidence",
     "rationale",
+    "reliability_score",
+    "reliability_flags",
+    "reliability_rationale",
     "requires_human_review",
     "source_evidence",
 )
@@ -62,6 +66,9 @@ class MetadataSuggestion:
     rationale: str
     requires_human_review: bool
     source_evidence: list[str]
+    reliability_score: float = 0.0
+    reliability_flags: list[str] | None = None
+    reliability_rationale: list[str] | None = None
 
 
 @dataclass(frozen=True)
@@ -90,6 +97,7 @@ def generate_metadata_suggestions(
     suggestions = _suggestions_from_rows(plan_rows, audit_evidence)
     suggestions = _with_normalization_knowledge(suggestions, db_path=db_path)
     suggestions = _with_album_cohesion_evidence(suggestions, reports_dir=audit_dir.parent)
+    suggestions = _with_reliability_evidence(suggestions, reports_dir=audit_dir.parent)
 
     ai_enrichment_used = False
     if os.environ.get("OPENAI_API_KEY"):
@@ -263,6 +271,9 @@ def _with_enriched_rationale(suggestion: MetadataSuggestion) -> MetadataSuggesti
         rationale=enriched,
         requires_human_review=suggestion.requires_human_review,
         source_evidence=suggestion.source_evidence,
+        reliability_score=suggestion.reliability_score,
+        reliability_flags=suggestion.reliability_flags or [],
+        reliability_rationale=suggestion.reliability_rationale or [],
     )
 
 
@@ -317,9 +328,77 @@ def _with_album_cohesion_evidence(
                 ),
                 requires_human_review=suggestion.requires_human_review,
                 source_evidence=sorted(dict.fromkeys(evidence)),
+                reliability_score=suggestion.reliability_score,
+                reliability_flags=suggestion.reliability_flags or [],
+                reliability_rationale=suggestion.reliability_rationale or [],
             )
         )
     return influenced
+
+
+def _with_reliability_evidence(
+    suggestions: list[MetadataSuggestion],
+    *,
+    reports_dir: Path,
+) -> list[MetadataSuggestion]:
+    cohesion_by_file = album_cohesion_by_file(reports_dir)
+    influenced: list[MetadataSuggestion] = []
+    for suggestion in suggestions:
+        group = cohesion_by_file.get(suggestion.file_path, {})
+        group_rationale = group.get("rationale", [])
+        sequential = isinstance(group_rationale, list) and "sequential track numbering" in group_rationale
+        cohesion_score = (
+            float(group.get("cohesion_score", 0.0) or 0.0)
+            if suggestion.field == "album" and group
+            else None
+        )
+        reliability = score_evidence(
+            suggestion.current_value or suggestion.proposed_value,
+            field=suggestion.field,
+            file_path=suggestion.file_path,
+            album_cohesion_score=cohesion_score,
+            sequential_tracks=sequential,
+        )
+        confidence = suggestion.confidence
+        rationale = suggestion.rationale
+        if reliability.reliability_tier == "low":
+            confidence = _decrease_confidence(confidence)
+            rationale = (
+                f"{rationale} Evidence reliability is low "
+                f"({reliability.reliability_score:.3f}): "
+                f"{'; '.join(reliability.rationale[:2])}."
+            )
+        elif reliability.reliability_tier == "high":
+            rationale = (
+                f"{rationale} Evidence reliability is high "
+                f"({reliability.reliability_score:.3f})."
+            )
+        influenced.append(
+            MetadataSuggestion(
+                suggestion_key=suggestion.suggestion_key,
+                file_path=suggestion.file_path,
+                field=suggestion.field,
+                current_value=suggestion.current_value,
+                proposed_value=suggestion.proposed_value,
+                suggestion_type=suggestion.suggestion_type,
+                confidence=confidence,
+                rationale=rationale,
+                requires_human_review=suggestion.requires_human_review,
+                source_evidence=suggestion.source_evidence,
+                reliability_score=reliability.reliability_score,
+                reliability_flags=reliability.reliability_flags,
+                reliability_rationale=reliability.rationale[:3],
+            )
+        )
+    return influenced
+
+
+def _decrease_confidence(confidence: str) -> str:
+    if confidence == "high":
+        return "medium"
+    if confidence == "medium":
+        return "low"
+    return "low"
 
 
 def _source_evidence(row: dict[str, str], evidence: list[dict[str, str]]) -> list[str]:
@@ -385,6 +464,8 @@ def _summary(
 def _suggestion_csv_payload(suggestion: MetadataSuggestion) -> dict[str, Any]:
     payload = asdict(suggestion)
     payload["source_evidence"] = json.dumps(suggestion.source_evidence, sort_keys=True)
+    payload["reliability_flags"] = json.dumps(suggestion.reliability_flags or [], sort_keys=True)
+    payload["reliability_rationale"] = json.dumps(suggestion.reliability_rationale or [], sort_keys=True)
     return payload
 
 

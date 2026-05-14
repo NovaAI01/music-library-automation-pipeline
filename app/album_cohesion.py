@@ -19,6 +19,7 @@ from mutagen import MutagenError
 from mutagen.flac import FLAC
 
 from app.album_organization import sanitize_path_component
+from app.evidence_reliability import score_evidence
 from app.filename_parser import parse_filename
 from app.scanner import is_supported_audio_file
 
@@ -275,9 +276,14 @@ def _candidate_album(
     album_tag = _clean_album(track.album_tag)
     folder = _clean_album(track.album_folder)
     filename_album = _clean_album(track.filename_album)
+    reliable_tag = (
+        album_tag
+        if score_evidence(album_tag, field="album", folder_value=track.album_folder).reliability_tier != "low"
+        else ""
+    )
     if album_tag and album_tag_counts[_norm(album_tag)] >= 2:
         return album_tag
-    if album_tag and folder and _same(album_tag, folder):
+    if reliable_tag and folder and _same(reliable_tag, folder):
         return album_tag
     if folder and folder_counts[_norm(folder)] >= 2:
         return folder
@@ -365,6 +371,25 @@ def _score_group(
     if len(normalized_artists) > 2:
         score -= 0.10
         rationale.append("probable compilation mix")
+    album_reliability = score_evidence(album, field="album", repeated_count=len(members))
+    artist_reliability = score_evidence(artist, field="artist", repeated_count=len(members))
+    low_track_reliability = [
+        score_evidence(track.album_tag, field="album", folder_value=track.album_folder)
+        for track in members
+        if track.album_tag
+    ]
+    if album_reliability.reliability_tier == "low":
+        score -= 0.18
+        rationale.append("polluted album-name evidence down-ranked")
+    elif album_reliability.reliability_tier == "high":
+        score += 0.05
+        rationale.append("reliable album-name evidence")
+    if artist_reliability.reliability_tier == "low":
+        score -= 0.10
+        rationale.append("unreliable artist evidence down-ranked")
+    if any(item.reliability_tier == "low" for item in low_track_reliability):
+        score -= 0.10
+        rationale.append("low-reliability uploader artifacts ignored where possible")
 
     if not rationale:
         rationale.append("limited album evidence")

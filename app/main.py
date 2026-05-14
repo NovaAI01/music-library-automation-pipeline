@@ -16,6 +16,7 @@ from app.demo_generator import generate_demo
 from app.duplicate_quarantine import quarantine_duplicates
 from app.duplicate_report import generate_duplicate_report
 from app.duplicate_review import generate_duplicate_review_plan
+from app.evidence_reliability import generate_evidence_reliability_report
 from app.identity_engine import identify_scan_run
 from app.intake import run_intake
 from app.library_qa import generate_library_qa_report
@@ -269,6 +270,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--library-root",
         help="Optional library root to scan directly instead of reports/library_qa/file_health.csv.",
     )
+
+    evidence_reliability_parser = subparsers.add_parser(
+        "evidence-reliability",
+        help="Score metadata evidence reliability from existing reports and review knowledge.",
+    )
+    evidence_reliability_parser.add_argument("--out", default="reports")
 
     album_discovery_parser = subparsers.add_parser(
         "discover-albums",
@@ -669,6 +676,22 @@ def main(argv: list[str] | None = None) -> int:
         print(f"probable_singles={result.probable_singles}")
         print(f"orphan_tracks={result.orphan_tracks}")
         print(f"conflicting_album_groups={result.conflicting_album_groups}")
+        return 0
+
+    if args.command == "evidence-reliability":
+        result = generate_evidence_reliability_report(
+            out_dir=args.out,
+            db_path=db_path,
+        )
+        print(f"report_path={result.report_path}")
+        print(f"total_records={result.total_records}")
+        print(f"high_reliability={result.high_reliability}")
+        print(f"medium_reliability={result.medium_reliability}")
+        print(f"low_reliability={result.low_reliability}")
+        print(f"uploader_artifacts_detected={result.uploader_artifacts_detected}")
+        print(f"noisy_titles_detected={result.noisy_titles_detected}")
+        print(f"conflicting_artist_patterns={result.conflicting_artist_patterns}")
+        print(f"canonical_matches={result.canonical_matches}")
         return 0
 
     if args.command == "discover-albums":

@@ -26,6 +26,7 @@
       <th>Current</th>
       <th>Proposed</th>
       <th>Confidence</th>
+      <th>Reliability</th>
       <th>Type</th>
       <th>Rationale</th>
       <th>Decision</th>
@@ -39,6 +40,12 @@
         <td>{{ suggestion.current_value }}</td>
         <td>{{ suggestion.proposed_value }}</td>
         <td><span class="badge confidence-{{ suggestion.confidence }}">{{ suggestion.confidence }}</span></td>
+        <td>
+          {{ "%.3f"|format(suggestion.reliability_score) }}
+          {% for flag in suggestion.reliability_flags[:3] %}
+            <div class="muted">{{ flag }}</div>
+          {% endfor %}
+        </td>
         <td>{{ suggestion.suggestion_type }}</td>
         <td>{{ suggestion.rationale }}</td>
         <td>
@@ -62,7 +69,7 @@
         </td>
       </tr>
     {% else %}
-      <tr><td class="empty" colspan="8">No metadata suggestions available.</td></tr>
+      <tr><td class="empty" colspan="9">No metadata suggestions available.</td></tr>
     {% endfor %}
   </tbody>
 </table>

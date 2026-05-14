@@ -153,12 +153,25 @@ def _normalize_suggestion(item: dict[str, Any]) -> dict[str, Any]:
         source_evidence = [source_evidence] if source_evidence else []
     elif not isinstance(source_evidence, list):
         source_evidence = []
+    reliability_flags = item.get("reliability_flags", [])
+    if isinstance(reliability_flags, str):
+        reliability_flags = [reliability_flags] if reliability_flags else []
+    elif not isinstance(reliability_flags, list):
+        reliability_flags = []
+    reliability_rationale = item.get("reliability_rationale", [])
+    if isinstance(reliability_rationale, str):
+        reliability_rationale = [reliability_rationale] if reliability_rationale else []
+    elif not isinstance(reliability_rationale, list):
+        reliability_rationale = []
     return {
         "file_path": str(item.get("file_path", "")),
         "field": str(item.get("field", "")),
         "current_value": str(item.get("current_value", "")),
         "proposed_value": str(item.get("proposed_value", "")),
         "confidence": confidence,
+        "reliability_score": float(item.get("reliability_score", 0.0) or 0.0),
+        "reliability_flags": [str(value) for value in reliability_flags],
+        "reliability_rationale": [str(value) for value in reliability_rationale],
         "suggestion_type": str(item.get("suggestion_type", "")),
         "rationale": str(item.get("rationale", "")),
         "source_evidence": [str(value) for value in source_evidence],

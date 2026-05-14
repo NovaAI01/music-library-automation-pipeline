@@ -13,6 +13,7 @@ from app.album_organization import generate_album_organization_plan
 from app import db
 from app.classifier import classify_scan_run
 from app.canonical_entity_graph import generate_canonical_graph
+from app.canonical_entity_classifier import generate_canonical_entity_classification_report
 from app.demo_generator import generate_demo
 from app.duplicate_quarantine import quarantine_duplicates
 from app.duplicate_report import generate_duplicate_report
@@ -283,6 +284,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Build persistent canonical entities and evidence-governed relationships.",
     )
     canonical_graph_parser.add_argument("--out", default="reports")
+
+    entity_classification_parser = subparsers.add_parser(
+        "classify-canonical-entities",
+        help="Classify canonical entity candidates before graph promotion.",
+    )
+    entity_classification_parser.add_argument("--out", default="reports")
 
     album_discovery_parser = subparsers.add_parser(
         "discover-albums",
@@ -707,12 +714,26 @@ def main(argv: list[str] | None = None) -> int:
         print(f"canonical_artist_count={result.canonical_artist_count}")
         print(f"canonical_album_count={result.canonical_album_count}")
         print(f"canonical_track_count={result.canonical_track_count}")
+        print(f"blocked_candidate_count={result.blocked_candidate_count}")
         print(f"alias_relationships={result.alias_relationships}")
         print(f"duplicate_relationships={result.duplicate_relationships}")
         print(f"unresolved_conflicts={result.unresolved_conflicts}")
         print(f"high_confidence_entities={result.high_confidence_entities}")
         print(f"medium_confidence_entities={result.medium_confidence_entities}")
         print(f"low_confidence_entities={result.low_confidence_entities}")
+        return 0
+
+    if args.command == "classify-canonical-entities":
+        result = generate_canonical_entity_classification_report(out_dir=args.out, db_path=db_path)
+        print(f"report_path={result.report_path}")
+        print(f"total_candidates={result.total_candidates}")
+        print(f"canonical_artist_candidates={result.canonical_artist_candidates}")
+        print(f"canonical_album_candidates={result.canonical_album_candidates}")
+        print(f"canonical_track_candidates={result.canonical_track_candidates}")
+        print(f"blocked_candidates={result.blocked_candidates}")
+        print(f"ambiguous_candidates={result.ambiguous_candidates}")
+        print(f"source_artifacts={result.source_artifacts}")
+        print(f"misclassified_track_titles={result.misclassified_track_titles}")
         return 0
 
     if args.command == "discover-albums":

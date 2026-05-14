@@ -22,6 +22,7 @@ from app.album_organization import (
     read_album_plan_summary,
 )
 from app.canonical_entity_graph import read_canonical_graph_report
+from app.canonical_entity_classifier import read_entity_classification_report
 from app.evidence_reliability import read_evidence_reliability_report
 from app.manual_review_ui import _review_data
 from app.metadata_suggestion_ui import _read_suggestions
@@ -333,6 +334,7 @@ def review_hub(request: Request):
     album_cohesion = _album_cohesion_summary(reports_dir)
     reliability = _reliability_summary(reports_dir)
     canonical_graph = _canonical_graph_summary(reports_dir)
+    entity_classification = _entity_classification_summary(reports_dir)
     decision_counts = review_decision_summary(list_review_decisions(_db_path(request)))
     learned_rule_count = _learned_rule_count(reports_dir)
     return _render(
@@ -350,6 +352,7 @@ def review_hub(request: Request):
                 ("Metadata decisions", decision_counts["total_decisions"]),
                 ("Album groups", album_cohesion["summary"].get("total_album_groups", 0)),
                 ("Canonical artists", canonical_graph["summary"].get("canonical_artist_count", 0)),
+                ("Blocked entity candidates", entity_classification["summary"].get("blocked_candidates", 0)),
                 ("Low reliability evidence", reliability["summary"].get("low_reliability", 0)),
                 ("Learned rules", learned_rule_count),
                 ("Blocked classification", review["blocked_classification_count"]),
@@ -365,6 +368,7 @@ def review_hub(request: Request):
                 ("Duplicate Review", "/review/duplicates", "Keep/remove candidates and active duplicate groups."),
                 ("Metadata Review", "/review/metadata", "Review-only tag cleanup suggestions."),
                 ("Canonical Graph", "/review/canonical-graph", "Canonical artists, albums, tracks, relationships, and unresolved ambiguity."),
+                ("Entity Classification", "/review/entity-classification", "Blocked, ambiguous, source, and misclassified canonical candidates."),
                 ("Album Cohesion", "/review/albums", "Repeated-evidence album grouping, conflicts, singles, and orphans."),
                 ("Evidence Reliability", "/review/reliability", "Uploader artifacts, polluted names, canonical matches, and reliability tiers."),
                 ("Knowledge Review", "/review/knowledge", "Reusable evidence from approved and rejected decisions."),
@@ -381,6 +385,7 @@ def review_hub(request: Request):
                 *album_cohesion["missing_files"],
                 *reliability["missing_files"],
                 *canonical_graph["missing_files"],
+                *entity_classification["missing_files"],
             ],
         },
     )
@@ -559,6 +564,53 @@ def review_canonical_graph(request: Request, q: str = ""):
             "query": q,
             "timestamp": graph["summary"].get("created_at"),
             "missing_files": graph["missing_files"],
+        },
+    )
+
+
+@router.get("/review/entity-classification")
+def review_entity_classification(request: Request, q: str = ""):
+    classification = _entity_classification_summary(_reports_dir(request))
+    records = _filter_rows(classification["classifications"], q)
+    blocked = _filter_rows(classification["blocked"], q)
+    ambiguous = _filter_rows(classification["ambiguous"], q)
+    source_artifacts = [
+        row
+        for row in records
+        if row.get("proposed_entity_type") in {"source_or_label_artifact", "uploader_channel_artifact"}
+    ]
+    misclassified_artists = [
+        row
+        for row in records
+        if row.get("proposed_entity_type") in {"track_title_misclassified_as_artist", "album_title_misclassified_as_artist"}
+    ]
+    return _render(
+        request,
+        "reports/entity_classification.html",
+        {
+            "title": "Entity Classification",
+            "eyebrow": "Canonical Guardrail",
+            "intro": "Inspect deterministic candidate classifications before canonical graph promotion. This page is read-only.",
+            "breadcrumbs": [("Review", "/review"), ("Entity Classification", "")],
+            "back_links": [("Back to Review", "/review")],
+            "cards": [
+                ("Total candidates", classification["summary"].get("total_candidates", 0)),
+                ("Canonical artists", classification["summary"].get("canonical_artist_candidates", 0)),
+                ("Canonical albums", classification["summary"].get("canonical_album_candidates", 0)),
+                ("Canonical tracks", classification["summary"].get("canonical_track_candidates", 0)),
+                ("Blocked", classification["summary"].get("blocked_candidates", 0)),
+                ("Ambiguous", classification["summary"].get("ambiguous_candidates", 0)),
+                ("Source artifacts", classification["summary"].get("source_artifacts", 0)),
+                ("Misclassified track titles", classification["summary"].get("misclassified_track_titles", 0)),
+            ],
+            "blocked": blocked,
+            "ambiguous": ambiguous,
+            "source_artifacts": source_artifacts,
+            "misclassified_artists": misclassified_artists,
+            "records": records,
+            "query": q,
+            "timestamp": classification["summary"].get("created_at"),
+            "missing_files": classification["missing_files"],
         },
     )
 
@@ -747,6 +799,17 @@ def _canonical_graph_summary(reports_dir: Path) -> dict[str, Any]:
     }
 
 
+def _entity_classification_summary(reports_dir: Path) -> dict[str, Any]:
+    summary, classifications, blocked, ambiguous, missing_files = read_entity_classification_report(reports_dir)
+    return {
+        "summary": summary,
+        "classifications": classifications,
+        "blocked": blocked,
+        "ambiguous": ambiguous,
+        "missing_files": missing_files,
+    }
+
+
 def _learned_rule_count(reports_dir: Path) -> int:
     path = reports_dir / "normalization_knowledge" / "normalization_knowledge_rules.json"
     if not path.exists():
@@ -912,6 +975,7 @@ def _nav_items() -> list[tuple[str, str]]:
         ("/review/duplicates", "Duplicates"),
         ("/review/metadata", "Metadata"),
         ("/review/canonical-graph", "Canonical Graph"),
+        ("/review/entity-classification", "Entity Classification"),
         ("/review/albums", "Album Cohesion"),
         ("/review/reliability", "Reliability"),
         ("/review/knowledge", "Knowledge"),

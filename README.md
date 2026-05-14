@@ -44,6 +44,7 @@ appropriate, and preserve recovery information.
 - [Normalization rules](docs/normalization-rules.md)
 - [Evidence reliability](docs/evidence-reliability.md)
 - [Canonical entity graph](docs/canonical-entity-graph.md)
+- [Canonical entity classification](docs/canonical-entity-classification.md)
 - [Sample outputs](docs/sample-outputs/)
 
 ## 2. Problem Statement
@@ -70,6 +71,8 @@ evidence preserved at each review boundary.
   placement structure, and normalization knowledge evidence when present.
 - Adds an Evidence Reliability Engine that scores metadata evidence before
   album cohesion and metadata suggestions rely on it.
+- Adds a Canonical Entity Type Classifier that blocks track titles, source
+  artifacts, uploader channels, and ambiguous strings before graph promotion.
 - Adds a Canonical Entity Graph that persists canonical artists, albums, tracks,
   versions, and evidence-governed relationships without auto-merging conflicts.
 - Classifies files using deterministic artist and genre rules.
@@ -368,6 +371,25 @@ when repeated canonical agreement, normalization knowledge, album cohesion,
 sequential tracks, folder consistency, prior approvals, or low conflict rates
 support the value. It never mutates media files or removes metadata.
 
+Canonical Entity Classification reports are review-only. The
+`classify-canonical-entities` command classifies candidate artist, album, and
+track strings before the graph can promote them:
+
+```text
+reports/canonical_entity_classification/
+  entity_classification_summary.json
+  entity_classifications.csv
+  blocked_entity_candidates.csv
+  ambiguous_entity_candidates.csv
+```
+
+The classifier flags track titles misfiled as artists, uploader/channel
+artifacts, source or label residue, version descriptors, valid canonical
+candidates, and unresolved ambiguity. The canonical graph uses the same
+deterministic classifications to keep blocked artist and album candidates out
+of active canonical entities while retaining the rationale as unresolved
+conflict evidence. It never mutates media files or writes metadata.
+
 Canonical Entity Graph reports are review-only and persistent. The
 `canonical-graph` command rebuilds canonical artists, albums, tracks, versions,
 and relationships from accumulated local evidence, then writes:
@@ -449,6 +471,7 @@ Available routes include:
 /review/duplicates
 /review/metadata
 /review/canonical-graph
+/review/entity-classification
 /review/reliability
 /player
 /settings

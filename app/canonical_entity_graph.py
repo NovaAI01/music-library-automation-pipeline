@@ -19,6 +19,14 @@ from typing import Any, Iterable
 
 from app import db
 from app.album_cohesion import read_album_cohesion_report
+from app.canonical_entity_classifier import (
+    AMBIGUOUS_TYPE,
+    BLOCKING_TYPES,
+    EntityClassification,
+    build_candidate_contexts,
+    classify_candidate,
+    classification_summary,
+)
 from app.evidence_reliability import read_evidence_reliability_report, score_evidence
 from app.filename_parser import parse_filename
 from app.normalization_knowledge import derive_normalization_rules
@@ -115,6 +123,7 @@ class CanonicalGraphResult:
     canonical_artist_count: int
     canonical_album_count: int
     canonical_track_count: int
+    blocked_candidate_count: int
     alias_relationships: int
     duplicate_relationships: int
     unresolved_conflicts: int
@@ -170,6 +179,11 @@ def build_canonical_graph(
     rules = list(derive_normalization_rules(db_path=db_path))
     _, album_groups, album_conflicts, _, _ = read_album_cohesion_report(reports_dir)
     reliability_summary, reliability_records, _, _, _ = read_evidence_reliability_report(reports_dir)
+    entity_classifications = _classify_graph_candidates(
+        track_evidence=track_evidence,
+        reports_dir=reports_dir,
+        db_path=db_path,
+    )
 
     artist_aliases = _artist_alias_map(decisions, rules)
     artists, artist_lookup, artist_conflicts = _build_artists(
@@ -177,6 +191,7 @@ def build_canonical_graph(
         decisions=decisions,
         rules=rules,
         artist_aliases=artist_aliases,
+        entity_classifications=entity_classifications,
         now=now,
     )
     albums, album_lookup, album_conflicts_out = _build_albums(
@@ -185,6 +200,7 @@ def build_canonical_graph(
         album_conflicts=album_conflicts,
         artist_lookup=artist_lookup,
         artist_aliases=artist_aliases,
+        entity_classifications=entity_classifications,
         now=now,
     )
     tracks, track_lookup, track_groups, track_conflicts = _build_tracks(
@@ -224,6 +240,7 @@ def build_canonical_graph(
         relationships=relationships,
         unresolved=unresolved,
         reliability_summary=reliability_summary,
+        classification_summary=classification_summary(entity_classifications.values()),
         now=now,
     )
     return CanonicalGraph(
@@ -409,16 +426,26 @@ def _build_artists(
     decisions: list[dict[str, Any]],
     rules: list[Any],
     artist_aliases: dict[str, str],
+    entity_classifications: dict[tuple[str, str, str], EntityClassification],
     now: str,
 ) -> tuple[list[CanonicalEntity], dict[str, str], list[UnresolvedConflict]]:
     grouped: defaultdict[str, list[tuple[str, float, str]]] = defaultdict(list)
+    blocked_conflicts: dict[tuple[str, str], UnresolvedConflict] = {}
     for item in track_evidence:
         if item.artist:
-            canonical = artist_aliases.get(_norm(item.artist), item.artist)
-            grouped[_norm(canonical)].append((item.artist, item.reliability, item.observed_at))
+            classification = _classification_for(entity_classifications, "artist", item.file_path, item.artist)
+            if _blocks_promotion(classification):
+                blocked_conflicts[("artist", _norm(item.artist))] = _classification_conflict("artist", item.artist, classification, now)
+            else:
+                canonical = artist_aliases.get(_norm(item.artist), item.artist)
+                grouped[_norm(canonical)].append((item.artist, item.reliability, item.observed_at))
         if item.filename_artist:
-            canonical = artist_aliases.get(_norm(item.filename_artist), item.filename_artist)
-            grouped[_norm(canonical)].append((item.filename_artist, 0.58, item.observed_at))
+            classification = _classification_for(entity_classifications, "filename_artist", item.file_path, item.filename_artist)
+            if _blocks_promotion(classification):
+                blocked_conflicts[("artist", _norm(item.filename_artist))] = _classification_conflict("artist", item.filename_artist, classification, now)
+            else:
+                canonical = artist_aliases.get(_norm(item.filename_artist), item.filename_artist)
+                grouped[_norm(canonical)].append((item.filename_artist, 0.58, item.observed_at))
     for row in decisions:
         if str(row.get("field", "")) not in {"artist", "album_artist"}:
             continue
@@ -465,7 +492,7 @@ def _build_artists(
                     now,
                 )
             )
-    return entities, lookup, conflicts
+    return entities, lookup, [*blocked_conflicts.values(), *conflicts]
 
 
 def _build_albums(
@@ -475,12 +502,18 @@ def _build_albums(
     album_conflicts: list[dict[str, str]],
     artist_lookup: dict[str, str],
     artist_aliases: dict[str, str],
+    entity_classifications: dict[tuple[str, str, str], EntityClassification],
     now: str,
 ) -> tuple[list[CanonicalEntity], dict[str, str], list[UnresolvedConflict]]:
     grouped: defaultdict[str, list[tuple[str, float, str]]] = defaultdict(list)
     conflict_keys = {_norm(row.get("artist", "") + ":" + row.get("album", "")) for row in album_conflicts}
+    blocked_conflicts: dict[tuple[str, str], UnresolvedConflict] = {}
     for item in track_evidence:
         if not item.album:
+            continue
+        classification = _classification_for(entity_classifications, "album", item.file_path, item.album)
+        if _blocks_promotion(classification):
+            blocked_conflicts[("album", _norm(item.album))] = _classification_conflict("album", item.album, classification, now)
             continue
         artist = artist_aliases.get(_norm(item.artist), item.artist)
         key = f"{artist_lookup.get(_norm(artist), _norm(artist))}:{_norm(item.album)}"
@@ -508,7 +541,7 @@ def _build_albums(
         lookup[key] = entity.canonical_id
         if conflict_count:
             conflicts.append(_conflict("album", key, sorted(set(names), key=str.casefold), len(values), conflict_count, "album evidence has unresolved tag, folder, or casing conflict", now))
-    return entities, lookup, conflicts
+    return entities, lookup, [*blocked_conflicts.values(), *conflicts]
 
 
 def _build_tracks(
@@ -674,6 +707,78 @@ def _relationships(
     return _dedupe_relationships(relationships)
 
 
+def _classify_graph_candidates(
+    *,
+    track_evidence: list[TrackEvidence],
+    reports_dir: str | Path,
+    db_path: str | Path,
+) -> dict[tuple[str, str, str], EntityClassification]:
+    rows: list[dict[str, Any]] = []
+    for item in track_evidence:
+        metadata_tags = {"artist": item.artist, "title": item.title, "album": item.album}
+        base = {
+            "file_path": item.file_path,
+            "folder_artist": item.source_folder,
+            "filename_artist": item.filename_artist,
+            "filename_title": item.filename_title,
+            "metadata_tags": metadata_tags,
+            "evidence_reliability_flags": [],
+        }
+        for field_name, value in (
+            ("artist", item.artist),
+            ("filename_artist", item.filename_artist),
+            ("title", item.title),
+            ("album", item.album),
+        ):
+            if value:
+                rows.append({**base, "field_name": field_name, "value": value})
+    contexts = build_candidate_contexts(rows, reports_dir=reports_dir, db_path=db_path)
+    classifications: dict[tuple[str, str, str], EntityClassification] = {}
+    for context in contexts:
+        classification = classify_candidate(context)
+        classifications[(context.field_name, context.file_path, _norm(context.candidate_value))] = classification
+    return classifications
+
+
+def _classification_for(
+    classifications: dict[tuple[str, str, str], EntityClassification],
+    field_name: str,
+    file_path: str,
+    value: str,
+) -> EntityClassification | None:
+    return classifications.get((field_name, file_path, _norm(value)))
+
+
+def _blocks_promotion(classification: EntityClassification | None) -> bool:
+    if classification is None:
+        return False
+    return classification.proposed_entity_type in BLOCKING_TYPES or classification.proposed_entity_type == AMBIGUOUS_TYPE
+
+
+def _classification_conflict(
+    entity_type: str,
+    value: str,
+    classification: EntityClassification | None,
+    now: str,
+) -> UnresolvedConflict:
+    proposed = classification.proposed_entity_type if classification else AMBIGUOUS_TYPE
+    rationale = "classification blocked canonical promotion"
+    if classification is not None:
+        rationale = (
+            f"classification blocked canonical promotion as {proposed}: "
+            f"{' | '.join(classification.rationale[:3])}"
+        )
+    return _conflict(
+        entity_type,
+        _norm(value),
+        [value],
+        1,
+        1,
+        rationale,
+        now,
+    )
+
+
 def _summary(
     *,
     artists: list[CanonicalEntity],
@@ -683,6 +788,7 @@ def _summary(
     relationships: list[EntityRelationship],
     unresolved: list[UnresolvedConflict],
     reliability_summary: dict[str, Any],
+    classification_summary: dict[str, Any],
     now: str,
 ) -> dict[str, Any]:
     entities = [*artists, *albums, *tracks, *versions]
@@ -693,6 +799,8 @@ def _summary(
         "canonical_album_count": len(albums),
         "canonical_track_count": len(tracks),
         "canonical_version_count": len(versions),
+        "blocked_candidate_count": int(classification_summary.get("blocked_candidates", 0) or 0),
+        "ambiguous_candidate_count": int(classification_summary.get("ambiguous_candidates", 0) or 0),
         "alias_relationships": sum(1 for item in relationships if item.relationship_type == "alias_of"),
         "duplicate_relationships": sum(1 for item in relationships if item.relationship_type in {"probable_duplicate", "probable_same_track"}),
         "unresolved_conflicts": len(unresolved),

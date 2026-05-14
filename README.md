@@ -46,6 +46,7 @@ appropriate, and preserve recovery information.
 - [Canonical entity graph](docs/canonical-entity-graph.md)
 - [Canonical entity classification](docs/canonical-entity-classification.md)
 - [Canonical confidence](docs/canonical-confidence.md)
+- [Promotion lifecycle](docs/promotion-lifecycle.md)
 - [Entity roles](docs/entity-roles.md)
 - [Sample outputs](docs/sample-outputs/)
 
@@ -429,6 +430,26 @@ The weighted engine explains each score with positive evidence, negative
 evidence, raw totals, normalized confidence, and rationale. It has no AI,
 embedding, vector database, or external API dependency, and it never mutates
 media files or writes metadata.
+
+Promotion Lifecycle reports are review-only. The `promotion-lifecycle` command
+turns confidence snapshots, temporal persistence, and graph context into
+deterministic lifecycle states:
+
+```text
+reports/promotion_lifecycle/
+  lifecycle_summary.json
+  lifecycle_entities.csv
+  canonical_entities.csv
+  probationary_entities.csv
+  conflicted_entities.csv
+  deprecated_entities.csv
+```
+
+Lifecycle states include candidate, probationary, canonical, conflicted,
+blocked, and deprecated. Promotion is reversible, so high confidence with short
+history remains probationary, long-lived stable evidence can become canonical,
+and previously promoted entities can be deprecated if confidence collapses. It
+never mutates media files or writes metadata.
 
 Canonical Entity Graph reports are review-only and persistent. The
 `canonical-graph` command rebuilds canonical artists, albums, tracks, versions,

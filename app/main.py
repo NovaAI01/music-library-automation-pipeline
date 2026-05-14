@@ -37,6 +37,7 @@ from app.normalization_knowledge import (
 from app.pipeline import run_intake_pipeline
 from app.placement_executor import execute_placement
 from app.placement_planner import plan_scan_run_placements
+from app.promotion_lifecycle import generate_promotion_lifecycle_report
 from app.purchase_gateway import (
     add_purchase_option,
     attach_purchase_proof,
@@ -304,6 +305,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Score canonical entities with weighted positive and negative evidence.",
     )
     canonical_confidence_parser.add_argument("--out", default="reports")
+
+    promotion_lifecycle_parser = subparsers.add_parser(
+        "promotion-lifecycle",
+        help="Evaluate deterministic canonical entity promotion lifecycle states.",
+    )
+    promotion_lifecycle_parser.add_argument("--out", default="reports")
 
     album_discovery_parser = subparsers.add_parser(
         "discover-albums",
@@ -771,6 +778,19 @@ def main(argv: list[str] | None = None) -> int:
         print(f"average_confidence={result.average_confidence}")
         print(f"average_positive_score={result.average_positive_score}")
         print(f"average_negative_score={result.average_negative_score}")
+        return 0
+
+    if args.command == "promotion-lifecycle":
+        result = generate_promotion_lifecycle_report(out_dir=args.out, db_path=db_path)
+        print(f"report_path={result.report_path}")
+        print(f"candidate_count={result.candidate_count}")
+        print(f"probationary_count={result.probationary_count}")
+        print(f"canonical_count={result.canonical_count}")
+        print(f"conflicted_count={result.conflicted_count}")
+        print(f"blocked_count={result.blocked_count}")
+        print(f"deprecated_count={result.deprecated_count}")
+        print(f"promoted_this_run={result.promoted_this_run}")
+        print(f"demoted_this_run={result.demoted_this_run}")
         return 0
 
     if args.command == "discover-albums":

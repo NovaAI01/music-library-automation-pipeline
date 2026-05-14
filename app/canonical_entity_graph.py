@@ -33,6 +33,7 @@ from app.entity_roles import EntityRoleRecord, aggregate_entity_roles, entity_ro
 from app.evidence_reliability import read_evidence_reliability_report, score_evidence
 from app.filename_parser import parse_filename
 from app.normalization_knowledge import derive_normalization_rules
+from app.promotion_lifecycle import graph_lifecycle_state
 from app.review_decisions import list_review_decisions
 
 
@@ -953,16 +954,31 @@ def _insert_conflicts(connection: Any, conflicts: list[UnresolvedConflict]) -> N
 
 def _entity(entity_type: str, key: str, name: str, score: float, evidence_count: int, conflict_count: int, seen_values: list[str], now: str) -> CanonicalEntity:
     score = round(max(0.0, min(1.0, score)), 3)
+    first_seen = min(seen_values) if seen_values else now
+    last_seen = max(seen_values) if seen_values else now
+    tier = _tier(score)
+    lifecycle_state = graph_lifecycle_state(
+        entity_type=entity_type,
+        entity_key=key,
+        entity_value=name or "Unknown",
+        confidence_score=score,
+        confidence_tier=tier,
+        evidence_count=evidence_count,
+        conflict_count=conflict_count,
+        first_seen=first_seen,
+        last_seen=last_seen,
+        graph_relationships=1 if evidence_count >= 2 else 0,
+    )
     return CanonicalEntity(
         canonical_id=_stable_id(entity_type, key),
         canonical_name=name or "Unknown",
         confidence_score=score,
-        confidence_tier=_tier(score),
+        confidence_tier=tier,
         evidence_count=evidence_count,
         conflict_count=conflict_count,
-        first_seen=min(seen_values) if seen_values else now,
-        last_seen=max(seen_values) if seen_values else now,
-        status="conflicted" if conflict_count else "active",
+        first_seen=first_seen,
+        last_seen=last_seen,
+        status=lifecycle_state,
     )
 
 
@@ -1142,8 +1158,14 @@ def _merged_status(left: str, right: str, conflict_count: int) -> str:
     statuses = {left, right}
     if conflict_count or "conflicted" in statuses:
         return "conflicted"
+    if "canonical" in statuses:
+        return "canonical"
+    if "probationary" in statuses:
+        return "probationary"
+    if "candidate" in statuses:
+        return "candidate"
     if "active" in statuses:
-        return "active"
+        return "probationary"
     return sorted(status for status in statuses if status)[0] if any(statuses) else "active"
 
 

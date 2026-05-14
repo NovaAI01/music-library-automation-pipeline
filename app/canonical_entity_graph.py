@@ -29,6 +29,7 @@ from app.canonical_entity_classifier import (
 )
 from app.canonical_confidence import confidence_tier as weighted_confidence_tier
 from app.canonical_confidence import score_canonical_entity
+from app.entity_boundary import BLOCKING_STATUSES, BoundaryContext, EntityBoundary, classify_boundary
 from app.entity_roles import EntityRoleRecord, aggregate_entity_roles, entity_role_summary
 from app.evidence_reliability import read_evidence_reliability_report, score_evidence
 from app.filename_parser import parse_filename
@@ -188,7 +189,8 @@ def build_canonical_graph(
         reports_dir=reports_dir,
         db_path=db_path,
     )
-    role_records = _graph_role_records(track_evidence)
+    entity_boundaries = _classify_graph_boundaries(track_evidence)
+    role_records = _graph_role_records(track_evidence, entity_boundaries)
 
     artist_aliases = _artist_alias_map(decisions, rules)
     artists, artist_lookup, artist_conflicts = _build_artists(
@@ -197,6 +199,7 @@ def build_canonical_graph(
         rules=rules,
         artist_aliases=artist_aliases,
         entity_classifications=entity_classifications,
+        entity_boundaries=entity_boundaries,
         now=now,
     )
     albums, album_lookup, album_conflicts_out = _build_albums(
@@ -206,6 +209,7 @@ def build_canonical_graph(
         artist_lookup=artist_lookup,
         artist_aliases=artist_aliases,
         entity_classifications=entity_classifications,
+        entity_boundaries=entity_boundaries,
         now=now,
     )
     tracks, track_lookup, track_groups, track_conflicts = _build_tracks(
@@ -434,12 +438,17 @@ def _build_artists(
     rules: list[Any],
     artist_aliases: dict[str, str],
     entity_classifications: dict[tuple[str, str, str], EntityClassification],
+    entity_boundaries: dict[tuple[str, str, str], EntityBoundary],
     now: str,
 ) -> tuple[list[CanonicalEntity], dict[str, str], list[UnresolvedConflict]]:
     grouped: defaultdict[str, list[tuple[str, float, str]]] = defaultdict(list)
     blocked_conflicts: dict[tuple[str, str], UnresolvedConflict] = {}
     for item in track_evidence:
         if item.artist:
+            boundary = _boundary_for(entity_boundaries, "artist", item.file_path, item.artist)
+            if _boundary_blocks_promotion(boundary):
+                blocked_conflicts[("artist", _norm(item.artist))] = _boundary_conflict("artist", item.artist, boundary, now)
+                continue
             classification = _classification_for(entity_classifications, "artist", item.file_path, item.artist)
             if _blocks_promotion(classification):
                 blocked_conflicts[("artist", _norm(item.artist))] = _classification_conflict("artist", item.artist, classification, now)
@@ -447,6 +456,10 @@ def _build_artists(
                 canonical = artist_aliases.get(_norm(item.artist), item.artist)
                 grouped[_norm(canonical)].append((item.artist, item.reliability, item.observed_at))
         if item.filename_artist:
+            boundary = _boundary_for(entity_boundaries, "filename_artist", item.file_path, item.filename_artist)
+            if _boundary_blocks_promotion(boundary):
+                blocked_conflicts[("artist", _norm(item.filename_artist))] = _boundary_conflict("artist", item.filename_artist, boundary, now)
+                continue
             classification = _classification_for(entity_classifications, "filename_artist", item.file_path, item.filename_artist)
             if _blocks_promotion(classification):
                 blocked_conflicts[("artist", _norm(item.filename_artist))] = _classification_conflict("artist", item.filename_artist, classification, now)
@@ -515,6 +528,7 @@ def _build_albums(
     artist_lookup: dict[str, str],
     artist_aliases: dict[str, str],
     entity_classifications: dict[tuple[str, str, str], EntityClassification],
+    entity_boundaries: dict[tuple[str, str, str], EntityBoundary],
     now: str,
 ) -> tuple[list[CanonicalEntity], dict[str, str], list[UnresolvedConflict]]:
     grouped: defaultdict[str, list[tuple[str, float, str]]] = defaultdict(list)
@@ -522,6 +536,10 @@ def _build_albums(
     blocked_conflicts: dict[tuple[str, str], UnresolvedConflict] = {}
     for item in track_evidence:
         if not item.album:
+            continue
+        boundary = _boundary_for(entity_boundaries, "album", item.file_path, item.album)
+        if _boundary_blocks_promotion(boundary):
+            blocked_conflicts[("album", _norm(item.album))] = _boundary_conflict("album", item.album, boundary, now)
             continue
         classification = _classification_for(entity_classifications, "album", item.file_path, item.album)
         if _blocks_promotion(classification):
@@ -781,7 +799,44 @@ def _classify_graph_candidates(
     return classifications
 
 
-def _graph_role_records(track_evidence: list[TrackEvidence]) -> list[EntityRoleRecord]:
+def _classify_graph_boundaries(track_evidence: list[TrackEvidence]) -> dict[tuple[str, str, str], EntityBoundary]:
+    rows = _graph_candidate_rows(track_evidence)
+    role_counts = Counter(
+        (_role_field(row["field_name"]), _norm(row["value"]))
+        for row in rows
+        if row["value"]
+    )
+    boundaries: dict[tuple[str, str, str], EntityBoundary] = {}
+    for row in rows:
+        context = BoundaryContext(
+            candidate_value=row["value"],
+            source_field=row["field_name"],
+            file_path=row["file_path"],
+            folder_artist=row["folder_artist"],
+            filename_artist=row["filename_artist"],
+            filename_title=row["filename_title"],
+            metadata_tags=row["metadata_tags"],
+            repeated_role_evidence=role_counts[(_role_field(row["field_name"]), _norm(row["value"]))],
+        )
+        boundary = classify_boundary(context)
+        boundaries[(context.source_field, context.file_path, _norm(context.candidate_value))] = boundary
+    return boundaries
+
+
+def _graph_role_records(
+    track_evidence: list[TrackEvidence],
+    entity_boundaries: dict[tuple[str, str, str], EntityBoundary] | None = None,
+) -> list[EntityRoleRecord]:
+    rows = []
+    for row in _graph_candidate_rows(track_evidence):
+        boundary = _boundary_for(entity_boundaries or {}, row["field_name"], row["file_path"], row["value"])
+        if _boundary_blocks_promotion(boundary):
+            continue
+        rows.append(row)
+    return aggregate_entity_roles(rows)
+
+
+def _graph_candidate_rows(track_evidence: list[TrackEvidence]) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for item in track_evidence:
         metadata_tags = {"artist": item.artist, "title": item.title, "album": item.album}
@@ -800,7 +855,7 @@ def _graph_role_records(track_evidence: list[TrackEvidence]) -> list[EntityRoleR
         ):
             if value:
                 rows.append({**base, "field_name": field_name, "value": value})
-    return aggregate_entity_roles(rows)
+    return rows
 
 
 def _role_conflicts(role_records: list[EntityRoleRecord], now: str) -> list[UnresolvedConflict]:
@@ -832,6 +887,21 @@ def _classification_for(
     return classifications.get((field_name, file_path, _norm(value)))
 
 
+def _boundary_for(
+    boundaries: dict[tuple[str, str, str], EntityBoundary],
+    field_name: str,
+    file_path: str,
+    value: str,
+) -> EntityBoundary | None:
+    return boundaries.get((field_name, file_path, _norm(value)))
+
+
+def _boundary_blocks_promotion(boundary: EntityBoundary | None) -> bool:
+    if boundary is None:
+        return False
+    return boundary.boundary_status in BLOCKING_STATUSES
+
+
 def _blocks_promotion(classification: EntityClassification | None) -> bool:
     if classification is None:
         return False
@@ -860,6 +930,21 @@ def _classification_conflict(
         rationale,
         now,
     )
+
+
+def _boundary_conflict(
+    entity_type: str,
+    value: str,
+    boundary: EntityBoundary | None,
+    now: str,
+) -> UnresolvedConflict:
+    rationale = "entity boundary blocked canonical promotion"
+    if boundary is not None:
+        rationale = (
+            f"entity boundary {boundary.boundary_status} canonical promotion as "
+            f"{boundary.proposed_boundary_type}: {' | '.join(boundary.rationale[:3])}"
+        )
+    return _conflict(entity_type, _norm(value), [value], 1, 1, rationale, now)
 
 
 def _summary(
@@ -1084,6 +1169,16 @@ def _version_marker(value: str) -> str:
     if "single version" in text or "radio edit" in text:
         return "single"
     return ""
+
+
+def _role_field(field_name: str) -> str:
+    if field_name in {"artist", "album_artist", "filename_artist"}:
+        return "artist"
+    if field_name == "album":
+        return "album"
+    if field_name == "title":
+        return "track"
+    return "ambiguous"
 
 
 def _dedupe_entities(entities: list[CanonicalEntity]) -> list[CanonicalEntity]:

@@ -48,6 +48,7 @@ appropriate, and preserve recovery information.
 - [Canonical confidence](docs/canonical-confidence.md)
 - [Promotion lifecycle](docs/promotion-lifecycle.md)
 - [Conflict resolution governance](docs/conflict-governance.md)
+- [Entity boundary classifier](docs/entity-boundaries.md)
 - [Entity roles](docs/entity-roles.md)
 - [Sample outputs](docs/sample-outputs/)
 
@@ -495,6 +496,16 @@ python -m app.main alias-equivalence-audit --out reports
 
 It writes `reports/alias_equivalence_audit/` with the full audit, prevented
 escalations, missed safe aliases, remaining escalations, and summary counts.
+
+Entity Boundary Classifier runs before role assignment and graph insertion to
+keep deterministic title, source, uploader, label, release annotation, and
+collaboration pollution out of canonical artist and album space:
+
+```bash
+python -m app.main entity-boundaries --out reports
+```
+
+It writes `reports/entity_boundaries/` and remains review-only.
 
 Album metadata discovery is also review-only. The `discover-albums` command
 looks at existing tags, filenames, and local path evidence for tracks with

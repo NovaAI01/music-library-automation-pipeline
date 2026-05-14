@@ -21,6 +21,7 @@ from app.demo_generator import generate_demo
 from app.duplicate_quarantine import quarantine_duplicates
 from app.duplicate_report import generate_duplicate_report
 from app.duplicate_review import generate_duplicate_review_plan
+from app.entity_boundary import generate_entity_boundary_report
 from app.entity_roles import generate_entity_role_report
 from app.evidence_reliability import generate_evidence_reliability_report
 from app.identity_engine import identify_scan_run
@@ -301,6 +302,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Audit deterministic alias equivalence decisions against governance outcomes.",
     )
     alias_equivalence_audit_parser.add_argument("--out", default="reports")
+
+    entity_boundaries_parser = subparsers.add_parser(
+        "entity-boundaries",
+        help="Classify raw metadata candidate boundaries before canonical graph insertion.",
+    )
+    entity_boundaries_parser.add_argument("--out", default="reports")
 
     entity_classification_parser = subparsers.add_parser(
         "classify-canonical-entities",
@@ -787,6 +794,20 @@ def main(argv: list[str] | None = None) -> int:
         print(f"collaboration_rejections={result.collaboration_rejections}")
         print(f"source_artifact_rejections={result.source_artifact_rejections}")
         print(f"role_collision_rejections={result.role_collision_rejections}")
+        return 0
+
+    if args.command == "entity-boundaries":
+        result = generate_entity_boundary_report(out_dir=args.out, db_path=db_path)
+        print(f"report_path={result.report_path}")
+        print(f"total_candidates={result.total_candidates}")
+        print(f"allowed_candidates={result.allowed_candidates}")
+        print(f"blocked_candidates={result.blocked_candidates}")
+        print(f"quarantined_candidates={result.quarantined_candidates}")
+        print(f"needs_review_candidates={result.needs_review_candidates}")
+        print(f"source_artifacts_blocked={result.source_artifacts_blocked}")
+        print(f"collaboration_strings_quarantined={result.collaboration_strings_quarantined}")
+        print(f"title_pollution_blocked={result.title_pollution_blocked}")
+        print(f"release_annotations_quarantined={result.release_annotations_quarantined}")
         return 0
 
     if args.command == "classify-canonical-entities":

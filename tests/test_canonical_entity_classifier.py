@@ -189,7 +189,11 @@ def test_graph_integration_blocks_polluted_artist(tmp_path):
     assert "A Place For My Head" not in artist_names
     assert "Linkin Park" in artist_names
     assert result.blocked_candidate_count >= 1
-    assert any("classification blocked canonical promotion" in rationale for rationale in conflicts)
+    assert any(
+        "classification blocked canonical promotion" in rationale
+        or "entity boundary block canonical promotion" in rationale
+        for rationale in conflicts
+    )
 
 
 def test_entity_classification_ui_route_rendering(tmp_path):

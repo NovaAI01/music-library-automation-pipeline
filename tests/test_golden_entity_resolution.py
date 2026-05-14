@@ -11,6 +11,7 @@ from app.canonical_entity_classifier import (
     classify_candidate,
 )
 from app.canonical_entity_graph import _base_title, build_canonical_graph
+from app.entity_boundary import BoundaryContext, classify_boundary
 from app.entity_roles import aggregate_entity_roles
 from app.promotion_lifecycle import evaluate_lifecycle
 from app.review_decisions import record_review_decision, suggestion_key_for
@@ -36,8 +37,13 @@ def _read_rows(filename: str) -> list[dict[str, str]]:
 
 @pytest.mark.parametrize("row", [row for filename in GOLDEN_FILES for row in _read_rows(filename)], ids=lambda row: row["case_id"])
 def test_golden_cases_classify_confidence_and_lifecycle(row):
+    boundary = classify_boundary(_boundary_context(row))
     classification = classify_candidate(_candidate_context(row))
 
+    if _bool(row["expected_blocked"]) and row["field_name"] in {"artist", "album"}:
+        assert boundary.boundary_status in {"block", "quarantine", "needs_review"}
+    elif row["scoring_profile"] in {"canonical_artist", "canonical_album"}:
+        assert boundary.boundary_status == "allow"
     assert classification.proposed_entity_type == row["expected_proposed_entity_type"]
     assert classification.confidence_tier == row["expected_classifier_confidence_tier"]
     assert (classification.proposed_entity_type in BLOCKING_TYPES or classification.proposed_entity_type == "unknown_or_ambiguous") is _bool(row["expected_blocked"])
@@ -165,6 +171,22 @@ def _candidate_context(row: dict[str, str]) -> CandidateContext:
         role_flags=_split(row["role_flags"]),
         approved_review_support=_bool(row["approved_review_support"]),
         normalization_knowledge_support=_bool(row["normalization_knowledge_support"]),
+    )
+
+
+def _boundary_context(row: dict[str, str]) -> BoundaryContext:
+    return BoundaryContext(
+        candidate_value=row["candidate_value"],
+        source_field=row["field_name"],
+        folder_artist=row["folder_artist"],
+        filename_artist=row["filename_artist"],
+        filename_title=row["filename_title"],
+        metadata_tags={
+            "title": row["tag_title"],
+            "album": row["tag_album"],
+            "artist": row["candidate_value"] if row["field_name"] == "artist" else row["folder_artist"],
+        },
+        repeated_role_evidence=_int(row["role_evidence_count"]),
     )
 
 

@@ -15,6 +15,7 @@ from app.classifier import classify_scan_run
 from app.canonical_entity_graph import generate_canonical_graph
 from app.canonical_entity_classifier import generate_canonical_entity_classification_report
 from app.canonical_confidence import generate_canonical_confidence_report
+from app.conflict_governance import generate_conflict_governance_report
 from app.demo_generator import generate_demo
 from app.duplicate_quarantine import quarantine_duplicates
 from app.duplicate_report import generate_duplicate_report
@@ -287,6 +288,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Build persistent canonical entities and evidence-governed relationships.",
     )
     canonical_graph_parser.add_argument("--out", default="reports")
+
+    conflict_governance_parser = subparsers.add_parser(
+        "conflict-governance",
+        help="Classify unresolved canonical conflicts into review-only governance buckets.",
+    )
+    conflict_governance_parser.add_argument("--out", default="reports")
 
     entity_classification_parser = subparsers.add_parser(
         "classify-canonical-entities",
@@ -742,6 +749,20 @@ def main(argv: list[str] | None = None) -> int:
         print(f"high_confidence_entities={result.high_confidence_entities}")
         print(f"medium_confidence_entities={result.medium_confidence_entities}")
         print(f"low_confidence_entities={result.low_confidence_entities}")
+        return 0
+
+    if args.command == "conflict-governance":
+        result = generate_conflict_governance_report(out_dir=args.out, db_path=db_path)
+        print(f"report_path={result.report_path}")
+        print(f"total_conflicts={result.total_conflicts}")
+        print(f"blocked_merges={result.blocked_merges}")
+        print(f"safe_merge_candidates={result.safe_merge_candidates}")
+        print(f"needs_review={result.needs_review}")
+        print(f"deferred={result.deferred}")
+        print(f"resolved={result.resolved}")
+        print(f"high_severity={result.high_severity}")
+        print(f"medium_severity={result.medium_severity}")
+        print(f"low_severity={result.low_severity}")
         return 0
 
     if args.command == "classify-canonical-entities":

@@ -1,0 +1,58 @@
+{% extends "reports/base.html" %}
+{% macro conflict_table(rows, empty_message) %}
+<table class="review-table">
+  <thead>
+    <tr>
+      <th>Severity</th>
+      <th>Status</th>
+      <th>Type</th>
+      <th>Entities</th>
+      <th>Recommended Action</th>
+      <th>Rationale / Evidence</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+      <tr>
+        <td><span class="badge confidence-{{ row.get('severity', 'low') }}">{{ row.get("severity", "") }}</span></td>
+        <td>{{ row.get("conflict_status", "") }}</td>
+        <td>{{ row.get("conflict_type", "") }}</td>
+        <td class="path">{{ row.get("source_entity", "") }} -> {{ row.get("target_entity", "") }}<br><span class="muted">{{ row.get("entity_role", "") }}</span></td>
+        <td>{{ row.get("recommended_action", "") }}</td>
+        <td>
+          {{ row.get("contradiction_reason", "") }}
+          {% if row.get("positive_evidence_json") %}<br><code>{{ row.get("positive_evidence_json", "")[:180] }}</code>{% endif %}
+          {% if row.get("negative_evidence_json") %}<br><code>{{ row.get("negative_evidence_json", "")[:180] }}</code>{% endif %}
+        </td>
+      </tr>
+    {% else %}
+      <tr><td class="empty" colspan="6">{{ empty_message }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endmacro %}
+{% block content %}
+<section class="cards">
+  <article class="card"><div class="label">Total conflicts</div><div class="value">{{ summary.get("total_conflicts", 0) }}</div></article>
+  <article class="card"><div class="label">Blocked merges</div><div class="value">{{ summary.get("blocked_merges", 0) }}</div></article>
+  <article class="card"><div class="label">Safe merge candidates</div><div class="value">{{ summary.get("safe_merge_candidates", 0) }}</div></article>
+  <article class="card"><div class="label">Needs review</div><div class="value">{{ summary.get("needs_review", 0) }}</div></article>
+</section>
+
+<section class="section">
+  <h2>Blocked Merges</h2>
+  {{ conflict_table(blocked, "No blocked merge rows available.") }}
+</section>
+<section class="section">
+  <h2>Safe Merge Candidates</h2>
+  {{ conflict_table(safe, "No safe merge candidates available.") }}
+</section>
+<section class="section">
+  <h2>Needs Review</h2>
+  {{ conflict_table(needs_review, "No needs-review rows available.") }}
+</section>
+<section class="section">
+  <h2>All Governed Conflicts</h2>
+  {{ conflict_table(conflicts, "No governed conflict rows available.") }}
+</section>
+{% endblock %}

@@ -47,6 +47,7 @@ appropriate, and preserve recovery information.
 - [Canonical entity classification](docs/canonical-entity-classification.md)
 - [Canonical confidence](docs/canonical-confidence.md)
 - [Promotion lifecycle](docs/promotion-lifecycle.md)
+- [Conflict resolution governance](docs/conflict-governance.md)
 - [Entity roles](docs/entity-roles.md)
 - [Sample outputs](docs/sample-outputs/)
 
@@ -78,6 +79,9 @@ evidence preserved at each review boundary.
   artifacts, uploader channels, and ambiguous strings before graph promotion.
 - Adds a Canonical Entity Graph that persists canonical artists, albums, tracks,
   versions, and evidence-governed relationships without auto-merging conflicts.
+- Adds Conflict Resolution Governance that classifies unresolved canonical graph
+  conflicts into blocked merges, safe merge candidates, and review queues
+  without executing merges.
 - Classifies files using deterministic artist and genre rules.
 - Plans album-aware organized placement paths before copying files.
 - Generates library QA, duplicate, metadata audit, metadata normalization, and

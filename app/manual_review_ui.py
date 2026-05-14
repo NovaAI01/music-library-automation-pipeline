@@ -11,6 +11,8 @@ from typing import Any
 from fastapi import APIRouter, Request
 from fastapi.templating import Jinja2Templates
 
+from app.conflict_governance import read_conflict_governance_report
+
 
 DEFAULT_REPORTS_DIR = Path(os.environ.get("MUSIC_LIBRARY_REPORTS_DIR", "reports"))
 TEMPLATE_DIR = Path(__file__).parent / "templates"
@@ -56,7 +58,22 @@ def quarantine(request: Request):
 
 @router.get("/conflicts")
 def conflicts(request: Request):
-    rows, missing_files = _scan_csv(_reports_dir(request), "conflicts.csv")
+    summary, rows, blocked, safe, needs_review, missing_files = read_conflict_governance_report(_reports_dir(request))
+    if rows or summary:
+        return _render(
+            request,
+            "manual_review/conflicts.html",
+            {
+                "title": "Conflict Governance",
+                "summary": summary,
+                "conflicts": rows,
+                "blocked": blocked,
+                "safe": safe,
+                "needs_review": needs_review,
+                "missing_files": missing_files,
+            },
+        )
+    rows, scan_missing_files = _scan_csv(_reports_dir(request), "conflicts.csv")
     return _render(
         request,
         "manual_review/table.html",
@@ -65,7 +82,7 @@ def conflicts(request: Request):
             "headers": _headers(rows),
             "rows": rows,
             "empty_message": "No conflict rows available.",
-            "missing_files": missing_files,
+            "missing_files": [*missing_files, *scan_missing_files],
         },
     )
 
@@ -228,6 +245,7 @@ def _nav_items() -> list[tuple[str, str]]:
         ("/library/genres", "Genres"),
         ("/library/tracks", "Tracks"),
         ("/review", "Review"),
+        ("/review/conflicts", "Conflicts"),
         ("/review/duplicates", "Duplicates"),
         ("/review/metadata", "Metadata"),
         ("/review/canonical-graph", "Canonical Graph"),

@@ -247,6 +247,7 @@ def build_canonical_graph(
         reliability_summary=reliability_summary,
         classification_summary=classification_summary(entity_classifications.values()),
         role_summary=entity_role_summary(role_records),
+        reports_dir=reports_dir,
         now=now,
     )
     return CanonicalGraph(
@@ -872,10 +873,12 @@ def _summary(
     reliability_summary: dict[str, Any],
     classification_summary: dict[str, Any],
     role_summary: dict[str, Any],
+    reports_dir: str | Path,
     now: str,
 ) -> dict[str, Any]:
     entities = [*artists, *albums, *tracks, *versions]
     tiers = Counter(entity.confidence_tier for entity in entities)
+    governance = _governance_summary(reports_dir)
     return {
         "created_at": now,
         "canonical_artist_count": len(artists),
@@ -894,6 +897,7 @@ def _summary(
         "medium_confidence_entities": tiers["medium"],
         "low_confidence_entities": tiers["low"],
         "canonical_reliability_matches": int(reliability_summary.get("canonical_matches", 0) or 0),
+        **governance,
     }
 
 
@@ -1234,3 +1238,17 @@ def _write_csv(path: Path, fieldnames: tuple[str, ...], rows: Iterable[dict[str,
         writer.writeheader()
         for row in materialized:
             writer.writerow({field: row.get(field, "") for field in fieldnames})
+
+
+def _governance_summary(reports_dir: str | Path) -> dict[str, int]:
+    try:
+        from app.conflict_governance import governance_summary_from_reports
+
+        return governance_summary_from_reports(reports_dir)
+    except Exception:
+        return {
+            "governed_conflicts": 0,
+            "blocked_merges": 0,
+            "safe_merge_candidates": 0,
+            "needs_review_conflicts": 0,
+        }

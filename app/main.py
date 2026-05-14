@@ -7,6 +7,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 
+from app.album_cohesion import generate_album_cohesion_report
 from app.album_discovery import generate_album_discovery
 from app.album_organization import generate_album_organization_plan
 from app import db
@@ -258,6 +259,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     album_organization_parser.add_argument("--library-root", required=True)
     album_organization_parser.add_argument("--out", default="reports")
+
+    album_cohesion_parser = subparsers.add_parser(
+        "album-cohesion",
+        help="Create read-only repeated-evidence album cohesion reports.",
+    )
+    album_cohesion_parser.add_argument("--out", default="reports")
+    album_cohesion_parser.add_argument(
+        "--library-root",
+        help="Optional library root to scan directly instead of reports/library_qa/file_health.csv.",
+    )
 
     album_discovery_parser = subparsers.add_parser(
         "discover-albums",
@@ -643,6 +654,21 @@ def main(argv: list[str] | None = None) -> int:
         print(f"low_confidence={result.low_confidence}")
         print(f"requires_review={result.requires_review}")
         print(f"unknown_album_count={result.unknown_album_count}")
+        return 0
+
+    if args.command == "album-cohesion":
+        result = generate_album_cohesion_report(
+            out_dir=args.out,
+            library_root=args.library_root,
+        )
+        print(f"report_path={result.report_path}")
+        print(f"total_album_groups={result.total_album_groups}")
+        print(f"high_confidence_groups={result.high_confidence_groups}")
+        print(f"medium_confidence_groups={result.medium_confidence_groups}")
+        print(f"low_confidence_groups={result.low_confidence_groups}")
+        print(f"probable_singles={result.probable_singles}")
+        print(f"orphan_tracks={result.orphan_tracks}")
+        print(f"conflicting_album_groups={result.conflicting_album_groups}")
         return 0
 
     if args.command == "discover-albums":

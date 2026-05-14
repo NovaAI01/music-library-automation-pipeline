@@ -63,10 +63,15 @@ evidence preserved at each review boundary.
   controlled artist seed data.
 - Infers album groupings from FLAC album tags, album-like parent folders,
   filename/title evidence, or the explicit `Unknown Album` fallback.
+- Adds an Album Cohesion Engine that scores album groupings from repeated
+  agreement across tags, track numbers, years, folders, filenames, co-occurrence,
+  placement structure, and normalization knowledge evidence when present.
 - Classifies files using deterministic artist and genre rules.
 - Plans album-aware organized placement paths before copying files.
 - Generates library QA, duplicate, metadata audit, metadata normalization, and
   metadata suggestion reports for review-based remediation.
+- Detects likely album conflicts, probable singles, compilation mixes, and
+  orphan tracks without auto-assigning album tags.
 - Produces duplicate review plans and quarantines selected remove candidates.
 - Restores quarantined files from recorded ledger information.
 - Serves a read-only FastAPI/Jinja2 local music library UI over generated
@@ -241,6 +246,7 @@ python -m app.main review-decision ...
 python -m app.main import-review-decisions ...
 python -m app.main review-decision-report --out reports
 python -m app.main build-normalization-knowledge --out reports
+python -m app.main album-cohesion --out reports
 python -m app.main discover-albums ...
 python -m app.main duplicate-report ...
 python -m app.main duplicate-review ...
@@ -275,6 +281,7 @@ python -m app.main import-review-decisions \
   --decisions decisions.csv
 python -m app.main review-decision-report --out reports
 python -m app.main build-normalization-knowledge --out reports
+python -m app.main album-cohesion --out reports
 python -m app.main plan-album-organization \
   --library-root ~/Music/Organised_Library \
   --out reports
@@ -303,6 +310,26 @@ Genre/
 `plan-album-organization` does not move, delete, copy, or write metadata tags.
 It exists to make album folders reviewable before any future migration step, and
 to prepare the UI for proper artist -> album -> track browsing.
+
+Album Cohesion Engine reports are also review-only. The `album-cohesion`
+command looks for repeated evidence agreement instead of trusting one field:
+album tags, sequential track numbers, shared years, repeated source folders,
+filename patterns, track co-occurrence, directory structure, placement
+structure, and normalization knowledge references in metadata suggestions when
+available. It writes reports under `reports/album_cohesion/`:
+
+```text
+album_cohesion_summary.json
+album_groups.json
+album_groups.csv
+album_conflicts.csv
+orphan_tracks.csv
+```
+
+The report includes `cohesion_score`, `high` / `medium` / `low` confidence
+tiers, rationale snippets, probable singles, probable compilation mixes,
+conflicting album assignments, and orphan tracks. It does not write metadata
+tags, move files, create album folders, or auto-approve assignments.
 
 Album metadata discovery is also review-only. The `discover-albums` command
 looks at existing tags, filenames, and local path evidence for tracks with
@@ -507,6 +534,7 @@ app/
   classifier.py           Classification rules
   placement.py            Placement planning and execution
   duplicate_*.py          Duplicate reporting, review, quarantine, restore
+  album_cohesion.py       Repeated-evidence album grouping reports
   metadata_*.py           FLAC audit and normalization planning
   library_app_ui.py       Unified local music library UI routes
   report_*.py             Report generation and compatibility UI helpers
@@ -516,6 +544,7 @@ reports/
   duplicates_scan_1/      Duplicate report outputs
   metadata_audit/         Metadata audit outputs
   metadata_plan/          Metadata normalization plan outputs
+  album_cohesion/         Album cohesion grouping and conflict reports
 
 tests/
   test_*.py               Focused pytest coverage for pipeline behavior

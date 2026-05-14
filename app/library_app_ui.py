@@ -15,6 +15,7 @@ from fastapi.responses import FileResponse
 from fastapi.templating import Jinja2Templates
 
 from app import db
+from app.album_cohesion import read_album_cohesion_report
 from app.album_organization import (
     UNKNOWN_ALBUM,
     read_album_plan_rows,
@@ -327,6 +328,7 @@ def review_hub(request: Request):
     duplicate_groups = _duplicate_groups(reports_dir)
     review = _review_data(reports_dir)
     suggestions = _suggestion_summary(reports_dir, db_path=_db_path(request))
+    album_cohesion = _album_cohesion_summary(reports_dir)
     decision_counts = review_decision_summary(list_review_decisions(_db_path(request)))
     learned_rule_count = _learned_rule_count(reports_dir)
     return _render(
@@ -342,14 +344,20 @@ def review_hub(request: Request):
                 ("Quarantined duplicate files", review["quarantine_count"]),
                 ("Metadata suggestions", suggestions["total"]),
                 ("Metadata decisions", decision_counts["total_decisions"]),
+                ("Album groups", album_cohesion["summary"].get("total_album_groups", 0)),
                 ("Learned rules", learned_rule_count),
                 ("Blocked classification", review["blocked_classification_count"]),
-                ("Conflicts", len(review["conflicts"])),
+                (
+                    "Conflicts",
+                    len(review["conflicts"])
+                    + album_cohesion["summary"].get("conflicting_album_groups", 0),
+                ),
                 ("Low confidence", suggestions["confidence_counts"].get("low", 0)),
             ],
             "review_links": [
                 ("Duplicate Review", "/review/duplicates", "Keep/remove candidates and active duplicate groups."),
                 ("Metadata Review", "/review/metadata", "Review-only tag cleanup suggestions."),
+                ("Album Cohesion", "/review/albums", "Repeated-evidence album grouping, conflicts, singles, and orphans."),
                 ("Knowledge Review", "/review/knowledge", "Reusable evidence from approved and rejected decisions."),
                 ("Blocked Items", "/review/blocked", "Items that need manual classification."),
             ],
@@ -361,6 +369,7 @@ def review_hub(request: Request):
                 *duplicate_groups["missing_files"],
                 *review["missing_files"],
                 *suggestions["missing_files"],
+                *album_cohesion["missing_files"],
             ],
         },
     )
@@ -423,6 +432,38 @@ def review_metadata(request: Request, q: str = ""):
             "query": q,
             "timestamp": metadata["timestamp"],
             "missing_files": [*metadata["missing_files"], *suggestions["missing_files"]],
+        },
+    )
+
+
+@router.get("/review/albums")
+def review_albums(request: Request, q: str = ""):
+    album_cohesion = _album_cohesion_summary(_reports_dir(request))
+    groups = _filter_rows(album_cohesion["groups"], q)
+    return _render(
+        request,
+        "reports/album_cohesion.html",
+        {
+            "title": "Album Cohesion",
+            "eyebrow": "Repeated Evidence",
+            "intro": "Review inferred album groupings, singles, conflicts, and orphan tracks without writing metadata or moving files.",
+            "breadcrumbs": [("Review", "/review"), ("Albums", "")],
+            "back_links": [("Back to Review", "/review")],
+            "cards": [
+                ("Album groups", album_cohesion["summary"].get("total_album_groups", 0)),
+                ("High confidence", album_cohesion["summary"].get("high_confidence_groups", 0)),
+                ("Medium confidence", album_cohesion["summary"].get("medium_confidence_groups", 0)),
+                ("Low confidence", album_cohesion["summary"].get("low_confidence_groups", 0)),
+                ("Probable singles", album_cohesion["summary"].get("probable_singles", 0)),
+                ("Orphan tracks", album_cohesion["summary"].get("orphan_tracks", 0)),
+                ("Conflicting groups", album_cohesion["summary"].get("conflicting_album_groups", 0)),
+            ],
+            "groups": groups,
+            "conflicts": _filter_rows(album_cohesion["conflicts"], q),
+            "orphans": _filter_rows(album_cohesion["orphans"], q),
+            "query": q,
+            "timestamp": album_cohesion["summary"].get("created_at"),
+            "missing_files": album_cohesion["missing_files"],
         },
     )
 
@@ -554,6 +595,35 @@ def _suggestion_summary(reports_dir: Path, *, db_path: Path | str) -> dict[str, 
         "requires_human_review": requires_human_review,
         "confidence_counts": dict(confidence_counts),
         "decision_counts": decision_counts,
+        "missing_files": missing_files,
+    }
+
+
+def _album_cohesion_summary(reports_dir: Path) -> dict[str, Any]:
+    summary, groups, conflicts, orphans, missing_files = read_album_cohesion_report(
+        reports_dir
+    )
+    normalized_groups = []
+    for group in groups:
+        rationale = group.get("rationale", [])
+        if isinstance(rationale, str):
+            rationale = [rationale]
+        elif not isinstance(rationale, list):
+            rationale = []
+        normalized_groups.append(
+            {
+                **group,
+                "cohesion_score": float(group.get("cohesion_score", 0.0) or 0.0),
+                "confidence_tier": str(group.get("confidence_tier", "low") or "low"),
+                "rationale": [str(item) for item in rationale],
+                "tracks": group.get("tracks", []) if isinstance(group.get("tracks"), list) else [],
+            }
+        )
+    return {
+        "summary": summary,
+        "groups": normalized_groups,
+        "conflicts": conflicts,
+        "orphans": orphans,
         "missing_files": missing_files,
     }
 
@@ -722,6 +792,7 @@ def _nav_items() -> list[tuple[str, str]]:
         ("/review", "Review"),
         ("/review/duplicates", "Duplicates"),
         ("/review/metadata", "Metadata"),
+        ("/review/albums", "Album Cohesion"),
         ("/review/knowledge", "Knowledge"),
         ("/player", "Player"),
         ("/settings", "Settings"),

@@ -11,6 +11,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
+from app.album_cohesion import album_cohesion_by_file
 from app.normalization_knowledge import influence_suggestion, rule_lookup_by_signature
 from app.review_decisions import suggestion_key_for
 
@@ -84,9 +85,11 @@ def generate_metadata_suggestions(
     """Generate review-only metadata suggestions from existing report evidence."""
 
     plan_rows = _read_csv(_resolve_plan_path(Path(metadata_plan_path).expanduser()))
-    audit_evidence = _read_audit_evidence(Path(metadata_audit_dir).expanduser())
+    audit_dir = Path(metadata_audit_dir).expanduser()
+    audit_evidence = _read_audit_evidence(audit_dir)
     suggestions = _suggestions_from_rows(plan_rows, audit_evidence)
     suggestions = _with_normalization_knowledge(suggestions, db_path=db_path)
+    suggestions = _with_album_cohesion_evidence(suggestions, reports_dir=audit_dir.parent)
 
     ai_enrichment_used = False
     if os.environ.get("OPENAI_API_KEY"):
@@ -275,6 +278,47 @@ def _with_normalization_knowledge(
     for suggestion in suggestions:
         payload = influence_suggestion(asdict(suggestion), rules)
         influenced.append(MetadataSuggestion(**payload))
+    return influenced
+
+
+def _with_album_cohesion_evidence(
+    suggestions: list[MetadataSuggestion],
+    *,
+    reports_dir: Path,
+) -> list[MetadataSuggestion]:
+    cohesion_by_file = album_cohesion_by_file(reports_dir)
+    if not cohesion_by_file:
+        return suggestions
+    influenced: list[MetadataSuggestion] = []
+    for suggestion in suggestions:
+        group = cohesion_by_file.get(suggestion.file_path)
+        if not group or suggestion.field != "album":
+            influenced.append(suggestion)
+            continue
+        evidence = [
+            *suggestion.source_evidence,
+            f"album_cohesion:{group.get('group_key', '')}",
+        ]
+        rationale = list(group.get("rationale", []))
+        for item in rationale[:2]:
+            evidence.append(f"album_cohesion_rationale:{item}")
+        influenced.append(
+            MetadataSuggestion(
+                suggestion_key=suggestion.suggestion_key,
+                file_path=suggestion.file_path,
+                field=suggestion.field,
+                current_value=suggestion.current_value,
+                proposed_value=suggestion.proposed_value,
+                suggestion_type=suggestion.suggestion_type,
+                confidence=suggestion.confidence,
+                rationale=(
+                    f"{suggestion.rationale} Album cohesion score "
+                    f"{float(group.get('cohesion_score', 0.0) or 0.0):.3f}."
+                ),
+                requires_human_review=suggestion.requires_human_review,
+                source_evidence=sorted(dict.fromkeys(evidence)),
+            )
+        )
     return influenced
 
 

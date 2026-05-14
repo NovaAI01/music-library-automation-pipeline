@@ -1,0 +1,100 @@
+{% extends "reports/base.html" %}
+{% block content %}
+<section class="notice">
+  <div>Album cohesion is review-only. This page does not write tags, move files, or approve assignments.</div>
+  <div>Generate data with <code>python -m app.main album-cohesion --out reports</code>.</div>
+</section>
+
+<section class="cards">
+  {% for label, value in cards %}
+    <article class="card">
+      <div class="label">{{ label }}</div>
+      <div class="value">{{ value }}</div>
+    </article>
+  {% endfor %}
+</section>
+
+<form method="get" action="/review/albums">
+  <input name="q" value="{{ query }}" placeholder="Search album cohesion">
+  <button type="submit">Search</button>
+</form>
+
+<section class="section">
+  <h2>Grouped Albums</h2>
+  <div class="stack">
+    {% for group in groups %}
+      <article class="group">
+        <h2>{{ group.album }} <span class="badge confidence-{{ group.confidence_tier }}">{{ group.confidence_tier }}</span></h2>
+        <div class="panel">
+          <div class="meta">{{ group.artist }} / {{ group.track_count }} tracks / score {{ "%.3f"|format(group.cohesion_score) }} / {{ group.classification }}</div>
+          <div class="meta">
+            {% for item in group.rationale[:4] %}
+              <span>{{ item }}</span>{% if not loop.last %} / {% endif %}
+            {% endfor %}
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr><th>Track</th><th>Album Tag</th><th>Folder</th><th>Year</th></tr>
+          </thead>
+          <tbody>
+            {% for track in group.tracks[:8] %}
+              <tr>
+                <td class="path">{{ track.file_path }}</td>
+                <td>{{ track.album_tag }}</td>
+                <td class="path">{{ track.source_folder }}</td>
+                <td>{{ track.year }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </article>
+    {% else %}
+      <div class="empty">No album cohesion groups available.</div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="section">
+  <h2>Conflicting Assignments</h2>
+  <table>
+    <thead>
+      <tr><th>Album</th><th>Artist</th><th>Conflict</th><th>Details</th><th>Files</th></tr>
+    </thead>
+    <tbody>
+      {% for conflict in conflicts %}
+        <tr>
+          <td>{{ conflict.album }}</td>
+          <td>{{ conflict.artist }}</td>
+          <td>{{ conflict.conflict_type }}</td>
+          <td>{{ conflict.details }}</td>
+          <td class="path">{{ conflict.file_paths }}</td>
+        </tr>
+      {% else %}
+        <tr><td class="empty" colspan="5">No conflicting album assignments detected.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="section">
+  <h2>Orphan Tracks</h2>
+  <table>
+    <thead>
+      <tr><th>File</th><th>Artist</th><th>Title</th><th>Reason</th></tr>
+    </thead>
+    <tbody>
+      {% for orphan in orphans %}
+        <tr>
+          <td class="path">{{ orphan.file_path }}</td>
+          <td>{{ orphan.artist }}</td>
+          <td>{{ orphan.title }}</td>
+          <td>{{ orphan.reason }}</td>
+        </tr>
+      {% else %}
+        <tr><td class="empty" colspan="4">No orphan tracks detected.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

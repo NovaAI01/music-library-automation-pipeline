@@ -104,11 +104,10 @@ def test_csv_json_output_and_cli(tmp_path, capsys):
     assert "build-normalization-knowledge" in build_parser()._subparsers._group_actions[0].choices
 
 
-def test_metadata_suggestion_confidence_influence_keeps_human_review(tmp_path, monkeypatch):
+def test_metadata_suggestion_confidence_influence_keeps_human_review(tmp_path):
     db_path = tmp_path / "ledger.sqlite3"
     _record(db_path, _artist_suggestion(), "approved", "confirmed")
     plan_path, audit_dir = _suggestion_fixture(tmp_path)
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
     generate_metadata_suggestions(
         metadata_plan_path=plan_path,

@@ -341,7 +341,6 @@ def build_parser() -> argparse.ArgumentParser:
     )
     album_discovery_parser.add_argument("--library-root", required=True)
     album_discovery_parser.add_argument("--out", default="reports")
-    album_discovery_parser.add_argument("--use-network", action="store_true")
 
     external_metadata_parser = subparsers.add_parser(
         "import-external-metadata",
@@ -883,7 +882,6 @@ def main(argv: list[str] | None = None) -> int:
         result = generate_album_discovery(
             library_root=args.library_root,
             out_dir=args.out,
-            use_network=args.use_network,
         )
         print(f"report_path={result.report_path}")
         print(f"total_tracks_checked={result.total_tracks_checked}")

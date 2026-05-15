@@ -49,10 +49,10 @@ use vector databases, or run autonomous remediation.
 
 ## AI Constraint
 
-Deterministic local rules create the proposed values. If `OPENAI_API_KEY` is
-present, v1 may enrich rationale wording only. AI-assisted rationale enrichment
-is not allowed to change `proposed_value`, confidence, suggestion type, source
-evidence, or the human review requirement.
+Deterministic local rules create the proposed values. v1 does not call external
+AI services or use environment-driven rationale enrichment. Rationale wording,
+`proposed_value`, confidence, suggestion type, source evidence, and the human
+review requirement all remain local and deterministic.
 
 This keeps the approval boundary clear: audit evidence and deterministic
 normalization rules produce the suggested cleanup value, humans review the row,

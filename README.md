@@ -527,13 +527,10 @@ missing or `Unknown Album` album values, then writes suggestions under
 album_discovery_summary.json
 album_discovery_suggestions.csv
 album_discovery_suggestions.json
-cache/
 ```
 
-Network metadata lookup is opt-in with `--use-network`. When enabled, lookup
-responses are cached under `reports/album_discovery/cache/` so repeated runs are
-stable. Without `--use-network`, the command still runs using deterministic
-local evidence only. It does not write tags, move files, rename files, or
+Album discovery is local-only in v1. It uses deterministic local evidence and
+does not perform remote lookups, write tags, move files, rename files, or
 auto-approve album matches. Every suggestion is marked as requiring human
 review, and suggestions must be reviewed before any future execution workflow.
 

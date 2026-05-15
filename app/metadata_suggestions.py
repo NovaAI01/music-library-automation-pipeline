@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import csv
 import json
-import os
 import re
 from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass
@@ -112,10 +111,6 @@ def generate_metadata_suggestions(
     )
 
     ai_enrichment_used = False
-    if os.environ.get("OPENAI_API_KEY"):
-        enriched = [_with_enriched_rationale(suggestion) for suggestion in suggestions]
-        ai_enrichment_used = enriched != suggestions
-        suggestions = enriched
 
     report_dir = Path(out_dir).expanduser() / "metadata_suggestions"
     report_dir.mkdir(parents=True, exist_ok=True)
@@ -265,28 +260,6 @@ def _rationale(
             f"{', '.join(evidence_bits)}. Confidence: {confidence}."
         )
     return f"{suggestion_type} suggested from {reason}. Confidence: {confidence}."
-
-
-def _with_enriched_rationale(suggestion: MetadataSuggestion) -> MetadataSuggestion:
-    enriched = (
-        f"{suggestion.rationale} AI-assisted rationale enrichment is limited to "
-        "review wording; the proposed value remains deterministic."
-    )
-    return MetadataSuggestion(
-        suggestion_key=suggestion.suggestion_key,
-        file_path=suggestion.file_path,
-        field=suggestion.field,
-        current_value=suggestion.current_value,
-        proposed_value=suggestion.proposed_value,
-        suggestion_type=suggestion.suggestion_type,
-        confidence=suggestion.confidence,
-        rationale=enriched,
-        requires_human_review=suggestion.requires_human_review,
-        source_evidence=suggestion.source_evidence,
-        reliability_score=suggestion.reliability_score,
-        reliability_flags=suggestion.reliability_flags or [],
-        reliability_rationale=suggestion.reliability_rationale or [],
-    )
 
 
 def _with_normalization_knowledge(

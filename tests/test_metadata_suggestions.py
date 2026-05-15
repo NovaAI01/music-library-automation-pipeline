@@ -8,9 +8,8 @@ from app.metadata_suggestions import (
 )
 
 
-def test_generates_deterministic_suggestions_without_api_key(tmp_path, monkeypatch):
+def test_generates_deterministic_suggestions(tmp_path):
     plan_path, audit_dir = _make_suggestion_fixture(tmp_path)
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
     result = generate_metadata_suggestions(
         metadata_plan_path=plan_path,
@@ -32,9 +31,8 @@ def test_generates_deterministic_suggestions_without_api_key(tmp_path, monkeypat
     assert all(row["requires_human_review"] is True for row in suggestions)
 
 
-def test_confidence_classification(tmp_path, monkeypatch):
+def test_confidence_classification(tmp_path):
     plan_path, audit_dir = _make_suggestion_fixture(tmp_path)
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
     generate_metadata_suggestions(
         metadata_plan_path=plan_path,
@@ -54,9 +52,8 @@ def test_confidence_classification(tmp_path, monkeypatch):
     ] == "high"
 
 
-def test_summary_counts(tmp_path, monkeypatch):
+def test_summary_counts(tmp_path):
     plan_path, audit_dir = _make_suggestion_fixture(tmp_path)
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
     result = generate_metadata_suggestions(
         metadata_plan_path=plan_path,
@@ -83,9 +80,8 @@ def test_summary_counts(tmp_path, monkeypatch):
     assert result.high_confidence_count == 4
 
 
-def test_writes_csv_and_json_outputs(tmp_path, monkeypatch):
+def test_writes_csv_and_json_outputs(tmp_path):
     plan_path, audit_dir = _make_suggestion_fixture(tmp_path)
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
     generate_metadata_suggestions(
         metadata_plan_path=plan_path,
@@ -104,10 +100,9 @@ def test_writes_csv_and_json_outputs(tmp_path, monkeypatch):
     assert csv_rows[0]["requires_human_review"] == "true"
 
 
-def test_command_registration(tmp_path, monkeypatch, capsys):
+def test_command_registration(tmp_path, capsys):
     plan_path, audit_dir = _make_suggestion_fixture(tmp_path)
     out_dir = tmp_path / "reports"
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
     exit_code = main(
         [
@@ -130,12 +125,11 @@ def test_command_registration(tmp_path, monkeypatch, capsys):
     assert "metadata-suggestions" in command_names
 
 
-def test_metadata_plan_alias_resolves_existing_tag_update_plan(tmp_path, monkeypatch):
+def test_metadata_plan_alias_resolves_existing_tag_update_plan(tmp_path):
     plan_path, audit_dir = _make_suggestion_fixture(tmp_path)
     alias_path = plan_path.with_name("metadata_plan.csv")
     legacy_path = plan_path.with_name("tag_update_plan.csv")
     plan_path.rename(legacy_path)
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
     result = generate_metadata_suggestions(
         metadata_plan_path=alias_path,
@@ -146,10 +140,9 @@ def test_metadata_plan_alias_resolves_existing_tag_update_plan(tmp_path, monkeyp
     assert result.total_suggestions == 6
 
 
-def test_enrichment_cannot_change_proposed_values(tmp_path, monkeypatch):
+def test_environment_does_not_change_proposed_values_or_rationale(tmp_path, monkeypatch):
     plan_path, audit_dir = _make_suggestion_fixture(tmp_path)
 
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     generate_metadata_suggestions(
         metadata_plan_path=plan_path,
         metadata_audit_dir=audit_dir,
@@ -159,19 +152,25 @@ def test_enrichment_cannot_change_proposed_values(tmp_path, monkeypatch):
         (row["file_path"], row["field"]): row["proposed_value"]
         for row in _read_suggestions_json(tmp_path, root="without_key")
     }
+    deterministic_rationales = {
+        (row["file_path"], row["field"]): row["rationale"]
+        for row in _read_suggestions_json(tmp_path, root="without_key")
+    }
 
-    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("UNRELATED_API_TOKEN", "test-key")
     generate_metadata_suggestions(
         metadata_plan_path=plan_path,
         metadata_audit_dir=audit_dir,
-        out_dir=tmp_path / "with_key",
+        out_dir=tmp_path / "with_env",
     )
-    enriched = _read_suggestions_json(tmp_path, root="with_key")
+    with_env = _read_suggestions_json(tmp_path, root="with_env")
 
     assert {
-        (row["file_path"], row["field"]): row["proposed_value"] for row in enriched
+        (row["file_path"], row["field"]): row["proposed_value"] for row in with_env
     } == deterministic_values
-    assert any("AI-assisted rationale enrichment" in row["rationale"] for row in enriched)
+    assert {
+        (row["file_path"], row["field"]): row["rationale"] for row in with_env
+    } == deterministic_rationales
 
 
 def _make_suggestion_fixture(tmp_path):

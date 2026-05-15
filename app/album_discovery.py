@@ -3,15 +3,12 @@
 from __future__ import annotations
 
 import csv
-import hashlib
 import json
 import re
-import urllib.parse
-import urllib.request
 from collections import Counter
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any
 
 from mutagen import File as MutagenFile
 from mutagen import MutagenError
@@ -96,54 +93,10 @@ class AlbumDiscoveryResult:
     cache_entries: int
 
 
-@dataclass(frozen=True)
-class ExternalAlbumMatch:
-    album: str
-    release_year: str = ""
-    confidence: str = "high"
-    confidence_reason: str = "Exact artist/title match from external metadata."
-    source: str = "musicbrainz"
-    source_url: str = ""
-
-
-class AlbumLookupClient(Protocol):
-    def lookup(self, *, artist: str, title: str, cache_dir: Path) -> ExternalAlbumMatch | None:
-        ...
-
-
-class MusicBrainzLookupClient:
-    """Small MusicBrainz recording lookup client with a stable file cache."""
-
-    base_url = "https://musicbrainz.org/ws/2/recording"
-    user_agent = "music-library-system/album-discovery-v1"
-
-    def lookup(self, *, artist: str, title: str, cache_dir: Path) -> ExternalAlbumMatch | None:
-        cache_dir.mkdir(parents=True, exist_ok=True)
-        cache_path = cache_dir / f"{_cache_key(artist, title)}.json"
-        if cache_path.exists():
-            payload = _read_json(cache_path)
-        else:
-            payload = self._fetch(artist=artist, title=title)
-            _write_json(cache_path, payload)
-        return _match_from_musicbrainz_payload(payload, artist=artist, title=title)
-
-    def _fetch(self, *, artist: str, title: str) -> dict[str, Any]:
-        query = f'artist:"{artist}" AND recording:"{title}"'
-        params = urllib.parse.urlencode({"query": query, "fmt": "json", "limit": "10"})
-        request = urllib.request.Request(
-            f"{self.base_url}?{params}",
-            headers={"User-Agent": self.user_agent},
-        )
-        with urllib.request.urlopen(request, timeout=20) as response:
-            return json.loads(response.read().decode("utf-8"))
-
-
 def generate_album_discovery(
     *,
     library_root: str | Path,
     out_dir: str | Path = "reports",
-    use_network: bool = False,
-    lookup_client: AlbumLookupClient | None = None,
 ) -> AlbumDiscoveryResult:
     """Generate review-only album suggestions for missing or Unknown Album tracks."""
 
@@ -155,11 +108,10 @@ def generate_album_discovery(
 
     tracks = [_track_evidence(path, library_root_path) for path in _audio_files(library_root_path)]
     unknown_tracks = [track for track in tracks if _is_unknown_album(track.current_album)]
-    client = lookup_client or MusicBrainzLookupClient()
     suggestions = [
         suggestion
         for track in unknown_tracks
-        if (suggestion := _suggestion_for_track(track, use_network=use_network, client=client, cache_dir=cache_dir))
+        if (suggestion := _suggestion_for_track(track))
         is not None
     ]
     suggestions = sorted(suggestions, key=lambda row: (row.file_path, row.source, row.suggested_album))
@@ -173,7 +125,7 @@ def generate_album_discovery(
         "high_confidence_count": counts["high"],
         "medium_confidence_count": counts["medium"],
         "low_confidence_count": counts["low"],
-        "network_lookup_used": use_network,
+        "network_lookup_used": False,
         "cache_entries": len(list(cache_dir.glob("*.json"))),
         "requires_human_review_count": sum(1 for suggestion in suggestions if suggestion.requires_human_review),
     }
@@ -200,28 +152,7 @@ def generate_album_discovery(
 
 def _suggestion_for_track(
     track: TrackEvidence,
-    *,
-    use_network: bool,
-    client: AlbumLookupClient,
-    cache_dir: Path,
 ) -> AlbumDiscoverySuggestion | None:
-    if use_network and track.artist and track.title:
-        match = client.lookup(artist=track.artist, title=track.title, cache_dir=cache_dir)
-        if match is not None:
-            return AlbumDiscoverySuggestion(
-                file_path=track.file_path,
-                artist=track.artist,
-                title=track.title,
-                current_album=track.current_album,
-                suggested_album=match.album,
-                release_year=match.release_year,
-                confidence=match.confidence,
-                confidence_reason=match.confidence_reason,
-                source=match.source,
-                source_url=match.source_url,
-                requires_human_review=True,
-            )
-
     if track.filename_album:
         return AlbumDiscoverySuggestion(
             file_path=track.file_path,
@@ -256,53 +187,6 @@ def _track_evidence(path: Path, library_root: Path) -> TrackEvidence:
         title=title,
         current_album=current_album,
         filename_album=filename_album,
-    )
-
-
-def _match_from_musicbrainz_payload(
-    payload: dict[str, Any],
-    *,
-    artist: str,
-    title: str,
-) -> ExternalAlbumMatch | None:
-    releases: dict[str, dict[str, str]] = {}
-    for recording in payload.get("recordings") or []:
-        recording_title = str(recording.get("title") or "")
-        if not _same_text(recording_title, title):
-            continue
-        artist_credit = " ".join(str(item.get("name") or "") for item in recording.get("artist-credit") or [])
-        if artist_credit and not _same_text(artist_credit, artist):
-            continue
-        for release in recording.get("releases") or []:
-            album = _clean_album_candidate(str(release.get("title") or ""))
-            if not album:
-                continue
-            date = str(release.get("date") or "")
-            releases.setdefault(
-                album.casefold(),
-                {
-                    "album": album,
-                    "release_year": date[:4] if len(date) >= 4 and date[:4].isdigit() else "",
-                    "source_url": f"https://musicbrainz.org/release/{release.get('id')}" if release.get("id") else "",
-                },
-            )
-    if not releases:
-        return None
-    ordered = sorted(releases.values(), key=lambda item: (item["release_year"] or "9999", item["album"]))
-    chosen = ordered[0]
-    if len(ordered) == 1:
-        confidence = "high"
-        reason = "Exact artist/title match from MusicBrainz with one release candidate."
-    else:
-        confidence = "medium"
-        reason = f"Exact artist/title match from MusicBrainz, but {len(ordered)} release candidates exist."
-    return ExternalAlbumMatch(
-        album=chosen["album"],
-        release_year=chosen["release_year"],
-        confidence=confidence,
-        confidence_reason=reason,
-        source="musicbrainz",
-        source_url=chosen["source_url"],
     )
 
 
@@ -381,26 +265,6 @@ def _clean_text(value: str | None) -> str | None:
 
 def _is_unknown_album(value: str | None) -> bool:
     return (value or "").strip().casefold() in UNKNOWN_ALBUM_VALUES
-
-
-def _same_text(left: str, right: str) -> bool:
-    clean_left = _clean_text(left)
-    clean_right = _clean_text(right)
-    if not clean_left or not clean_right:
-        return False
-    return clean_left.casefold() == clean_right.casefold()
-
-
-def _cache_key(artist: str, title: str) -> str:
-    payload = json.dumps({"artist": artist.casefold().strip(), "title": title.casefold().strip()}, sort_keys=True)
-    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
-
-
-def _read_json(path: Path) -> dict[str, Any]:
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return {}
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:

@@ -31,6 +31,7 @@ from app.library_qa import generate_library_qa_report
 from app.library_app_ui import router as library_app_ui_router
 from app.manual_review_ui import router as manual_review_ui_router
 from app.metadata_audit import generate_metadata_audit_report
+from app.metadata_acquisition_planner import plan_metadata_acquisition
 from app.metadata_plan import generate_metadata_plan
 from app.metadata_suggestion_ui import router as metadata_suggestion_ui_router
 from app.metadata_suggestions import generate_metadata_suggestions
@@ -364,6 +365,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     benchmark_validation_parser.add_argument("--source", required=True)
     benchmark_validation_parser.add_argument("--out", default="reports")
+
+    metadata_acquisition_parser = subparsers.add_parser(
+        "plan-metadata-acquisition",
+        help="Write metadata-only acquisition plans for supported external sources.",
+    )
+    metadata_acquisition_parser.add_argument("--source", required=True)
+    metadata_acquisition_parser.add_argument("--out", default="reports")
 
     subparsers.add_parser(
         "capture-ui-screenshots",
@@ -945,6 +953,22 @@ def main(argv: list[str] | None = None) -> int:
         print(f"blocked_merges={result.blocked_merges}")
         print(f"deferred_conflicts={result.deferred_conflicts}")
         print(f"benchmark_duration_seconds={result.benchmark_duration_seconds}")
+        return 0
+
+    if args.command == "plan-metadata-acquisition":
+        result = plan_metadata_acquisition(
+            source_name=args.source,
+            out_dir=args.out,
+        )
+        print(f"report_path={result.report_path}")
+        print(f"source_name={result.source_name}")
+        print(f"acquisition_plan={result.acquisition_plan_path}")
+        print(f"acquisition_steps={result.acquisition_steps_path}")
+        print(f"source_risk_assessment={result.source_risk_assessment_path}")
+        print(f"storage_target={result.storage_target}")
+        print(f"raw_dump_target={result.raw_dump_target}")
+        print(f"cache_target={result.cache_target}")
+        print(f"risk_level={result.risk_level}")
         return 0
 
     if args.command == "capture-ui-screenshots":

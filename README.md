@@ -285,6 +285,7 @@ python -m app.main build-normalization-knowledge --out reports
 python -m app.main album-cohesion --out reports
 python -m app.main evidence-reliability --out reports
 python -m app.main canonical-graph --out reports
+python -m app.main plan-metadata-acquisition --source musicbrainz --out reports
 python -m app.main benchmark-validation --source local_fixture --out reports
 python -m app.main discover-albums ...
 python -m app.main duplicate-report ...
@@ -295,7 +296,10 @@ python -m app.main restore-quarantine --dry-run
 
 Large external metadata storage is configurable with
 `MUSIC_INTELLIGENCE_DATA_ROOT`. Use an external SSD for real metadata dumps; see
-[docs/external-data-root.md](docs/external-data-root.md).
+[docs/external-data-root.md](docs/external-data-root.md). Metadata acquisition
+planning is report-only in v1: it targets external raw dump, metadata, and cache
+directories, but it does not live-fetch data or download audio. See
+[docs/metadata-acquisition-planning.md](docs/metadata-acquisition-planning.md).
 
 Example report commands:
 

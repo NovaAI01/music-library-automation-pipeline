@@ -1,0 +1,4 @@
+artist,album,title,track_number,release_year,label,duration_seconds,genre,source_url,raw_payload_json,source_record_id
+Local Fixture Artist,Fixture Album,Fixture Track,1,2024,Fixture Label,180,Rock,https://example.test/fixture,"{""fixture"":true}",fixture-1
+,Fixture Album Only,,2,,,,,,{},fixture-2
+,,,,,,,,,,bad-empty

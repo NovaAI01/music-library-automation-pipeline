@@ -50,6 +50,7 @@ appropriate, and preserve recovery information.
 - [Conflict resolution governance](docs/conflict-governance.md)
 - [Entity boundary classifier](docs/entity-boundaries.md)
 - [Entity roles](docs/entity-roles.md)
+- [External metadata ingestion](docs/external-metadata-ingestion.md)
 - [Sample outputs](docs/sample-outputs/)
 
 ## 2. Problem Statement
@@ -212,6 +213,9 @@ Evidence is represented in generated report artifacts under:
   or grouped as `Unknown Album`.
 - Unified read-only web UI for import workflow, dashboard, library browsing,
   review queues, local playback, and settings.
+- Metadata-only external source ingestion from local CSV/JSONL fixtures for
+  future validation reports, kept separate from the local library and canonical
+  graph.
 
 ## Operational Characteristics
 

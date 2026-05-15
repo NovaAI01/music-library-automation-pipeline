@@ -103,9 +103,13 @@ python -m app.main import-external-metadata \
 Storage outputs:
 
 ```text
-data/external_metadata/{source_name}/external_tracks.csv
-data/external_metadata/{source_name}/external_tracks.jsonl
+$MUSIC_INTELLIGENCE_DATA_ROOT/external_metadata/{source_name}/external_tracks.csv
+$MUSIC_INTELLIGENCE_DATA_ROOT/external_metadata/{source_name}/external_tracks.jsonl
 ```
+
+If `MUSIC_INTELLIGENCE_DATA_ROOT` is not set, the fallback is `data/`. Use an
+external SSD for large metadata datasets; see
+[external-data-root.md](external-data-root.md).
 
 Report outputs:
 

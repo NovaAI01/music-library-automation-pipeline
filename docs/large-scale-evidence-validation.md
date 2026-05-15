@@ -8,8 +8,10 @@ database, or merge anything into the canonical graph.
 The command reads:
 
 ```text
-data/external_metadata/{source_name}/external_tracks.csv
+$MUSIC_INTELLIGENCE_DATA_ROOT/external_metadata/{source_name}/external_tracks.csv
 ```
+
+If `MUSIC_INTELLIGENCE_DATA_ROOT` is not set, the fallback is `data/`.
 
 and writes:
 

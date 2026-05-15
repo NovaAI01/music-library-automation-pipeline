@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
+from app.data_paths import source_external_tracks_csv
 from app.external_metadata import EXTERNAL_TRACK_FIELDS, validate_source_name
 
 
@@ -180,12 +181,11 @@ class LargeScaleValidationResult:
 def validate_external_metadata(
     source_name: str,
     out_dir: str | Path = "reports",
-    data_dir: str | Path = "data",
+    data_dir: str | Path | None = None,
 ) -> LargeScaleValidationResult:
     source_name = validate_source_name(source_name)
     out_dir = Path(out_dir)
-    data_dir = Path(data_dir)
-    input_csv = data_dir / "external_metadata" / source_name / "external_tracks.csv"
+    input_csv = source_external_tracks_csv(source_name, data_dir)
     records = _read_external_records(input_csv)
     cohorts, examples = analyze_external_metadata_records(records)
 

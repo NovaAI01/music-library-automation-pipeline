@@ -10,6 +10,7 @@ from pathlib import Path
 from time import perf_counter
 from typing import Any, Iterable
 
+from app.data_paths import source_external_tracks_csv
 from app.external_metadata import validate_source_name
 from app.large_scale_validation import (
     ExternalValidationRecord,
@@ -88,14 +89,13 @@ class ValidationBenchmarkResult:
 def benchmark_validation(
     source_name: str,
     out_dir: str | Path = "reports",
-    data_dir: str | Path = "data",
+    data_dir: str | Path | None = None,
 ) -> ValidationBenchmarkResult:
     """Generate read-only benchmark reports for one local external dataset."""
 
     source_name = validate_source_name(source_name)
     out_dir = Path(out_dir)
-    data_dir = Path(data_dir)
-    input_csv = data_dir / "external_metadata" / source_name / "external_tracks.csv"
+    input_csv = source_external_tracks_csv(source_name, data_dir)
     report_dir = out_dir / REPORT_DIRNAME
 
     total_start = perf_counter()

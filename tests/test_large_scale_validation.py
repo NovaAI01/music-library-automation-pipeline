@@ -218,6 +218,7 @@ def test_cli_validate_external_metadata(tmp_path, monkeypatch, capsys):
         "local_fixture",
         [{"source_record_id": "1", "artist": "Portishead", "album": "Dummy", "title": "Glory Box"}],
     )
+    monkeypatch.delenv("MUSIC_INTELLIGENCE_DATA_ROOT", raising=False)
     monkeypatch.chdir(tmp_path)
 
     exit_code = main(

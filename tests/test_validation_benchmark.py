@@ -186,6 +186,7 @@ def test_cli_benchmark_validation(tmp_path, monkeypatch, capsys):
         "local_fixture",
         [{"source_record_id": "1", "artist": "Massive Attack", "album": "Mezzanine", "title": "Angel"}],
     )
+    monkeypatch.delenv("MUSIC_INTELLIGENCE_DATA_ROOT", raising=False)
     monkeypatch.chdir(tmp_path)
 
     exit_code = main(

@@ -10,6 +10,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
+from app.data_paths import source_external_tracks_csv, source_external_tracks_jsonl
+
 
 SUPPORTED_SOURCE_NAMES = (
     "musicbrainz",
@@ -140,12 +142,11 @@ def import_external_metadata(
     source_name: str,
     input_path: str | Path,
     out_dir: str | Path = "reports",
-    data_dir: str | Path = "data",
+    data_dir: str | Path | None = None,
 ) -> ExternalMetadataIngestionResult:
     source_name = validate_source_name(source_name)
     input_path = Path(input_path)
     out_dir = Path(out_dir)
-    data_dir = Path(data_dir)
     ingested_at = _utc_timestamp()
 
     accepted: list[ExternalTrackRecord] = []
@@ -171,10 +172,8 @@ def import_external_metadata(
                 )
             )
 
-    storage_dir = data_dir / "external_metadata" / source_name
-    storage_dir.mkdir(parents=True, exist_ok=True)
-    output_csv = storage_dir / "external_tracks.csv"
-    output_jsonl = storage_dir / "external_tracks.jsonl"
+    output_csv = source_external_tracks_csv(source_name, data_dir)
+    output_jsonl = source_external_tracks_jsonl(source_name, data_dir)
     _write_external_tracks_csv(output_csv, accepted)
     _write_external_tracks_jsonl(output_jsonl, accepted)
 

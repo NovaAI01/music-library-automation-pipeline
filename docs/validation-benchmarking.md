@@ -10,8 +10,10 @@ write into the canonical graph.
 The benchmark command reads one source dataset from:
 
 ```text
-data/external_metadata/{source}/external_tracks.csv
+$MUSIC_INTELLIGENCE_DATA_ROOT/external_metadata/{source}/external_tracks.csv
 ```
+
+If `MUSIC_INTELLIGENCE_DATA_ROOT` is not set, the fallback is `data/`.
 
 It reuses the existing external metadata cohort analyzer, then writes summary,
 distribution, ranking, and timing reports under:

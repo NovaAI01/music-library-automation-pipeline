@@ -314,6 +314,7 @@ def test_supported_source_validation():
 def test_cli_import_external_metadata(tmp_path, monkeypatch, capsys):
     csv_path = tmp_path / "external.csv"
     _write_csv(csv_path, [{"source_record_id": "1", "artist": "Portishead"}])
+    monkeypatch.delenv("MUSIC_INTELLIGENCE_DATA_ROOT", raising=False)
     monkeypatch.chdir(tmp_path)
 
     exit_code = main(

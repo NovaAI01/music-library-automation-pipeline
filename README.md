@@ -293,6 +293,10 @@ python -m app.main quarantine-duplicates --dry-run
 python -m app.main restore-quarantine --dry-run
 ```
 
+Large external metadata storage is configurable with
+`MUSIC_INTELLIGENCE_DATA_ROOT`. Use an external SSD for real metadata dumps; see
+[docs/external-data-root.md](docs/external-data-root.md).
+
 Example report commands:
 
 ```bash

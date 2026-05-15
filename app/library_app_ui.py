@@ -51,7 +51,7 @@ DEFAULT_LIBRARY_ROOT = Path(
 DEFAULT_QUARANTINE_ROOT = Path(
     os.environ.get("MUSIC_LIBRARY_QUARANTINE_ROOT", "quarantine")
 )
-DEFAULT_SCREENSHOT_DIR = Path("docs/screenshots")
+DEFAULT_SCREENSHOT_DIR = Path("tools/portfolio_demo/docs/screenshots")
 
 router = APIRouter(tags=["music-library-app"])
 templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
@@ -114,7 +114,7 @@ def dashboard(request: Request):
         "reports/dashboard.html",
         {
             "title": "Dashboard",
-            "eyebrow": "Local Music Library",
+            "eyebrow": "Music Library Intelligence Platform",
             "intro": "Your home base for importing, reviewing, browsing, and playing the organized local library.",
             "cards": cards,
             "latest_reports": latest_reports,
@@ -704,7 +704,7 @@ def _render(request: Request, template_name: str, context: dict[str, Any]):
         request=request,
         context={
             "request": request,
-            "app_name": "Local Music Library",
+            "app_name": "Music Library Intelligence Platform",
             "nav_items": _nav_items(),
             "active_section": _active_section(request.url.path),
             **context,

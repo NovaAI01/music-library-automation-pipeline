@@ -14,7 +14,10 @@ from typing import Callable, Sequence
 
 from PIL import Image, ImageDraw, ImageFont
 
-from app.ui_screenshot_capture import capture_ui_screenshots, screenshot_targets
+from tools.portfolio_demo.ui_screenshot_capture import (
+    capture_ui_screenshots,
+    screenshot_targets,
+)
 
 
 DEFAULT_DEMO_DIR = Path("demo")
@@ -274,7 +277,7 @@ def write_demo_script(destination: str | Path) -> Path:
             """\
             # Demo Script
 
-            This demo shows the Media Library Automation Pipeline as a local,
+            This demo shows the Music Library Intelligence Platform as a local,
             reproducible workflow. First, the report UI opens on the generated
             evidence pages: the reports dashboard, duplicate analysis, library
             QA, metadata audit, and manual duplicate review. These screens are

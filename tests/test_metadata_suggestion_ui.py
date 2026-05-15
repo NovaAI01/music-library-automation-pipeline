@@ -8,7 +8,7 @@ from app.review_decisions import (
     record_review_decision,
     suggestion_key_from_row,
 )
-from app.ui_screenshot_capture import screenshot_targets
+from tools.portfolio_demo.ui_screenshot_capture import screenshot_targets
 
 
 def test_metadata_suggestions_route_renders_review_fields(tmp_path):

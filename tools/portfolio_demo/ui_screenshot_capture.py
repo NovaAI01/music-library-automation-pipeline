@@ -10,7 +10,7 @@ from urllib.parse import urljoin
 
 
 DEFAULT_BASE_URL = "http://127.0.0.1:8000"
-DEFAULT_OUTPUT_DIR = Path("docs/screenshots")
+DEFAULT_OUTPUT_DIR = Path("tools/portfolio_demo/docs/screenshots")
 DEFAULT_VIEWPORT = {"width": 1440, "height": 1000}
 
 

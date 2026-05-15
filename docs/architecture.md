@@ -1,81 +1,95 @@
 # Architecture
 
-Media Library Automation Pipeline is a local-first operational workflow for
-media ingestion, auditing, duplicate remediation, metadata normalization
-planning, and reporting. It uses deterministic rules, local filesystem state,
-generated report files, and a local SQLite ledger. AI usage is positioned as
-assisted analysis and workflow augmentation around the evidence the system
-already produces, not as autonomous execution.
+Music Library Intelligence Platform is a local-first architecture for
+user-owned or legally sourced music libraries. It records local evidence,
+normalizes metadata, detects duplicates, scores confidence, proposes
+reviewable remediation, and preserves audit history before any controlled file
+operation runs.
+
+v1 has no network or AI behavior. External metadata ingestion and validation
+are metadata-only workflows over local CSV/JSONL fixtures; they do not mutate
+the local canonical graph.
 
 ## Local-First Flow
 
 ```text
-FLAC Files
+Local audio files
   ->
 Scanner
   ->
-Metadata Parser
+SQLite observation ledger
   ->
-Identity Resolution
+Identity + classification
   ->
-Classification
+Placement and metadata plans
   ->
-Placement Planning
+Duplicate, QA, reliability, and canonical reports
   ->
-Audit + Duplicate Reports
+Conflict governance and confidence scoring
   ->
-Duplicate Review Planning
+Human review
   ->
-Human Approval
+Optional controlled execution, quarantine, or restore
   ->
-Quarantine / Restore
-  ->
-Reports + UI
+Audit logs and read-only UI
 ```
 
-## Components
+## Core Components
 
-- Local filesystem ingestion: scans local media folders and records observed
-  files without modifying the source tree.
-- Metadata parsing: reads available tags and probe results so downstream steps
-  can work from recorded evidence.
-- Identity resolution: infers probable artist, title, album, year, and mix from
+- Local filesystem ingestion scans media folders and records observations
+  without modifying source files.
+- Metadata parsing reads available tags and probe results so downstream steps
+  work from persisted evidence.
+- Identity resolution infers probable artist, title, album, year, and mix from
   tags, filenames, parent folders, and controlled local seed data.
-- Classification: applies deterministic artist, genre, and subgenre rules to
-  organize review and reporting output.
-- Placement planning: creates reviewable destination paths before files are
-  copied into the organized library.
-- Duplicate detection: reports exact hash, same artist/title, and probable
-  variant groups from organized files.
-- Duplicate review planning: converts duplicate evidence into keep,
-  remove-candidate, and manual-review rows.
-- Quarantine execution: moves only approved remove-candidate rows into a
-  quarantine folder and records the operation.
-- Restore workflow: restores quarantined files from ledger records and supports
-  dry-run review.
-- Metadata audit: inspects FLAC tag quality without writing metadata changes.
-- Metadata normalization planning: proposes tag updates for human review.
-- Reporting UI: serves read-only FastAPI/Jinja2 report screens over generated
-  report artifacts.
+- Classification applies deterministic artist, genre, and subgenre rules.
+- Placement planning creates reviewable destination paths before copy
+  execution.
+- Duplicate detection reports exact hash, same artist/title, and probable
+  variant groups.
+- Metadata audit and normalization planning produce review-only tag evidence.
+- Metadata suggestions turn audit and plan rows into evidence-based
+  remediation proposals with deterministic confidence and rationale.
+- Evidence reliability and canonical confidence reports score local evidence
+  before it is used for graph or review decisions.
+- Canonical entity graph generation persists artist, album, track, version,
+  and relationship hypotheses without auto-merging unresolved conflicts.
+- Conflict governance classifies unresolved graph conflicts into blocked,
+  safe-to-review, deferred, or needs-review buckets without changing graph
+  behavior.
+- Review decision and normalization knowledge ledgers preserve human decisions
+  for future deterministic scoring.
+- Quarantine and restore provide ledger-backed duplicate remediation and
+  recovery when explicitly executed.
+- FastAPI/Jinja2 UI serves read-only dashboards, library browsing, review
+  queues, and local playback over generated reports.
+
+## Product Boundaries
+
+- Not a downloader.
+- Not a substitute for streaming services.
+- Not an AI wrapper.
+- Not an automatic tag writer.
+- No network or AI behavior in v1.
+- No autonomous mutation of media tags, files, or canonical graph state.
+- External metadata validation stays separate from local graph mutation.
 
 ## Safety Boundaries
 
-- Planning is separated from execution. Audit, duplicate, metadata, and
-  placement commands produce evidence and plans before file-moving commands run.
-- Quarantine is used instead of deletion. Duplicate remediation moves files into
-  a recoverable quarantine location.
-- Restore support is ledger-backed. Restore operations use recorded source and
-  quarantine paths rather than guessing from the filesystem.
+- Planning is separated from execution. Audit, duplicate, metadata, canonical,
+  and placement commands produce evidence and plans before file-moving commands
+  run.
+- Quarantine is used instead of deletion for duplicate remediation.
+- Restore support is ledger-backed and uses recorded paths.
 - Dry-run support is available for quarantine and restore workflows.
-- Review checkpoints are explicit. Duplicate review plans and metadata update
-  plans are intended for human review before any remediation.
-- Outputs are deterministic. The workflow is based on local files, local rules,
-  local database records, and generated report files.
+- Human review checkpoints are explicit for duplicate, metadata, conflict, and
+  canonical-confidence workflows.
+- Outputs are deterministic and based on local files, local rules, SQLite
+  records, and generated report artifacts.
 
-## Operational Boundary
+## Current Consolidation Boundary
 
-The repository does not implement a downloader, autonomous agent system,
-distributed architecture, cloud workflow, or automatic metadata write engine.
-AI-assisted work should be limited to interpreting reports, planning remediation,
-supporting metadata normalization decisions, assisting duplicate resolution, and
-augmenting the human review workflow.
+The CLI entry point (`app/main.py`) and the unified UI route module
+(`app/library_app_ui.py`) remain intact to avoid churn across existing commands
+and FastAPI routes. Portfolio-only screenshot and demo generation code lives in
+`tools/portfolio_demo/` and is exposed through existing compatibility commands.

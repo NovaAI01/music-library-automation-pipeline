@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This is the Media Library Automation Pipeline, a local-first operational
+This is the Music Library Intelligence Platform, a local-first operational
 workflow for maintaining a FLAC media library. The system focuses on evidence:
 it scans local files, records observations, generates reports, plans changes,
 and keeps file-changing operations behind review checkpoints.

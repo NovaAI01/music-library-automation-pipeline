@@ -3,13 +3,13 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
-from app.demo_generator import (
+from tools.portfolio_demo.demo_generator import (
     evidence_commands,
     generate_demo,
     render_terminal_frame,
 )
 from app.main import build_parser, main
-from app.ui_screenshot_capture import screenshot_targets
+from tools.portfolio_demo.ui_screenshot_capture import screenshot_targets
 
 
 PNG_BYTES = b"\x89PNG\r\n\x1a\n"
@@ -233,7 +233,10 @@ def test_generate_demo_invokes_ffmpeg_when_available(tmp_path, monkeypatch):
         Path(argv[-1]).write_bytes(b"mp4")
         return subprocess.CompletedProcess(args=argv, returncode=0)
 
-    monkeypatch.setattr("app.demo_generator.subprocess.run", fake_subprocess_run)
+    monkeypatch.setattr(
+        "tools.portfolio_demo.demo_generator.subprocess.run",
+        fake_subprocess_run,
+    )
 
     result = generate_demo(
         demo_dir=tmp_path / "demo",

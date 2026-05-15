@@ -81,7 +81,7 @@ Safety boundary: review planning produces keep, remove-candidate, and
 manual-review recommendations. It does not move files.
 
 Operational value: creates an auditable bridge between detection and execution,
-allowing AI-assisted analysis or human review to focus on concrete rows rather
+allowing human review to focus on concrete rows rather
 than ad hoc filesystem inspection.
 
 ## 5. Human Review Checkpoints

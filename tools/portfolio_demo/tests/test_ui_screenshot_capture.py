@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from app.main import build_parser, main
-from app.ui_screenshot_capture import (
+from tools.portfolio_demo.ui_screenshot_capture import (
     DEFAULT_OUTPUT_DIR,
     ScreenshotCaptureResult,
     ScreenshotFailure,
@@ -143,8 +143,8 @@ def test_command_registration_behavior(monkeypatch, capsys):
     assert capsys.readouterr().out.splitlines() == [
         "captured=2",
         "failed=1",
-        "docs/screenshots/01_dashboard.png",
-        "docs/screenshots/02_library_browser.png",
+        "tools/portfolio_demo/docs/screenshots/01_dashboard.png",
+        "tools/portfolio_demo/docs/screenshots/02_library_browser.png",
     ]
 
 

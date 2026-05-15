@@ -17,7 +17,6 @@ from app.canonical_entity_graph import generate_canonical_graph
 from app.canonical_entity_classifier import generate_canonical_entity_classification_report
 from app.canonical_confidence import generate_canonical_confidence_report
 from app.conflict_governance import generate_conflict_governance_report
-from app.demo_generator import generate_demo
 from app.duplicate_quarantine import quarantine_duplicates
 from app.duplicate_report import generate_duplicate_report
 from app.duplicate_review import generate_duplicate_review_plan
@@ -59,10 +58,11 @@ from app.review_decisions import (
 )
 from app.review_report import generate_review_report
 from app.scanner import scan
-from app.ui_screenshot_capture import capture_ui_screenshots
+from tools.portfolio_demo.demo_generator import generate_demo
+from tools.portfolio_demo.ui_screenshot_capture import capture_ui_screenshots
 
 
-app = FastAPI(title="Local Music Library")
+app = FastAPI(title="Music Library Intelligence Platform")
 app.include_router(library_app_ui_router)
 app.include_router(report_ui_router)
 app.include_router(manual_review_ui_router)
@@ -73,7 +73,7 @@ app.include_router(normalization_knowledge_router)
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python -m app.main",
-        description="Music-library normalization observation ledger.",
+        description="Music Library Intelligence Platform observation ledger.",
     )
     parser.add_argument(
         "--db",

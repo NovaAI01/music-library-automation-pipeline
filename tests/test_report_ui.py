@@ -88,7 +88,7 @@ def test_app_dashboard_route_renders_unified_navigation(tmp_path):
     response = client.get("/")
 
     assert response.status_code == 200
-    assert "Local Music Library" in response.text
+    assert "Music Library Intelligence Platform" in response.text
     assert "Total tracks" in response.text
     assert "Albums" in response.text
     assert "Unknown albums" in response.text

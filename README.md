@@ -1,19 +1,24 @@
-# Local Music Library
+# Music Library Intelligence Platform
 
-A local-first music library management application powered by deterministic
-audit and remediation workflows.
+Music Library Intelligence Platform is a local-first system for understanding,
+normalizing, and safely remediating user-owned or legally sourced music
+libraries.
 
-Local Music Library helps organize, review, browse, and play a messy local music
-collection around Artists -> Albums -> Tracks without cloud services, accounts,
-streaming integrations, or destructive automation. It observes files, records
-evidence, plans changes, exposes review checkpoints, quarantines known duplicate
-candidates, and restores from an audit trail. The project is built around
-deterministic rules and local SQLite state.
+The platform organizes evidence around Artists -> Albums -> Tracks without
+cloud services, accounts, remote enrichment, or destructive automation. It
+observes local files, normalizes metadata evidence, detects duplicates, scores
+confidence, proposes evidence-based remediation, keeps audit logs, and routes
+uncertain decisions through human review. External metadata validation is
+metadata-only and remains separate from the local canonical graph.
+
+It is not a downloader, not a substitute for streaming services, not an AI
+wrapper, and not an automatic tag writer. v1 has no network or AI behavior.
 
 ## 1. Overview
 
 This repository contains a Python application and server-rendered Jinja2 UI for
-maintaining a FLAC-focused local music library. The primary workflow is:
+maintaining a FLAC-focused local music library intelligence workflow. The
+primary workflow is:
 
 ```text
 Import messy music
@@ -38,9 +43,9 @@ appropriate, and preserve recovery information.
 
 - [Architecture](docs/architecture.md)
 - [Operational workflow](docs/operational-workflow.md)
-- [AI-assisted workflow](docs/ai-assisted-workflow.md)
-- [Demo workflow](docs/demo-workflow.md)
-- [Demo script](docs/demo-script.md)
+- [Metadata suggestion workflow](docs/metadata-suggestion-workflow.md)
+- [Portfolio demo workflow](tools/portfolio_demo/docs/demo-workflow.md)
+- [Portfolio demo script](tools/portfolio_demo/docs/demo-script.md)
 - [Normalization rules](docs/normalization-rules.md)
 - [Evidence reliability](docs/evidence-reliability.md)
 - [Canonical entity graph](docs/canonical-entity-graph.md)
@@ -73,22 +78,22 @@ evidence preserved at each review boundary.
   controlled artist seed data.
 - Infers album groupings from FLAC album tags, album-like parent folders,
   filename/title evidence, or the explicit `Unknown Album` fallback.
-- Adds an Album Cohesion Engine that scores album groupings from repeated
+- Generates album cohesion reports that score album groupings from repeated
   agreement across tags, track numbers, years, folders, filenames, co-occurrence,
   placement structure, and normalization knowledge evidence when present.
-- Adds an Evidence Reliability Engine that scores metadata evidence before
+- Generates evidence reliability reports that score metadata evidence before
   album cohesion and metadata suggestions rely on it.
-- Adds a Canonical Entity Type Classifier that blocks track titles, source
+- Uses a canonical entity type classifier that blocks track titles, source
   artifacts, uploader channels, and ambiguous strings before graph promotion.
-- Adds a Canonical Entity Graph that persists canonical artists, albums, tracks,
+- Maintains a canonical entity graph that persists canonical artists, albums, tracks,
   versions, and evidence-governed relationships without auto-merging conflicts.
-- Adds Conflict Resolution Governance that classifies unresolved canonical graph
+- Applies conflict resolution governance that classifies unresolved canonical graph
   conflicts into blocked merges, safe merge candidates, and review queues
   without executing merges.
 - Classifies files using deterministic artist and genre rules.
 - Plans album-aware organized placement paths before copying files.
 - Generates library QA, duplicate, metadata audit, metadata normalization, and
-  metadata suggestion reports for review-based remediation.
+  metadata suggestion reports for evidence-based remediation proposals.
 - Detects likely album conflicts, probable singles, compilation mixes, and
   orphan tracks without auto-assigning album tags.
 - Produces duplicate review plans and quarantines selected remove candidates.
@@ -139,7 +144,7 @@ QA, duplicate, metadata audit, and metadata plan reports
   v
 Metadata suggestions
   - review-only cleanup suggestions from audit and plan evidence
-  - optional rationale wording enrichment when configured
+  - local deterministic rationale and confidence scoring
   |
   v
 Review decision ledger
@@ -179,7 +184,7 @@ Current generated evidence shows:
 - 0 unresolved missing files
 - 627 readable FLAC files in metadata audit
 - 2063 proposed metadata updates
-- 238 passing tests
+- 483 passing tests
 
 Evidence is represented in generated report artifacts under:
 
@@ -547,7 +552,7 @@ Use a separate SQLite database:
 python -m app.main --db /tmp/media_library.sqlite3 scan --source ~/Music/Library_Intake
 ```
 
-## 8. Local Music Library UI
+## 8. Music Library Intelligence UI
 
 The UI is a read-only FastAPI/Jinja2 local application over generated pipeline
 reports. It does not mutate media files, apply duplicate decisions, write
@@ -598,7 +603,13 @@ to files that resolve inside the configured library root.
 Set `MUSIC_LIBRARY_REPORTS_DIR` before startup to read reports from a directory
 other than `reports`.
 
-## UI Screenshot Capture
+## Portfolio Demo Tooling
+
+Portfolio and demo tooling is isolated under `tools/portfolio_demo/` so the
+core application remains focused on library intelligence workflows. The legacy
+CLI commands below still work as compatibility entry points.
+
+### UI Screenshot Capture
 
 Install the Python dependencies, then install the Playwright Chromium browser:
 
@@ -614,13 +625,13 @@ deterministic portfolio screenshots:
 python -m app.main capture-ui-screenshots
 ```
 
-Screenshots are written to `docs/screenshots/` using stable filenames for the
-dashboard, library browser, unified review hub, metadata review, and player
-views. The command prints `captured=<count>`,
+Screenshots are written to `tools/portfolio_demo/docs/screenshots/` using stable
+filenames for the dashboard, library browser, unified review hub, metadata
+review, and player views. The command prints `captured=<count>`,
 `failed=<count>`, and each generated file path; individual route failures are
 reported without stopping remaining captures.
 
-## Demo Generation
+### Demo Generation
 
 Generate deterministic local demo artifacts from UI screenshots and read-only
 CLI evidence frames:
@@ -650,9 +661,10 @@ Sanitized excerpts from generated reports are available under
 
 ## Demo Workflow
 
-Use [docs/demo-workflow.md](docs/demo-workflow.md) for the reproducible CLI
-walkthrough and [docs/demo-script.md](docs/demo-script.md) for a concise
-60-90 second recording script.
+Use [tools/portfolio_demo/docs/demo-workflow.md](tools/portfolio_demo/docs/demo-workflow.md)
+for the reproducible CLI walkthrough and
+[tools/portfolio_demo/docs/demo-script.md](tools/portfolio_demo/docs/demo-script.md)
+for a concise 60-90 second recording script.
 
 ## 9. Metadata Audit + Normalization Plan
 
@@ -709,7 +721,7 @@ python -m pytest -q
 Current result:
 
 ```text
-271 passed
+483 passed
 ```
 
 ## 13. Repository Structure
@@ -738,15 +750,20 @@ tests/
   test_*.py               Focused pytest coverage for pipeline behavior
 
 docs/
-  screenshots/            Portfolio screenshot targets
+  sample-outputs/         Sanitized report excerpts
+
+tools/portfolio_demo/
+  demo_generator.py       Portfolio/demo frame generation
+  ui_screenshot_capture.py Screenshot capture helper
+  docs/                   Demo workflow, script, and screenshots
 ```
 
 ## 14. Screenshots
 
 | Dashboard | Library | Review |
 | --- | --- | --- |
-| <img src="docs/screenshots/01_dashboard.png" alt="Dashboard" width="240"><br><sub>Dashboard</sub> | <img src="docs/screenshots/02_library_browser.png" alt="Library browser" width="240"><br><sub>Library browser</sub> | <img src="docs/screenshots/03_review_hub.png" alt="Review hub" width="240"><br><sub>Review hub</sub> |
-| <img src="docs/screenshots/04_metadata_review.png" alt="Metadata review" width="240"><br><sub>Metadata review</sub> | <img src="docs/screenshots/05_player.png" alt="Player" width="240"><br><sub>Player</sub> |  |
+| <img src="tools/portfolio_demo/docs/screenshots/01_dashboard.png" alt="Dashboard" width="240"><br><sub>Dashboard</sub> | <img src="tools/portfolio_demo/docs/screenshots/02_library_browser.png" alt="Library browser" width="240"><br><sub>Library browser</sub> | <img src="tools/portfolio_demo/docs/screenshots/03_review_hub.png" alt="Review hub" width="240"><br><sub>Review hub</sub> |
+| <img src="tools/portfolio_demo/docs/screenshots/04_metadata_review.png" alt="Metadata review" width="240"><br><sub>Metadata review</sub> | <img src="tools/portfolio_demo/docs/screenshots/05_player.png" alt="Player" width="240"><br><sub>Player</sub> |  |
 
 ## 15. Roadmap
 

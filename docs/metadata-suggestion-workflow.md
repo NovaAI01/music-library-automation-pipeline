@@ -1,4 +1,4 @@
-# AI-Assisted Metadata Workflow
+# Metadata Suggestion Workflow
 
 This workflow adds a controlled suggestion layer between metadata evidence and
 any future tag-writing capability. Version 1 is review-only: it reads existing
@@ -47,10 +47,10 @@ not as executable instructions.
 The v1 command does not write tags, mutate media files, move files, add agents,
 use vector databases, or run autonomous remediation.
 
-## AI Constraint
+## Automation Constraint
 
 Deterministic local rules create the proposed values. v1 does not call external
-AI services or use environment-driven rationale enrichment. Rationale wording,
+AI services, remote APIs, or use environment-driven rationale enrichment. Rationale wording,
 `proposed_value`, confidence, suggestion type, source evidence, and the human
 review requirement all remain local and deterministic.
 

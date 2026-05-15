@@ -174,12 +174,11 @@ Expected routes:
 
 ## Screenshot Placeholders
 
-- `docs/screenshots/01_reports_dashboard.png`
-- `docs/screenshots/02_artists.png`
-- `docs/screenshots/03_genres.png`
-- `docs/screenshots/04_quarantine.png`
-- `docs/screenshots/05_duplicates.png`
-- `docs/screenshots/06_manual_review.png`
+- `tools/portfolio_demo/docs/screenshots/01_dashboard.png`
+- `tools/portfolio_demo/docs/screenshots/02_library_browser.png`
+- `tools/portfolio_demo/docs/screenshots/03_review_hub.png`
+- `tools/portfolio_demo/docs/screenshots/04_metadata_review.png`
+- `tools/portfolio_demo/docs/screenshots/05_player.png`
 
 ## Operational Evidence
 

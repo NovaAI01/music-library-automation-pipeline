@@ -26,6 +26,7 @@ from app.entity_roles import generate_entity_role_report
 from app.evidence_reliability import generate_evidence_reliability_report
 from app.external_metadata import import_external_metadata
 from app.identity_engine import identify_scan_run
+from app.large_scale_validation import validate_external_metadata
 from app.intake import run_intake
 from app.library_qa import generate_library_qa_report
 from app.library_app_ui import router as library_app_ui_router
@@ -349,6 +350,13 @@ def build_parser() -> argparse.ArgumentParser:
     external_metadata_parser.add_argument("--source", required=True)
     external_metadata_parser.add_argument("--input", required=True)
     external_metadata_parser.add_argument("--out", default="reports")
+
+    validation_parser = subparsers.add_parser(
+        "validate-external-metadata",
+        help="Generate read-only cohort validation reports for ingested external metadata.",
+    )
+    validation_parser.add_argument("--source", required=True)
+    validation_parser.add_argument("--out", default="reports")
 
     subparsers.add_parser(
         "capture-ui-screenshots",
@@ -902,6 +910,19 @@ def main(argv: list[str] | None = None) -> int:
         print(f"generated_id_count={result.generated_id_count}")
         print(f"output_csv={result.output_csv}")
         print(f"output_jsonl={result.output_jsonl}")
+        return 0
+
+    if args.command == "validate-external-metadata":
+        result = validate_external_metadata(
+            source_name=args.source,
+            out_dir=args.out,
+        )
+        print(f"report_path={result.report_path}")
+        print(f"source_name={result.source_name}")
+        print(f"total_records={result.total_records}")
+        print(f"total_cohorts={result.total_cohorts}")
+        print(f"high_priority_cohorts={result.high_priority_cohorts}")
+        print(f"malformed_record_count={result.malformed_record_count}")
         return 0
 
     if args.command == "capture-ui-screenshots":

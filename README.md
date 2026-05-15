@@ -51,6 +51,7 @@ appropriate, and preserve recovery information.
 - [Entity boundary classifier](docs/entity-boundaries.md)
 - [Entity roles](docs/entity-roles.md)
 - [External metadata ingestion](docs/external-metadata-ingestion.md)
+- [Large-scale evidence validation](docs/large-scale-evidence-validation.md)
 - [Sample outputs](docs/sample-outputs/)
 
 ## 2. Problem Statement
@@ -216,6 +217,8 @@ Evidence is represented in generated report artifacts under:
 - Metadata-only external source ingestion from local CSV/JSONL fixtures for
   future validation reports, kept separate from the local library and canonical
   graph.
+- Read-only large-scale external metadata validation that groups evidence
+  problems into cohorts before any reviewed canonical comparison work.
 
 ## Operational Characteristics
 

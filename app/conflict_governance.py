@@ -37,6 +37,7 @@ CONFLICTS_FILENAME = "conflicts.csv"
 BLOCKED_FILENAME = "blocked_merges.csv"
 SAFE_FILENAME = "safe_merge_candidates.csv"
 NEEDS_REVIEW_FILENAME = "needs_review.csv"
+DEFERRED_FILENAME = "deferred.csv"
 
 CONFLICT_TYPES = {
     "alias_collision",
@@ -137,6 +138,11 @@ def generate_conflict_governance_report(
         report_dir / NEEDS_REVIEW_FILENAME,
         CONFLICT_FIELDS,
         (asdict(item) for item in report.conflicts if item.conflict_status == "needs_review"),
+    )
+    _write_csv(
+        report_dir / DEFERRED_FILENAME,
+        CONFLICT_FIELDS,
+        (asdict(item) for item in report.conflicts if item.conflict_status == "deferred"),
     )
     return ConflictGovernanceResult(report_path=str(report_dir), **_summary_result(report.summary))
 

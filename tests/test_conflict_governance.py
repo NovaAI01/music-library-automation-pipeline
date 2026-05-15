@@ -8,6 +8,10 @@ from app import db
 from app.canonical_confidence import score_canonical_entity
 from app.canonical_entity_graph import generate_canonical_graph
 from app.conflict_governance import (
+    CONFLICT_FIELDS,
+    ConflictGovernanceReport,
+    GovernedConflict,
+    conflict_summary,
     evaluate_conflict,
     generate_conflict_governance_report,
 )
@@ -321,7 +325,11 @@ def test_report_generation_and_cli(tmp_path, capsys):
 
     assert result.total_conflicts >= 1
     assert (report_dir / "conflict_summary.json").exists()
+    assert (report_dir / "conflicts.csv").exists()
     assert (report_dir / "blocked_merges.csv").exists()
+    assert (report_dir / "safe_merge_candidates.csv").exists()
+    assert (report_dir / "needs_review.csv").exists()
+    assert (report_dir / "deferred.csv").exists()
     rows = _read_csv(report_dir / "conflicts.csv")
     assert rows[0]["conflict_status"] in {"blocked_merge", "needs_review", "deferred", "safe_to_merge_candidate"}
     safe_rows = _read_csv(report_dir / "safe_merge_candidates.csv")
@@ -330,6 +338,30 @@ def test_report_generation_and_cli(tmp_path, capsys):
     exit_code = main(["--db", str(db_path), "conflict-governance", "--out", str(reports)])
     assert exit_code == 0
     assert "total_conflicts=" in capsys.readouterr().out
+
+
+def test_deferred_report_generated_with_matching_summary_count(tmp_path, monkeypatch):
+    reports = tmp_path / "reports"
+    deferred = _governed_conflict("conflict_deferred", "deferred")
+    blocked = _governed_conflict("conflict_blocked", "blocked_merge")
+    report = ConflictGovernanceReport(
+        conflicts=[deferred, blocked],
+        summary=conflict_summary([deferred, blocked]),
+    )
+
+    monkeypatch.setattr("app.conflict_governance.build_conflict_governance", lambda **_: report)
+
+    result = generate_conflict_governance_report(out_dir=reports, db_path=tmp_path / "music.sqlite3")
+    report_dir = reports / "conflict_governance"
+    deferred_rows = _read_csv(report_dir / "deferred.csv")
+    summary = json.loads((report_dir / "conflict_summary.json").read_text(encoding="utf-8"))
+
+    assert result.deferred == 1
+    assert summary["deferred"] == len(deferred_rows)
+    assert deferred_rows[0]["conflict_id"] == "conflict_deferred"
+    assert list(deferred_rows[0].keys()) == list(CONFLICT_FIELDS)
+    for name in ("conflicts.csv", "blocked_merges.csv", "safe_merge_candidates.csv", "needs_review.csv"):
+        assert (report_dir / name).exists()
 
 
 def test_canonical_graph_summary_integration(tmp_path):
@@ -503,3 +535,21 @@ def _write_csv(path: Path, headers, rows) -> None:
         writer = csv.DictWriter(file_handle, fieldnames=list(headers))
         writer.writeheader()
         writer.writerows(rows)
+
+
+def _governed_conflict(conflict_id: str, status: str) -> GovernedConflict:
+    return GovernedConflict(
+        conflict_id=conflict_id,
+        conflict_type="duplicate_identity_conflict",
+        source_entity="Static X",
+        target_entity="STATIC X",
+        entity_role="artist",
+        conflict_status=status,
+        severity="low" if status == "deferred" else "high",
+        confidence_snapshot="{}",
+        positive_evidence_json="[]",
+        negative_evidence_json="[]",
+        contradiction_reason="test conflict",
+        recommended_action="test action",
+        created_at="2026-01-01T00:00:00+00:00",
+    )

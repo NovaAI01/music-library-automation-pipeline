@@ -58,6 +58,7 @@ from app.review_decisions import (
 )
 from app.review_report import generate_review_report
 from app.scanner import scan
+from app.validation_benchmark import benchmark_validation
 from tools.portfolio_demo.demo_generator import generate_demo
 from tools.portfolio_demo.ui_screenshot_capture import capture_ui_screenshots
 
@@ -356,6 +357,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     validation_parser.add_argument("--source", required=True)
     validation_parser.add_argument("--out", default="reports")
+
+    benchmark_validation_parser = subparsers.add_parser(
+        "benchmark-validation",
+        help="Benchmark read-only external metadata validation distributions.",
+    )
+    benchmark_validation_parser.add_argument("--source", required=True)
+    benchmark_validation_parser.add_argument("--out", default="reports")
 
     subparsers.add_parser(
         "capture-ui-screenshots",
@@ -921,6 +929,22 @@ def main(argv: list[str] | None = None) -> int:
         print(f"total_cohorts={result.total_cohorts}")
         print(f"high_priority_cohorts={result.high_priority_cohorts}")
         print(f"malformed_record_count={result.malformed_record_count}")
+        return 0
+
+    if args.command == "benchmark-validation":
+        result = benchmark_validation(
+            source_name=args.source,
+            out_dir=args.out,
+        )
+        print(f"report_path={result.report_path}")
+        print(f"source_name={result.source_name}")
+        print(f"total_records={result.total_records}")
+        print(f"total_cohorts={result.total_cohorts}")
+        print(f"total_conflicts={result.total_conflicts}")
+        print(f"safe_merge_candidates={result.safe_merge_candidates}")
+        print(f"blocked_merges={result.blocked_merges}")
+        print(f"deferred_conflicts={result.deferred_conflicts}")
+        print(f"benchmark_duration_seconds={result.benchmark_duration_seconds}")
         return 0
 
     if args.command == "capture-ui-screenshots":

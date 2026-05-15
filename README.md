@@ -57,6 +57,7 @@ appropriate, and preserve recovery information.
 - [Entity roles](docs/entity-roles.md)
 - [External metadata ingestion](docs/external-metadata-ingestion.md)
 - [Large-scale evidence validation](docs/large-scale-evidence-validation.md)
+- [Validation benchmarking](docs/validation-benchmarking.md)
 - [Sample outputs](docs/sample-outputs/)
 
 ## 2. Problem Statement
@@ -184,7 +185,7 @@ Current generated evidence shows:
 - 0 unresolved missing files
 - 627 readable FLAC files in metadata audit
 - 2063 proposed metadata updates
-- 483 passing tests
+- 491 passing tests
 
 Evidence is represented in generated report artifacts under:
 
@@ -284,6 +285,7 @@ python -m app.main build-normalization-knowledge --out reports
 python -m app.main album-cohesion --out reports
 python -m app.main evidence-reliability --out reports
 python -m app.main canonical-graph --out reports
+python -m app.main benchmark-validation --source local_fixture --out reports
 python -m app.main discover-albums ...
 python -m app.main duplicate-report ...
 python -m app.main duplicate-review ...
@@ -721,7 +723,7 @@ python -m pytest -q
 Current result:
 
 ```text
-483 passed
+491 passed
 ```
 
 ## 13. Repository Structure

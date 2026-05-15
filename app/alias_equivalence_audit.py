@@ -13,11 +13,13 @@ from typing import Any, Iterable
 
 from app import db
 from app.alias_equivalence import (
+    deterministic_album_title_equivalence,
     deterministic_artist_alias_equivalence,
     has_artifact_marker,
     has_collaboration_marker,
     has_official_version_suffix,
     normalized_alnum_casefold,
+    normalized_safe_album_title,
 )
 from app.conflict_governance import GovernedConflict, build_conflict_governance
 
@@ -88,6 +90,9 @@ class AliasEquivalenceAuditResult:
     collaboration_rejections: int
     source_artifact_rejections: int
     role_collision_rejections: int
+    album_title_equivalence_matches: int
+    album_title_prevented_escalations: int
+    album_title_missed_safe_equivalents: int
 
 
 def generate_alias_equivalence_audit_report(
@@ -110,7 +115,7 @@ def generate_alias_equivalence_audit_report(
     _write_csv(
         report_dir / MISSED_FILENAME,
         AUDIT_FIELDS,
-        (asdict(item) for item in report.audit_records if _is_missed_safe_alias(item)),
+        (asdict(item) for item in report.audit_records if _is_missed_safe_alias(item) or _is_missed_safe_album_title(item)),
     )
     _write_csv(
         report_dir / REMAINING_FILENAME,
@@ -158,20 +163,32 @@ def audit_governed_conflict(conflict: GovernedConflict) -> AliasEquivalenceAudit
         lifecycle_state=_lifecycle_from_snapshot(snapshot),
         artifact_dominates=_artifact_dominates(_read_json_list(conflict.negative_evidence_json)),
     )
-    pre_status = "safe_alias_candidate" if decision.safe_to_merge_candidate else "would_escalate"
-    prevented = decision.safe_to_merge_candidate and conflict.conflict_status == "safe_to_merge_candidate"
-    escalation_reason = "" if prevented else conflict.contradiction_reason or decision.reason
+    album_decision = deterministic_album_title_equivalence(
+        conflict_type=conflict.conflict_type,
+        entity_role=conflict.entity_role,
+        source_entity=conflict.source_entity,
+        target_entity=conflict.target_entity,
+        positive_evidence_types=positive_types,
+        negative_evidence_types=negative_types,
+        confidence_tier=str(snapshot.get("confidence_tier", "") or ""),
+        lifecycle_state=_lifecycle_from_snapshot(snapshot),
+        artifact_dominates=_artifact_dominates(_read_json_list(conflict.negative_evidence_json)),
+    )
+    effective_decision = album_decision if album_decision.safe_to_merge_candidate else decision
+    pre_status = _pre_governance_status(conflict, effective_decision.safe_to_merge_candidate)
+    prevented = effective_decision.safe_to_merge_candidate and conflict.conflict_status == "safe_to_merge_candidate"
+    escalation_reason = "" if prevented else conflict.contradiction_reason or effective_decision.reason
     return AliasEquivalenceAuditRecord(
         conflict_id=conflict.conflict_id,
         conflict_type=conflict.conflict_type,
         source_entity=conflict.source_entity,
         target_entity=conflict.target_entity,
         entity_role=conflict.entity_role,
-        normalized_source=normalized_alnum_casefold(conflict.source_entity),
-        normalized_target=normalized_alnum_casefold(conflict.target_entity),
+        normalized_source=_normalized_for_audit(conflict),
+        normalized_target=_normalized_for_audit(conflict, target=True),
         equivalence_category=category,
-        equivalence_matched=decision.safe_to_merge_candidate,
-        equivalence_reason=decision.reason,
+        equivalence_matched=effective_decision.safe_to_merge_candidate,
+        equivalence_reason=effective_decision.reason,
         pre_governance_status=pre_status,
         post_governance_status=conflict.conflict_status,
         escalation_reason=escalation_reason,
@@ -190,6 +207,8 @@ def classify_equivalence_category(
     joined = f"{source_entity} {target_entity}"
     if conflict_type == "role_collision" or entity_role == "ambiguous":
         return "role_collision"
+    if conflict_type == "album_membership_conflict" and entity_role == "album":
+        return _album_equivalence_category(source_entity, target_entity)
     if conflict_type != "alias_collision":
         return "not_alias_collision"
     if has_collaboration_marker(joined):
@@ -239,6 +258,17 @@ def alias_equivalence_summary(records: Iterable[AliasEquivalenceAuditRecord]) ->
         "collaboration_rejections": categories["collaboration_or_feature"],
         "source_artifact_rejections": categories["source_artifact"],
         "role_collision_rejections": categories["role_collision"],
+        "album_title_equivalence_matches": sum(
+            1
+            for item in materialized
+            if item.equivalence_matched and item.equivalence_category.startswith("album_title_")
+        ),
+        "album_title_prevented_escalations": sum(
+            1
+            for item in materialized
+            if item.prevented_escalation and item.equivalence_category.startswith("album_title_")
+        ),
+        "album_title_missed_safe_equivalents": sum(1 for item in materialized if _is_missed_safe_album_title(item)),
     }
 
 
@@ -248,6 +278,16 @@ def _is_missed_safe_alias(record: AliasEquivalenceAuditRecord) -> bool:
         and record.entity_role == "artist"
         and record.normalized_source == record.normalized_target
         and record.equivalence_category not in {"suffix_noise", "collaboration_or_feature", "source_artifact"}
+        and record.equivalence_matched
+        and record.post_governance_status in {"needs_review", "blocked_merge"}
+    )
+
+
+def _is_missed_safe_album_title(record: AliasEquivalenceAuditRecord) -> bool:
+    return (
+        record.conflict_type == "album_membership_conflict"
+        and record.entity_role == "album"
+        and record.equivalence_category.startswith("album_title_")
         and record.equivalence_matched
         and record.post_governance_status in {"needs_review", "blocked_merge"}
     )
@@ -267,7 +307,48 @@ def _summary_result(summary: dict[str, Any]) -> dict[str, int]:
         "collaboration_rejections": int(summary.get("collaboration_rejections", 0) or 0),
         "source_artifact_rejections": int(summary.get("source_artifact_rejections", 0) or 0),
         "role_collision_rejections": int(summary.get("role_collision_rejections", 0) or 0),
+        "album_title_equivalence_matches": int(summary.get("album_title_equivalence_matches", 0) or 0),
+        "album_title_prevented_escalations": int(summary.get("album_title_prevented_escalations", 0) or 0),
+        "album_title_missed_safe_equivalents": int(summary.get("album_title_missed_safe_equivalents", 0) or 0),
     }
+
+
+def _album_equivalence_category(source_entity: str, target_entity: str) -> str:
+    joined = f"{source_entity} {target_entity}"
+    if has_collaboration_marker(joined):
+        return "collaboration_or_feature"
+    if has_artifact_marker(joined):
+        return "source_artifact"
+    if has_official_version_suffix(joined):
+        return "suffix_noise"
+    if normalized_safe_album_title(source_entity) != normalized_safe_album_title(target_entity):
+        return "semantic_difference"
+    source = str(source_entity or "")
+    target = str(target_entity or "")
+    if _strip_whitespace(source) == _strip_whitespace(target) and source.casefold() == target.casefold():
+        return "album_title_whitespace_only"
+    if "..." in source or "..." in target or "…" in source or "…" in target:
+        return "album_title_ellipsis"
+    if ":" in source or ":" in target:
+        return "album_title_colon"
+    if _has_punctuation(source + target):
+        return "album_title_punctuation_only"
+    return "album_title_casing_spacing"
+
+
+def _normalized_for_audit(conflict: GovernedConflict, *, target: bool = False) -> str:
+    value = conflict.target_entity if target else conflict.source_entity
+    if conflict.conflict_type == "album_membership_conflict" and conflict.entity_role == "album":
+        return normalized_safe_album_title(value)
+    return normalized_alnum_casefold(value)
+
+
+def _pre_governance_status(conflict: GovernedConflict, matched: bool) -> str:
+    if not matched:
+        return "would_escalate"
+    if conflict.conflict_type == "album_membership_conflict" and conflict.entity_role == "album":
+        return "safe_album_title_candidate"
+    return "safe_alias_candidate"
 
 
 def _lifecycle_from_snapshot(snapshot: dict[str, Any]) -> str:

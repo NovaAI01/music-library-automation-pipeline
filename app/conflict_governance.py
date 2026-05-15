@@ -19,6 +19,7 @@ from typing import Any, Iterable
 
 from app import db
 from app.alias_equivalence import (
+    deterministic_album_title_equivalence,
     deterministic_artist_alias_equivalence,
     has_artifact_marker,
     has_collaboration_marker,
@@ -256,6 +257,17 @@ def evaluate_conflict(
         lifecycle_state=lifecycle_state,
         artifact_dominates=artifact_dominates,
     )
+    deterministic_album_title = deterministic_album_title_equivalence(
+        conflict_type=conflict_type,
+        entity_role=entity_role,
+        source_entity=source_entity,
+        target_entity=target_entity,
+        positive_evidence_types=positive_types,
+        negative_evidence_types=negative_types,
+        confidence_tier=confidence_tier,
+        lifecycle_state=lifecycle_state,
+        artifact_dominates=artifact_dominates,
+    )
 
     vetoes: list[str] = []
     if role_conflict and not approved_review:
@@ -270,7 +282,12 @@ def evaluate_conflict(
         vetoes.append("collaboration string conflicts with single artist identity")
     if lifecycle_blocked:
         vetoes.append(f"lifecycle state is {lifecycle_state}")
-    if confidence_gap < 0.16 and not approved_review and not deterministic_alias.safe_to_merge_candidate:
+    if (
+        confidence_gap < 0.16
+        and not approved_review
+        and not deterministic_alias.safe_to_merge_candidate
+        and not deterministic_album_title.safe_to_merge_candidate
+    ):
         vetoes.append("confidence gap is too small to determine canonical winner")
 
     if vetoes:
@@ -283,6 +300,11 @@ def evaluate_conflict(
         severity = "low"
         action = "safe alias candidate; merge only through reviewed canonical alias workflow"
         reason = deterministic_alias.reason
+    elif deterministic_album_title.safe_to_merge_candidate:
+        status = "safe_to_merge_candidate"
+        severity = "low"
+        action = "safe album title candidate; merge only through reviewed canonical album workflow"
+        reason = deterministic_album_title.reason
     elif same_role and strong_alias and low_negative and approved_review and merge_ready_lifecycle:
         status = "safe_to_merge_candidate"
         severity = "low"

@@ -47,21 +47,39 @@ A conflict can enter that bucket only when all of these are true:
 - Artifact flags do not dominate.
 - Lifecycle state is `probationary` or `canonical`.
 
-Deterministic artist alias equivalence is a narrower path for common false
-positive casing and punctuation conflicts. Before governance escalates an
-artist `alias_collision`, it compares both sides with an alphanumeric
-casefolded normalizer. The conflict can be marked as a safe candidate only when
-the normalized values match, the visible difference is casing, spacing,
+Deterministic equivalence is a narrower path for common false positive casing
+and punctuation conflicts. Before governance escalates an artist
+`alias_collision`, it compares both sides with an alphanumeric casefolded
+normalizer. The conflict can be marked as a safe candidate only when the
+normalized values match, the visible difference is casing, spacing,
 apostrophes, hyphens, colons, or punctuation, repeated artist metadata is
 present, confidence is medium or high, lifecycle is not blocked, and no role,
 album-membership, collaboration, official-version suffix, uploader/channel, or
 dominant artifact marker is present.
 
+Album title equivalence applies only to `album_membership_conflict` rows whose
+entity role is `album`. It uses a safe title normalizer that ignores spacing,
+colons, apostrophes, hyphens, ellipses, and equivalent punctuation, then keeps
+the same governance gates: confidence must be medium or high, lifecycle must
+not be blocked, conflicted, or deprecated, and positive evidence must include
+`repeated_album_metadata` or `canonical_role_agreement`. Source artifacts,
+collaboration or feature markers, official audio/video markers, dominant
+artifact evidence, role collisions, and `weak_album_cohesion` still prevent the
+safe candidate label.
+
 Examples that can become safe candidates when the evidence and lifecycle gates
-pass include `Tool` -> `TOOL`, `Red` -> `RED`, and `System of a Down` ->
-`System Of A Down`. Examples that must not become safe candidates include
-`Heavy Is the Crown (Official Audio)`, `Tom Morello, BEARTOOTHband`, album
-membership conflicts, role collisions, and blocked lifecycle states.
+pass include `Tool` -> `TOOL`, `Red` -> `RED`, `System of a Down` ->
+`System Of A Down`, `Shallow Bay The Best Of Breaking Benjamin` ->
+`Shallow Bay: The Best Of Breaking Benjamin`, and `The Strange Case of` ->
+`The Strange Case of...`. Examples that must not become safe candidates include
+`Heavy Is the Crown (Official Audio)`, `Tom Morello, BEARTOOTHband`, role
+collisions, blocked lifecycle states, weak album cohesion, and semantic album
+differences such as edition, remaster, live, acoustic, deluxe, or special
+edition terms that are present on only one side.
+
+Safe album title candidates are not automatic merges. They are written as
+`safe_to_merge_candidate` rows with the action `safe album title candidate;
+merge only through reviewed canonical album workflow`.
 
 Rows are written to:
 
@@ -102,12 +120,14 @@ report is available:
 
 ## Alias Equivalence Audit
 
-The alias equivalence audit proves whether deterministic equivalence is
-actually reducing governance noise. It does not change merge decisions. It
-replays each governed conflict through the alias equivalence classifier and
-records the normalized values, equivalence category, pre-governance equivalence
-decision, final governance status, escalation reason, and whether escalation was
-prevented.
+The alias equivalence audit proves whether deterministic artist alias and album
+title equivalence are actually reducing governance noise. It does not change
+merge decisions. It replays each governed conflict through the equivalence
+classifiers and records the normalized values, equivalence category,
+pre-governance equivalence decision, final governance status, escalation reason,
+and whether escalation was prevented. The summary includes album title
+equivalence matches, prevented escalations, and missed safe album-title
+equivalents when present.
 
 Run it with:
 

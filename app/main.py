@@ -794,6 +794,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"collaboration_rejections={result.collaboration_rejections}")
         print(f"source_artifact_rejections={result.source_artifact_rejections}")
         print(f"role_collision_rejections={result.role_collision_rejections}")
+        print(f"album_title_equivalence_matches={result.album_title_equivalence_matches}")
+        print(f"album_title_prevented_escalations={result.album_title_prevented_escalations}")
+        print(f"album_title_missed_safe_equivalents={result.album_title_missed_safe_equivalents}")
         return 0
 
     if args.command == "entity-boundaries":

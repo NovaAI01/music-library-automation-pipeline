@@ -257,6 +257,59 @@ def test_deterministic_alias_non_equivalence_stays_blocked_or_review():
     assert role.conflict_status == "blocked_merge"
 
 
+def test_album_title_colon_variants_become_safe_merge_candidates():
+    for source, target in (
+        ("Shallow Bay The Best Of Breaking Benjamin", "Shallow Bay: The Best Of Breaking Benjamin"),
+        ("Vol. 3 The Subliminal Verses", "Vol. 3: The Subliminal Verses"),
+    ):
+        conflict = _album_title_conflict(source, target)
+
+        assert conflict.conflict_status == "safe_to_merge_candidate"
+        assert conflict.severity == "low"
+        assert conflict.recommended_action == (
+            "safe album title candidate; merge only through reviewed canonical album workflow"
+        )
+
+
+def test_album_title_ellipsis_variant_becomes_safe_merge_candidate():
+    conflict = _album_title_conflict("The Strange Case of", "The Strange Case of...")
+
+    assert conflict.conflict_status == "safe_to_merge_candidate"
+    assert "ellipsis" in conflict.contradiction_reason
+
+
+def test_album_title_semantic_special_edition_remains_not_safe():
+    conflict = _album_title_conflict(
+        "Rage Against The Machine - XX (20th Anniversary Special Edition)",
+        "XX",
+    )
+
+    assert conflict.conflict_status != "safe_to_merge_candidate"
+    assert conflict.conflict_status in {"needs_review", "deferred", "blocked_merge"}
+
+
+def test_blocked_lifecycle_album_title_remains_blocked():
+    conflict = _album_title_conflict(
+        "The Strange Case of",
+        "The Strange Case of...",
+        lifecycle_state="blocked",
+    )
+
+    assert conflict.conflict_status == "blocked_merge"
+    assert "lifecycle state is blocked" in conflict.contradiction_reason
+
+
+def test_weak_album_cohesion_album_title_remains_not_safe():
+    conflict = _album_title_conflict(
+        "Shallow Bay The Best Of Breaking Benjamin",
+        "Shallow Bay: The Best Of Breaking Benjamin",
+        negative_evidence_json=_evidence_json("weak_album_cohesion", "album_cohesion", 0.22),
+    )
+
+    assert conflict.conflict_status != "safe_to_merge_candidate"
+    assert "weak album cohesion" in conflict.contradiction_reason or conflict.conflict_status == "needs_review"
+
+
 def test_report_generation_and_cli(tmp_path, capsys):
     db_path = tmp_path / "music.sqlite3"
     reports = tmp_path / "reports"
@@ -394,6 +447,31 @@ def _insert_observation(db_path: Path, artist: str, title: str, album: str, file
             """,
             (observed_file_id, path.stem, artist, title),
         )
+
+
+def _album_title_conflict(
+    source: str,
+    target: str,
+    *,
+    lifecycle_state: str = "probationary",
+    negative_evidence_json: str = "[]",
+):
+    return evaluate_conflict(
+        conflict_type="album_membership_conflict",
+        source_entity=source,
+        target_entity=target,
+        entity_role="album",
+        evidence_count=3,
+        confidence_snapshot={
+            "confidence_tier": "medium",
+            "normalized_confidence": 0.61,
+            "raw_positive_score": 0.7,
+            "raw_negative_score": 0.1,
+        },
+        positive_evidence_json=_evidence_json("repeated_album_metadata", "metadata", 0.7),
+        negative_evidence_json=negative_evidence_json,
+        lifecycle_state=lifecycle_state,
+    )
 
 
 def _evidence_json(evidence_type: str, family: str, score: float) -> str:

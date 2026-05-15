@@ -54,16 +54,29 @@ def test_collaboration_or_feature_rejection_category():
     )
 
 
-def test_shallow_bay_album_punctuation_is_not_artist_alias_safe():
+def test_shallow_bay_album_punctuation_is_album_title_equivalence():
     assert (
         classify_equivalence_category(
             conflict_type="album_membership_conflict",
-            entity_role="artist",
+            entity_role="album",
             source_entity="Shallow Bay The Best Of Breaking Benjamin",
             target_entity="Shallow Bay: The Best Of Breaking Benjamin",
         )
-        == "not_alias_collision"
+        == "album_title_colon"
     )
+
+
+def test_album_title_equivalence_audit_counts_prevented_escalation():
+    conflict = _safe_album_conflict("The Strange Case of", "The Strange Case of...")
+    report = build_alias_equivalence_audit(governed_conflicts=[conflict])
+    record = report.audit_records[0]
+
+    assert record.equivalence_category == "album_title_ellipsis"
+    assert record.equivalence_matched is True
+    assert record.pre_governance_status == "safe_album_title_candidate"
+    assert report.summary["album_title_equivalence_matches"] == 1
+    assert report.summary["album_title_prevented_escalations"] == 1
+    assert report.summary["album_title_missed_safe_equivalents"] == 0
 
 
 def test_missed_safe_alias_detection_when_safe_alias_still_escalates():
@@ -114,6 +127,25 @@ def _safe_alias_conflict(source: str, target: str) -> GovernedConflict:
             "raw_negative_score": 0.1,
         },
         positive_evidence_json=_evidence_json("repeated_artist_metadata", "metadata", 0.7),
+        negative_evidence_json="[]",
+        lifecycle_state="probationary",
+    )
+
+
+def _safe_album_conflict(source: str, target: str) -> GovernedConflict:
+    return evaluate_conflict(
+        conflict_type="album_membership_conflict",
+        source_entity=source,
+        target_entity=target,
+        entity_role="album",
+        evidence_count=3,
+        confidence_snapshot={
+            "confidence_tier": "medium",
+            "normalized_confidence": 0.61,
+            "raw_positive_score": 0.7,
+            "raw_negative_score": 0.1,
+        },
+        positive_evidence_json=_evidence_json("repeated_album_metadata", "metadata", 0.7),
         negative_evidence_json="[]",
         lifecycle_state="probationary",
     )

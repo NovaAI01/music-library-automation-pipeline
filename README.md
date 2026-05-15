@@ -480,15 +480,19 @@ APIs, or uses embeddings.
 
 Conflict governance includes deterministic artist alias equivalence for safe
 casing and punctuation variants such as `Tool` -> `TOOL` or `System of a Down`
--> `System Of A Down`. These rows are only `safe_to_merge_candidate` review
-items in `reports/conflict_governance/safe_merge_candidates.csv`; they are not
-auto-merged and still require the reviewed canonical alias workflow. Role
-collisions, collaboration strings, official audio/video/version suffixes,
-album-membership conflicts, uploader or channel artifacts, blocked lifecycle
-states, and dominant artifact evidence remain protected.
+-> `System Of A Down`, plus deterministic album-title punctuation equivalence
+for album membership conflicts such as `Shallow Bay The Best Of Breaking
+Benjamin` -> `Shallow Bay: The Best Of Breaking Benjamin`. These rows are only
+`safe_to_merge_candidate` review items in
+`reports/conflict_governance/safe_merge_candidates.csv`; they are not
+auto-merged and still require the reviewed canonical alias or album workflow.
+Role collisions, collaboration strings, official audio/video/version suffixes,
+semantic album edition/remaster/live/acoustic/deluxe differences, weak album
+cohesion, uploader or channel artifacts, blocked lifecycle states, and dominant
+artifact evidence remain protected.
 
-The `alias-equivalence-audit` command instruments that path without changing
-governance decisions:
+The `alias-equivalence-audit` command instruments artist alias and album-title
+equivalence without changing governance decisions:
 
 ```bash
 python -m app.main alias-equivalence-audit --out reports

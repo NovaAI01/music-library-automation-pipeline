@@ -129,3 +129,31 @@ artists, mutate local files, or write metadata tags.
 The second major issue is release-aware duplicate identity. The `duplicate_external_records` count likely reflects multiple releases, editions, countries, and reissues rather than simple duplicate tracks.
 
 Do not treat those as removable duplicates without release-aware identity logic.
+
+Release-Aware Identity Analysis v1 adds that intermediate reporting step:
+
+```bash
+python -m app.main analyze-release-identity --source musicbrainz --out reports
+```
+
+It distinguishes likely true duplicate rows from the same recording appearing
+across legitimate releases, editions, reissues, compilations, soundtracks, and
+ambiguous weak-identity clusters. This is required before interpreting
+`duplicate_external_records` as a duplicate-remediation target, and it remains
+reporting-only: no files, tags, external metadata inputs, duplicate quarantine
+state, or canonical graph behavior are changed.
+
+MusicBrainz 50k release-aware identity analysis:
+
+| Metric | Value |
+|---|---:|
+| Total records | 49,773 |
+| Total identity groups | 40,709 |
+| Single-record identity groups | 36,061 |
+| Legitimate release appearances | 4,277 |
+| Edition or reissue clusters | 42 |
+| Compilation or multi-release appearances | 321 |
+| Possible true duplicate groups | 8 |
+| Ambiguous identity groups | 0 |
+| Duplicate-like records explained | 13,712 |
+| Duplicate-like records unresolved | 0 |

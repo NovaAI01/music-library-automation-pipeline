@@ -66,6 +66,7 @@ from app.review_decisions import (
     record_review_decision,
 )
 from app.review_report import generate_review_report
+from app.release_identity_analysis import analyze_release_identity
 from app.scanner import scan
 from app.validation_benchmark import benchmark_validation
 from tools.portfolio_demo.demo_generator import generate_demo
@@ -381,6 +382,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     benchmark_validation_parser.add_argument("--source", required=True)
     benchmark_validation_parser.add_argument("--out", default="reports")
+
+    release_identity_parser = subparsers.add_parser(
+        "analyze-release-identity",
+        help="Analyze release-aware identity groups in external metadata.",
+    )
+    release_identity_parser.add_argument("--source", required=True)
+    release_identity_parser.add_argument("--out", default="reports")
+    release_identity_parser.add_argument("--limit", type=int)
 
     metadata_acquisition_parser = subparsers.add_parser(
         "plan-metadata-acquisition",
@@ -1017,6 +1026,21 @@ def main(argv: list[str] | None = None) -> int:
         print(f"blocked_merges={result.blocked_merges}")
         print(f"deferred_conflicts={result.deferred_conflicts}")
         print(f"benchmark_duration_seconds={result.benchmark_duration_seconds}")
+        return 0
+
+    if args.command == "analyze-release-identity":
+        result = analyze_release_identity(
+            source_name=args.source,
+            out_dir=args.out,
+            limit=args.limit,
+        )
+        print(f"report_path={result.report_path}")
+        print(f"source_name={result.source_name}")
+        print(f"total_records={result.total_records}")
+        print(f"total_identity_groups={result.total_identity_groups}")
+        print(f"legitimate_release_appearance_count={result.legitimate_release_appearance_count}")
+        print(f"possible_true_duplicate_count={result.possible_true_duplicate_count}")
+        print(f"ambiguous_identity_group_count={result.ambiguous_identity_group_count}")
         return 0
 
     if args.command == "plan-metadata-acquisition":

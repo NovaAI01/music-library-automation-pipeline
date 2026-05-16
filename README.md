@@ -568,6 +568,20 @@ ambiguous group names, and unresolved artist credits. This does not mutate
 source metadata, local files, tags, canonical graph behavior, or artist merge
 behavior.
 
+Release-Aware Identity Analysis v1 investigates duplicate-looking external
+metadata rows without treating MusicBrainz release appearances as removable
+duplicates:
+
+```bash
+python -m app.main analyze-release-identity --source musicbrainz --out reports
+```
+
+It writes `reports/release_identity_analysis/` with identity groups, release
+appearances, possible true duplicates, legitimate release appearances, and
+ambiguous identity groups. This is reporting-only and does not alter duplicate
+quarantine behavior, canonical graph state, local files, tags, or source
+metadata.
+
 Album metadata discovery is also review-only. The `discover-albums` command
 looks at existing tags, filenames, and local path evidence for tracks with
 missing or `Unknown Album` album values, then writes suggestions under

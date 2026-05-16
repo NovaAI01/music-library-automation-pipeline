@@ -202,8 +202,8 @@ remediation.
 - Artist-credit analysis can distinguish solo, collaboration, featured, and
   unresolved credit evidence before any canonical graph integration.
 - The validation workflow preserves review boundaries: reporting occurs without
-  mutating local files, metadata tags, canonical graph state, or downloader
-  behavior.
+  mutating local files, metadata tags, canonical graph state, or audio
+  acquisition behavior.
 
 ## What This Does Not Prove
 

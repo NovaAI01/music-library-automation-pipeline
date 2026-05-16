@@ -5,17 +5,17 @@ normalizing, and safely remediating user-owned or legally sourced music
 libraries.
 
 The platform organizes evidence around Artists -> Albums -> Tracks without
-cloud accounts, AI/LLM enrichment, media downloads, or destructive automation. It
+cloud accounts, AI/LLM enrichment, media acquisition, or destructive automation. It
 observes local files, normalizes metadata evidence, detects duplicates, scores
 confidence, proposes evidence-based remediation, keeps audit logs, and routes
 uncertain decisions through human review. External metadata validation is
 metadata-only and remains separate from the local canonical graph.
 
-It is not a downloader, not a substitute for streaming services, not an AI
-wrapper, and not an automatic tag writer. Optional metadata-only acquisition
-commands exist for supported sources, but they do not download audio or media,
-do not enrich the canonical graph remotely, and do not mutate local library
-state.
+It is a metadata intelligence and remediation governance platform, not a
+playback-first app, AI wrapper, or automatic tag writer. Optional metadata-only
+acquisition commands exist for supported sources, but they do not acquire audio
+or media, do not enrich the canonical graph remotely, and do not mutate local
+library state.
 
 ## 1. Overview
 
@@ -222,22 +222,15 @@ Local music library app UI
 
 ## 5. Current Evidence / Metrics
 
-Current generated evidence shows:
+Repository-safe evidence includes:
 
-- 627 organised FLAC files
-- 52 quarantined duplicates
-- 0 active duplicate groups
-- 0 unresolved missing files
-- 627 readable FLAC files in metadata audit
-- 2063 proposed metadata updates
 - 585 passing tests
-
-Local generated evidence is represented in ignored report artifacts under:
-
-- `reports/library_qa/`
-- `reports/duplicates_scan_1/`
-- `reports/metadata_audit/`
-- `reports/metadata_plan/`
+- MusicBrainz 50k validation summary committed under
+  [docs/validation-results/](docs/validation-results/)
+- Sanitized sample outputs committed under
+  [docs/sample-outputs/](docs/sample-outputs/)
+- Golden regression fixtures under [tests/golden_cases/](tests/golden_cases/)
+- Metadata-only external validation workflow with ignored local run artifacts
 
 The public repository commits source code, tests, documentation, sample
 outputs, and summarized validation results. Generated `reports/`, `data/`,
@@ -268,7 +261,7 @@ demo exports, SQLite databases, and caches are local runtime artifacts.
 - Review-only album metadata discovery for tracks currently missing album tags
   or grouped as `Unknown Album`.
 - Unified read-only web UI for import workflow, dashboard, library browsing,
-  review queues, local playback, and settings.
+  review queues, inspection-only local file preview, and settings.
 - Metadata-only external source ingestion from local CSV/JSONL fixtures for
   future validation reports, kept separate from the local library and canonical
   graph.
@@ -685,7 +678,7 @@ python -m app.main --db /tmp/media_library.sqlite3 scan --source ~/Music/Library
 
 The UI is a read-only FastAPI/Jinja2 local application over generated pipeline
 reports. It does not mutate media files, apply duplicate decisions, write
-metadata, authenticate users, call remote APIs, or integrate streaming services.
+metadata, authenticate users, call remote APIs, or acquire media.
 
 Run the UI:
 
@@ -725,9 +718,12 @@ suggestions can be approved, rejected, or deferred from the UI. These decisions
 update the review ledger and can later be converted into reusable normalization
 knowledge with `python -m app.main build-normalization-knowledge --out reports`.
 
-Local playback is supported for organized library files. Audio is served through
-`/media/audio?path=<relative_library_path>`, and the server restricts playback
-to files that resolve inside the configured library root.
+Local preview is supported only for inspecting user-owned files in the configured
+library. Audio is served through
+`/media/audio?path=<relative_library_path>`, and the server restricts preview to
+files that resolve inside the configured library root. This is a supporting
+inspection aid; the core product remains metadata intelligence and remediation
+governance.
 
 Set `MUSIC_LIBRARY_REPORTS_DIR` before startup to read reports from a directory
 other than `reports`.
@@ -770,12 +766,14 @@ python -m app.main generate-demo
 ```
 
 Dependencies: Python requirements, Playwright Chromium for UI screenshots, and
-optional `ffmpeg` for MP4 stitching. Outputs are written under `demo/`:
-`demo/frames/`, `demo/demo_script.md`, `demo/demo_manifest.json`, and
-`demo/demo.mp4` when `ffmpeg` is installed. This workflow does not perform live
-screen recording, voice synthesis, AI narration, schema changes, or media-file
-mutation. Demo assets are regenerated from current report and review workflows
-each run.
+optional `ffmpeg` for MP4 stitching. Compatibility outputs are written to the
+ignored local `demo/` path: `demo/frames/`, `demo/demo_script.md`,
+`demo/demo_manifest.json`, and `demo/demo.mp4` when `ffmpeg` is installed. The
+portfolio tooling itself is isolated under `tools/portfolio_demo/`; the ignored
+local `demo/` directory is generated evidence, not a committed core product
+output. This workflow does not perform live screen recording, voice synthesis, AI
+narration, schema changes, or media-file mutation. Demo assets are regenerated
+from current report and review workflows each run.
 
 ## Sample Outputs
 
@@ -801,13 +799,10 @@ The metadata audit inspects FLAC files with `mutagen` and reports tag quality
 issues without writing changes. The normalization plan proposes updates inferred
 from organized library paths and observed metadata.
 
-Current metadata evidence:
-
-- 627 readable FLAC files in metadata audit
-- 2063 proposed metadata updates
-
-The plan is intentionally review-oriented. It documents candidate updates; it
-does not save tags to media files.
+Metadata plan evidence is intentionally review-oriented. It documents candidate
+updates from local audit inputs; it does not save tags to media files. Public
+examples use sanitized sample outputs and golden regression fixtures rather than
+private local library counts.
 
 ## 10. Duplicate Detection + Quarantine Safety
 
@@ -818,14 +813,10 @@ Duplicate handling is staged:
 - `quarantine-duplicates` moves only rows marked as remove candidates.
 - Dry-run mode is available before quarantine execution.
 
-Current duplicate evidence:
-
-- 0 active duplicate groups
-- 52 quarantined duplicates
-
-The system distinguishes live duplicate state from historical quarantine state,
-so previously quarantined files do not appear as active unresolved duplicate
-groups.
+Duplicate reports distinguish active duplicate state from historical quarantine
+state, so previously quarantined files do not appear as active unresolved
+duplicate groups. Public examples use sanitized sample outputs rather than
+private local quarantine counts.
 
 ## 11. Restore / Recovery Model
 

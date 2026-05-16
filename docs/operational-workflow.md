@@ -5,15 +5,13 @@ Automation Pipeline. The workflow is deterministic and human-in-the-loop: each
 stage produces evidence, reports, plans, or ledger records that can be reviewed
 before file-moving operations are executed.
 
-Current generated evidence includes:
+Repository-safe evidence includes:
 
-- 627 organised FLAC files
-- 52 quarantined duplicates
-- 0 active duplicate groups
-- 0 unresolved missing files
-- 627 readable FLAC files
-- 2063 proposed metadata updates
 - 585 passing tests
+- MusicBrainz 50k validation summaries
+- sanitized sample outputs
+- golden regression fixtures
+- metadata-only external validation workflow
 
 ## 1. Intake
 

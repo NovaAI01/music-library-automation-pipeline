@@ -6,7 +6,7 @@ normalizes metadata, detects duplicates, scores confidence, proposes
 reviewable remediation, and preserves audit history before any controlled file
 operation runs.
 
-v1 has no audio download, media download, AI/LLM enrichment, or remote
+v1 has no audio download, media acquisition, AI/LLM enrichment, or remote
 canonical mutation. External metadata ingestion and validation are
 metadata-only workflows over local CSV/JSONL fixtures or optional
 metadata-only acquisition commands; they do not mutate the local library or
@@ -64,15 +64,15 @@ Audit logs and read-only UI
 - Quarantine and restore provide ledger-backed duplicate remediation and
   recovery when explicitly executed.
 - FastAPI/Jinja2 UI serves read-only dashboards, library browsing, review
-  queues, and local playback over generated reports.
+  queues, and inspection-only local file preview over generated reports.
 
 ## Product Boundaries
 
-- Not a downloader.
-- Not a substitute for streaming services.
+- Not an audio acquisition product.
+- Not a playback-first product.
 - Not an AI wrapper.
 - Not an automatic tag writer.
-- No audio download, media download, AI/LLM enrichment, or remote canonical
+- No audio download, media acquisition, AI/LLM enrichment, or remote canonical
   mutation in v1.
 - Optional metadata-only acquisition commands are isolated from local library
   and canonical graph mutation.

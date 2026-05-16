@@ -19,7 +19,7 @@ and `youtube_metadata`.
 External music sources differ in licensing, terms, identity quality, data shape,
 rate limits, and product boundaries. A planner-only layer keeps those decisions
 reviewable before any ingestion work happens. It also prevents a metadata feature
-from drifting into audio download, marketplace, credential, scraping, or
+from drifting into audio acquisition, marketplace, credential, scraping, or
 canonical graph behavior.
 
 The generated plan describes where manually acquired metadata dumps or exports
@@ -37,7 +37,7 @@ and which existing benchmark command should be run after import.
 4. `internet_archive`: medium risk. Metadata exports may reference downloadable
    files, so the no-file-download boundary must stay explicit.
 5. `youtube_metadata`: high risk. Use metadata-only exports with skip-download
-   style provenance. This is not a downloader.
+   style provenance and keep audio acquisition out of scope.
 
 ## SSD Data Root
 

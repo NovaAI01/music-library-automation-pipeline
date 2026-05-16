@@ -36,8 +36,8 @@ The audit output is evidence only. It does not modify FLAC files.
 ## Proposed Update Planning
 
 `metadata-plan` creates `reports/metadata_plan/tag_update_plan.csv` and
-`reports/metadata_plan/metadata_plan_summary.json`. The current evidence shows
-627 readable FLAC files and 2063 proposed metadata updates.
+`reports/metadata_plan/metadata_plan_summary.json`. Public examples use
+sanitized sample outputs rather than private local library counts.
 
 The plan provides candidate updates by field, including artist, album artist,
 title, and genre. These rows are intended for review before any remediation is

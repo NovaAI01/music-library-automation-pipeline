@@ -2,7 +2,7 @@
 
 This contract defines a metadata-only ingestion boundary for external source
 records. It exists to support large-scale validation reports without downloading,
-streaming, scraping, storing, or mutating audio files.
+serving, scraping, storing, or mutating audio files.
 
 External metadata is kept outside the local music library and outside the
 canonical graph in v1.

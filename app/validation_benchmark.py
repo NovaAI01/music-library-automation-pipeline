@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import json
+import re
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
@@ -26,6 +27,9 @@ SEVERITY_DISTRIBUTION_FILENAME = "severity_distribution.csv"
 GOVERNANCE_DISTRIBUTION_FILENAME = "governance_distribution.csv"
 TOP_FAILURE_COHORTS_FILENAME = "top_failure_cohorts.csv"
 TIMING_FILENAME = "benchmark_timing.json"
+ARTIST_CREDIT_REPORT_DIRNAME = "artist_credit_analysis"
+ARTIST_CREDIT_SUMMARY_FILENAME = "artist_credit_summary.json"
+ARTIST_CREDIT_PARSED_FILENAME = "parsed_artist_credits.csv"
 
 GOVERNANCE_STATUSES = (
     "safe_to_merge_candidate",
@@ -51,6 +55,34 @@ TOP_FAILURE_FIELDS = (
     "severity",
     "recommended_action",
 )
+ARTIST_CREDIT_COLLABORATION_RE = re.compile(
+    r"(?:\bfeat\.?\b|\bft\.?\b|\bfeaturing\b|\bwith\b|\bversus\b|\bvs\.?\b|\sx\s|/|,|\s&\s|\sand\s)",
+    re.I,
+)
+ARTIST_CREDIT_FEATURE_PATTERNS = {
+    "feat_artist",
+    "ft_artist",
+    "featuring_artist",
+}
+ARTIST_CREDIT_COLLABORATION_PATTERNS = {
+    "with_artist",
+    "versus_artist",
+    "x_collaboration",
+    "ampersand_collaboration",
+    "comma_collaboration",
+    "multi_artist_credit",
+}
+
+
+@dataclass(frozen=True)
+class ArtistCreditBenchmarkAnalysis:
+    used: bool
+    parsed_records: int = 0
+    unresolved_records: int = 0
+    high_confidence: int = 0
+    medium_confidence: int = 0
+    low_confidence: int = 0
+    cohorts: tuple[ValidationCohort, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -67,22 +99,34 @@ class ValidationBenchmarkResult:
     source_artifact_candidates: int
     collaboration_string_candidates: int
     malformed_records: int
+    artist_credit_analysis_used: bool
+    artist_credit_parsed_records: int
+    artist_credit_unresolved_records: int
+    artist_credit_high_confidence: int
+    artist_credit_medium_confidence: int
+    artist_credit_low_confidence: int
     benchmark_duration_seconds: float
 
     def to_summary(self) -> dict[str, Any]:
         return {
+            "artist_credit_analysis_used": self.artist_credit_analysis_used,
+            "artist_credit_high_confidence": self.artist_credit_high_confidence,
+            "artist_credit_low_confidence": self.artist_credit_low_confidence,
+            "artist_credit_medium_confidence": self.artist_credit_medium_confidence,
+            "artist_credit_parsed_records": self.artist_credit_parsed_records,
+            "artist_credit_unresolved_records": self.artist_credit_unresolved_records,
+            "benchmark_duration_seconds": self.benchmark_duration_seconds,
+            "blocked_merges": self.blocked_merges,
+            "collaboration_string_candidates": self.collaboration_string_candidates,
+            "deferred_conflicts": self.deferred_conflicts,
+            "duplicate_external_records": self.duplicate_external_records,
+            "malformed_records": self.malformed_records,
+            "safe_merge_candidates": self.safe_merge_candidates,
+            "source_artifact_candidates": self.source_artifact_candidates,
             "source_name": self.source_name,
             "total_records": self.total_records,
             "total_cohorts": self.total_cohorts,
             "total_conflicts": self.total_conflicts,
-            "safe_merge_candidates": self.safe_merge_candidates,
-            "blocked_merges": self.blocked_merges,
-            "deferred_conflicts": self.deferred_conflicts,
-            "duplicate_external_records": self.duplicate_external_records,
-            "source_artifact_candidates": self.source_artifact_candidates,
-            "collaboration_string_candidates": self.collaboration_string_candidates,
-            "malformed_records": self.malformed_records,
-            "benchmark_duration_seconds": self.benchmark_duration_seconds,
         }
 
 
@@ -105,6 +149,9 @@ def benchmark_validation(
 
     phase_start = perf_counter()
     cohorts, _examples = analyze_external_metadata_records(records)
+    artist_credit_analysis = _load_artist_credit_analysis(source_name, out_dir)
+    if artist_credit_analysis.used:
+        cohorts = _with_artist_credit_cohorts(cohorts, artist_credit_analysis)
     cohort_analysis_seconds = _elapsed(phase_start)
 
     phase_start = perf_counter()
@@ -161,6 +208,12 @@ def benchmark_validation(
         blocked_merges=governance_counts["blocked_merge"],
         deferred_conflicts=governance_counts["deferred"],
         benchmark_duration_seconds=total_duration_seconds,
+        artist_credit_analysis_used=artist_credit_analysis.used,
+        artist_credit_parsed_records=artist_credit_analysis.parsed_records,
+        artist_credit_unresolved_records=artist_credit_analysis.unresolved_records,
+        artist_credit_high_confidence=artist_credit_analysis.high_confidence,
+        artist_credit_medium_confidence=artist_credit_analysis.medium_confidence,
+        artist_credit_low_confidence=artist_credit_analysis.low_confidence,
         **benchmark_counts,
     )
     _write_json(report_dir / SUMMARY_FILENAME, result.to_summary())
@@ -258,6 +311,147 @@ def top_failure_cohort_rows(
         }
         for cohort in ranked[:limit]
     ]
+
+
+def _load_artist_credit_analysis(
+    source_name: str,
+    out_dir: Path,
+) -> ArtistCreditBenchmarkAnalysis:
+    report_dir = out_dir / ARTIST_CREDIT_REPORT_DIRNAME
+    summary_path = report_dir / ARTIST_CREDIT_SUMMARY_FILENAME
+    parsed_path = report_dir / ARTIST_CREDIT_PARSED_FILENAME
+    if not summary_path.exists() or not parsed_path.exists():
+        return ArtistCreditBenchmarkAnalysis(used=False)
+
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    if summary.get("source_name") != source_name:
+        return ArtistCreditBenchmarkAnalysis(used=False)
+
+    with parsed_path.open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(handle))
+
+    return ArtistCreditBenchmarkAnalysis(
+        used=True,
+        parsed_records=_summary_int(summary, "parsed_records"),
+        unresolved_records=_summary_int(summary, "unresolved_count"),
+        high_confidence=_summary_int(summary, "high_confidence_count"),
+        medium_confidence=_summary_int(summary, "medium_confidence_count"),
+        low_confidence=_summary_int(summary, "low_confidence_count"),
+        cohorts=tuple(_artist_credit_cohorts(rows)),
+    )
+
+
+def _with_artist_credit_cohorts(
+    cohorts: Iterable[ValidationCohort],
+    artist_credit_analysis: ArtistCreditBenchmarkAnalysis,
+) -> list[ValidationCohort]:
+    return [
+        cohort
+        for cohort in cohorts
+        if cohort.cohort_type != "collaboration_string"
+    ] + list(artist_credit_analysis.cohorts)
+
+
+def _artist_credit_cohorts(rows: list[dict[str, str]]) -> list[ValidationCohort]:
+    counts: Counter[tuple[str, str, str]] = Counter()
+    for row in rows:
+        pattern = row.get("credit_pattern", "")
+        confidence_tier = row.get("confidence_tier", "")
+        flags = set(_json_list(row.get("parser_flags_json", "[]")))
+        featured_artists = _json_list(row.get("featured_artists_json", "[]"))
+        collaborating_artists = _json_list(row.get("collaborating_artists_json", "[]"))
+        is_unresolved = pattern == "unknown_or_ambiguous" or not row.get("primary_artist", "")
+        is_featured = pattern in ARTIST_CREDIT_FEATURE_PATTERNS or bool(featured_artists)
+        is_collaboration = (
+            pattern in ARTIST_CREDIT_COLLABORATION_PATTERNS
+            or bool(collaborating_artists)
+        )
+        is_ambiguous_group = bool(flags & {"possible_group_name", "ambiguous_separator"})
+        is_relevant = (
+            is_unresolved
+            or is_featured
+            or is_collaboration
+            or is_ambiguous_group
+            or _artist_credit_has_collaboration_syntax(row)
+        )
+
+        if is_relevant and row.get("primary_artist", "") and confidence_tier == "high":
+            counts[("artist_credit_parsed_high_confidence", "all", "low")] += 1
+        if is_relevant and row.get("primary_artist", "") and confidence_tier == "medium":
+            counts[("artist_credit_parsed_medium_confidence", "all", "medium")] += 1
+        if is_unresolved:
+            severity = "high" if confidence_tier == "low" else "medium"
+            counts[("artist_credit_unresolved", confidence_tier or "unknown", severity)] += 1
+        if is_featured:
+            counts[("artist_credit_featured", "all", "medium")] += 1
+        if is_collaboration:
+            counts[("artist_credit_collaboration", "all", "medium")] += 1
+        if is_ambiguous_group:
+            counts[("artist_credit_ambiguous_group", "all", "medium")] += 1
+
+    return [
+        ValidationCohort(
+            cohort_key=f"{cohort_type}:{cohort_key}",
+            cohort_type=cohort_type,
+            record_count=count,
+            severity=severity,
+            recommended_action=_artist_credit_recommended_action(cohort_type),
+            rationale=_artist_credit_rationale(cohort_type),
+        )
+        for (cohort_type, cohort_key, severity), count in sorted(counts.items())
+        if count
+    ]
+
+
+def _artist_credit_has_collaboration_syntax(row: dict[str, str]) -> bool:
+    raw_artist = row.get("raw_artist", "")
+    title = row.get("source_title", "")
+    return bool(
+        ARTIST_CREDIT_COLLABORATION_RE.search(raw_artist)
+        or ARTIST_CREDIT_COLLABORATION_RE.search(title)
+    )
+
+
+def _artist_credit_recommended_action(cohort_type: str) -> str:
+    actions = {
+        "artist_credit_parsed_high_confidence": "Treat as parser-explained artist credit evidence; do not merge automatically.",
+        "artist_credit_parsed_medium_confidence": "Review parsed collaboration evidence before graph integration.",
+        "artist_credit_unresolved": "Keep blocked from canonical artist promotion until parser or human review resolves it.",
+        "artist_credit_featured": "Review as featured-artist role evidence before graph integration.",
+        "artist_credit_collaboration": "Review as collaboration role evidence before graph integration.",
+        "artist_credit_ambiguous_group": "Review as possible group-name ambiguity before splitting artists.",
+    }
+    return actions[cohort_type]
+
+
+def _artist_credit_rationale(cohort_type: str) -> str:
+    rationales = {
+        "artist_credit_parsed_high_confidence": "Artist-credit parser explained collaboration-like syntax with high confidence.",
+        "artist_credit_parsed_medium_confidence": "Artist-credit parser explained collaboration-like syntax with medium confidence.",
+        "artist_credit_unresolved": "Artist-credit parser could not safely identify primary and related artists.",
+        "artist_credit_featured": "Artist credit contains explicit featured-artist role evidence.",
+        "artist_credit_collaboration": "Artist credit contains parsed collaborator role evidence.",
+        "artist_credit_ambiguous_group": "Artist credit may be a canonical group name rather than a collaboration.",
+    }
+    return rationales[cohort_type]
+
+
+def _summary_int(summary: dict[str, Any], key: str) -> int:
+    value = summary.get(key, 0)
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _json_list(value: str) -> list[str]:
+    try:
+        parsed = json.loads(value or "[]")
+    except json.JSONDecodeError:
+        return []
+    if not isinstance(parsed, list):
+        return []
+    return [str(item) for item in parsed]
 
 
 def _read_external_records(input_csv: Path) -> list[ExternalValidationRecord]:

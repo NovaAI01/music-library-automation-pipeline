@@ -33,37 +33,74 @@
 
 ## Benchmark Result
 
+Initial validation benchmarking treated collaboration syntax as one raw
+`collaboration_string` cohort. Artist Credit Validation Integration v1 now
+feeds the parser output back into benchmark reporting when
+`reports/artist_credit_analysis/` exists for the same source, so explained
+credits are separated from unresolved artist-credit failures.
+
 | Metric | Value |
 |---|---:|
 | Total records | 49,773 |
-| Total cohorts | 5,622 |
-| Total conflicts | 5,622 |
+| Total cohorts | 5,628 |
+| Total conflicts | 5,628 |
 | Safe merge candidates | 350 |
-| Blocked merges | 2,431 |
-| Deferred conflicts | 2,841 |
+| Blocked merges | 2,432 |
+| Deferred conflicts | 2,846 |
 | Duplicate external records | 12,065 |
 | Source artifact candidates | 393 |
-| Collaboration string candidates | 5,929 |
+| Collaboration string candidates | 0 |
 | Malformed records | 0 |
-| Benchmark duration | 1.22s |
+| Benchmark duration | 1.73s |
+
+## Artist Credit Benchmark Integration
+
+MusicBrainz 50k artist-credit analysis after calibration:
+
+| Metric | Value |
+|---|---:|
+| Total records | 49,773 |
+| Parsed records | 49,407 |
+| Solo artist count | 46,971 |
+| Collaboration count | 2,009 |
+| Featured artist count | 427 |
+| Unresolved count | 366 |
+| High confidence count | 47,151 |
+| Medium confidence count | 2,266 |
+| Low confidence count | 356 |
+
+When this report is present, `benchmark-validation` records
+`artist_credit_analysis_used=true`, removes the raw `collaboration_string`
+aggregate from benchmark failure counts, and emits artist-credit cohorts for
+high-confidence parsed credits, medium-confidence parsed collaborations,
+featured artists, ambiguous group names, and unresolved artist credits.
+
+This is reporting integration only. It does not mutate MusicBrainz-derived
+external metadata, local music files, media tags, canonical graph state, or
+artist merge behavior.
 
 ## Top Failure Cohorts
 
 | Cohort | Count | % of dataset | Severity | Recommended action |
 |---|---:|---:|---|---|
-| collaboration_string | 5,929 | 11.91% | medium | Route through role-aware artist parsing proposals |
+| artist_credit_parsed_high_confidence | 4,690 | 9.42% | low | Treat as parser-explained artist credit evidence; do not merge automatically. |
+| artist_credit_parsed_medium_confidence | 2,256 | 4.53% | medium | Review parsed collaboration evidence before graph integration. |
+| artist_credit_collaboration | 2,009 | 4.04% | medium | Review as collaboration role evidence before graph integration. |
+| artist_credit_featured | 427 | 0.86% | medium | Review as featured-artist role evidence before graph integration. |
+| artist_credit_ambiguous_group | 412 | 0.83% | medium | Review as possible group-name ambiguity before splitting artists. |
 | source_artifact_candidate | 393 | 0.79% | high | Block from canonical promotion proposals until reviewed |
+| artist_credit_unresolved | 356 | 0.72% | high | Keep blocked from canonical artist promotion until parser or human review resolves it. |
 | remaster_version_noise | 350 | 0.70% | medium | Separate version descriptors from canonical titles |
 | possible_album_as_artist | 319 | 0.64% | high | Investigate album-title-as-artist misclassification |
 | album_title_punctuation_variant | 233 | 0.47% | medium | Review punctuation-insensitive album/title normalization |
-| possible_track_as_artist | 191 | 0.38% | high | Investigate track-title-as-artist misclassification |
-| explicit_clean_radio_edit_noise | 72 | 0.14% | medium | Treat as version metadata, not canonical title text |
 
 ## Interpretation
 
 The pipeline successfully converted, ingested, and benchmarked a real 50k-record MusicBrainz metadata sample.
 
-The dominant issue is not generic metadata dirtiness. The dominant issue is artist-credit and collaboration parsing.
+The dominant issue is no longer one raw collaboration-string bucket. Artist
+Credit Parsing v1 explains most collaboration-like strings and leaves a smaller
+unresolved artist-credit cohort visible for review.
 
 Primary next engineering target:
 

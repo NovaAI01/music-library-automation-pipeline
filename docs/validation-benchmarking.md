@@ -25,6 +25,19 @@ reports/validation_benchmark/
 The goal is operational measurement: record volume, cohort distribution,
 severity mix, benchmark timing, and benchmark-level governance posture.
 
+If matching artist-credit parser reports already exist under
+`reports/artist_credit_analysis/`, the benchmark also reads:
+
+```text
+reports/artist_credit_analysis/artist_credit_summary.json
+reports/artist_credit_analysis/parsed_artist_credits.csv
+```
+
+The artist-credit summary must match the benchmark source name. When it does,
+the benchmark replaces the raw `collaboration_string` aggregate with
+artist-credit cohorts that separate explained parser output from unresolved
+artist credits.
+
 ## Why Scale Validation Matters
 
 Small fixtures prove that individual rules behave correctly. Larger evidence
@@ -41,6 +54,32 @@ This helps answer practical stabilization questions:
   benchmark layer?
 - How long does loading, cohort analysis, governance analysis, and report
   generation take?
+- How many collaboration-like artist credits are parser-explained, and how
+  many remain unresolved?
+
+## Artist Credit Integration
+
+Artist Credit Parsing v1 feeds validation benchmarking only as reporting
+evidence. It does not mutate canonical graph behavior, auto-merge artists,
+write tags, or change source metadata.
+
+When the parser report is present, benchmark cohorts include:
+
+- `artist_credit_parsed_high_confidence`
+- `artist_credit_parsed_medium_confidence`
+- `artist_credit_unresolved`
+- `artist_credit_featured`
+- `artist_credit_collaboration`
+- `artist_credit_ambiguous_group`
+
+High-confidence parsed artist credits are low severity because the parser can
+explain the collaboration-like syntax. Medium-confidence collaborations,
+featured-artist roles, and ambiguous group-name boundaries remain medium
+severity review evidence. Low-confidence unresolved artist credits remain high
+severity because they are not safe canonical artist evidence.
+
+If no matching artist-credit analysis report exists, benchmark output preserves
+the legacy raw `collaboration_string` cohort.
 
 ## No Mutation Boundary
 

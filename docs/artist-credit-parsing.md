@@ -21,6 +21,12 @@ reports/artist_credit_analysis/unresolved_artist_credits.csv
 reports/artist_credit_analysis/top_collaborators.csv
 ```
 
+The validation benchmark can consume `artist_credit_summary.json` and
+`parsed_artist_credits.csv` when they exist for the same source. In that mode,
+`benchmark-validation` treats raw collaboration strings as parser-explained
+artist-credit evidence where possible, while keeping unresolved and ambiguous
+credits visible as separate benchmark cohorts.
+
 Run:
 
 ```bash
@@ -110,6 +116,12 @@ source artifacts, or contains title-like pollution.
 
 ## Future Integration
 
-v1 prepares role-aware evidence for future canonical graph integration. It does
-not change canonical entities, aliases, graph relationships, local library data,
-or media tags.
+v1 prepares role-aware evidence for future canonical graph integration and for
+validation benchmark reporting. It does not change canonical entities, aliases,
+graph relationships, local library data, source metadata, or media tags.
+
+Benchmark integration is reporting-only. It separates collaboration-like
+records into high-confidence parsed credits, medium-confidence parsed
+collaborations, featured-artist roles, possible group-name ambiguity, and
+unresolved artist credits. It does not auto-promote parser output into the
+canonical graph.

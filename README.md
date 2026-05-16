@@ -560,6 +560,14 @@ featured artists, collaborators, unresolved credits, pattern counts, and top
 collaborators. The output prepares future canonical graph integration but does
 not auto-merge artists or create canonical aliases in v1.
 
+When those reports exist for the same source, `benchmark-validation` consumes
+the artist-credit summary and parsed rows as reporting evidence. Raw
+`collaboration_string` benchmark failures are separated into parser-explained
+high-confidence credits, medium-confidence collaborations, featured artists,
+ambiguous group names, and unresolved artist credits. This does not mutate
+source metadata, local files, tags, canonical graph behavior, or artist merge
+behavior.
+
 Album metadata discovery is also review-only. The `discover-albums` command
 looks at existing tags, filenames, and local path evidence for tracks with
 missing or `Unknown Album` album values, then writes suggestions under

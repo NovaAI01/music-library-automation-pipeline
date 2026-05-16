@@ -290,6 +290,7 @@ python -m app.main evidence-reliability --out reports
 python -m app.main canonical-graph --out reports
 python -m app.main plan-metadata-acquisition --source musicbrainz --out reports
 python -m app.main convert-musicbrainz-dump --dump-dir ... --out ... --limit 10000
+python -m app.main fetch-jamendo-metadata --limit 1000 --out reports
 python -m app.main fetch-internet-archive-metadata --query "collection:audio" --limit 10000 --out reports
 python -m app.main benchmark-validation --source local_fixture --out reports
 python -m app.main discover-albums ...
@@ -308,6 +309,9 @@ directories, but it does not live-fetch data or download audio. See
 Internet Archive acquisition is available as a metadata-only validation input:
 it fetches search metadata records only, never media files. See
 [docs/internet-archive-metadata.md](docs/internet-archive-metadata.md).
+Jamendo acquisition is also metadata-only: it fetches catalog JSON records for
+external validation and never downloads or streams audio. See
+[docs/jamendo-metadata.md](docs/jamendo-metadata.md).
 
 Example report commands:
 

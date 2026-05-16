@@ -26,6 +26,11 @@ from app.evidence_reliability import generate_evidence_reliability_report
 from app.external_metadata import import_external_metadata
 from app.identity_engine import identify_scan_run
 from app.internet_archive_metadata import fetch_internet_archive_metadata
+from app.jamendo_metadata import (
+    MISSING_CLIENT_ID_MESSAGE,
+    JamendoCredentialError,
+    fetch_jamendo_metadata,
+)
 from app.large_scale_validation import validate_external_metadata
 from app.intake import run_intake
 from app.library_qa import generate_library_qa_report
@@ -394,6 +399,18 @@ def build_parser() -> argparse.ArgumentParser:
     internet_archive_parser.add_argument("--source", default="internet_archive")
     internet_archive_parser.add_argument("--timeout", type=float, default=30.0)
     internet_archive_parser.add_argument("--dry-run", action="store_true")
+
+    jamendo_parser = subparsers.add_parser(
+        "fetch-jamendo-metadata",
+        help="Fetch Jamendo track metadata records without downloading audio.",
+    )
+    jamendo_parser.add_argument("--limit", type=int, required=True)
+    jamendo_parser.add_argument("--out", default="reports")
+    jamendo_parser.add_argument("--page-size", type=int, default=100)
+    jamendo_parser.add_argument("--source", default="jamendo")
+    jamendo_parser.add_argument("--client-id")
+    jamendo_parser.add_argument("--timeout", type=float, default=30.0)
+    jamendo_parser.add_argument("--dry-run", action="store_true")
 
     subparsers.add_parser(
         "capture-ui-screenshots",
@@ -1030,6 +1047,33 @@ def main(argv: list[str] | None = None) -> int:
         print(f"output_jsonl={result.output_jsonl}")
         print(f"metadata_only={str(result.metadata_only).lower()}")
         print(f"audio_download_allowed={str(result.audio_download_allowed).lower()}")
+        return 0
+
+    if args.command == "fetch-jamendo-metadata":
+        try:
+            result = fetch_jamendo_metadata(
+                limit=args.limit,
+                out_dir=args.out,
+                page_size=args.page_size,
+                source=args.source,
+                client_id=args.client_id,
+                timeout=args.timeout,
+                dry_run=args.dry_run,
+            )
+        except JamendoCredentialError:
+            print(MISSING_CLIENT_ID_MESSAGE)
+            return 1
+        print(f"report_path={result.report_path}")
+        print(f"source_name={result.source_name}")
+        print(f"requested_limit={result.requested_limit}")
+        print(f"fetched_records={result.fetched_records}")
+        print(f"accepted_records={result.accepted_records}")
+        print(f"rejected_records={result.rejected_records}")
+        print(f"output_csv={result.output_csv}")
+        print(f"output_jsonl={result.output_jsonl}")
+        print(f"metadata_only={str(result.metadata_only).lower()}")
+        print(f"audio_download_allowed={str(result.audio_download_allowed).lower()}")
+        print(f"client_id_source={result.client_id_source}")
         return 0
 
     if args.command == "capture-ui-screenshots":

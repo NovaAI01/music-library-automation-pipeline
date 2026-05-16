@@ -68,6 +68,10 @@ appropriate, and preserve recovery information.
 ## Validation Evidence
 
 - [MusicBrainz 50k consolidated result](docs/validation-results/musicbrainz-50k-consolidated-result.md)
+- Reproducible public fixture: reviewers can run a metadata-only fixture
+  workflow from [docs/public-fixture-validation.md](docs/public-fixture-validation.md).
+  It uses fictional CSV metadata only: no audio, no private data, no external API
+  credentials, and no media downloads.
 - Public validation evidence is committed as summarized documentation under
   [docs/validation-results/](docs/validation-results/).
 - Full generated run artifacts are local ignored report outputs. A representative

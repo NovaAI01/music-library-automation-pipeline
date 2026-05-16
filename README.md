@@ -59,7 +59,16 @@ appropriate, and preserve recovery information.
 - [MusicBrainz dump conversion](docs/musicbrainz-conversion.md)
 - [Large-scale evidence validation](docs/large-scale-evidence-validation.md)
 - [Validation benchmarking](docs/validation-benchmarking.md)
+- [Validation results](docs/validation-results/)
 - [Sample outputs](docs/sample-outputs/)
+
+## Validation Evidence
+
+- [MusicBrainz 50k consolidated result](docs/validation-results/musicbrainz-50k-consolidated-result.md)
+- 50,000 MusicBrainz metadata rows processed; 49,773 accepted after conversion.
+- 49,773 ingested records; 0 rejected records; 0 missing artist, album, or title fields.
+- Release identity analysis explained 13,712 duplicate-looking external records; integrated benchmark `duplicate_external_records=0`.
+- Integrated benchmark reports 1,212 cohorts and 1,212 conflicts after artist-credit and release-identity analysis.
 
 ## 2. Problem Statement
 

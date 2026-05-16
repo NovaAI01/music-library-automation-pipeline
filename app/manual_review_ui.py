@@ -11,6 +11,8 @@ from typing import Any
 from fastapi import APIRouter, Request
 from fastapi.templating import Jinja2Templates
 
+from app.conflict_governance import read_conflict_governance_report
+
 
 DEFAULT_REPORTS_DIR = Path(os.environ.get("MUSIC_LIBRARY_REPORTS_DIR", "reports"))
 TEMPLATE_DIR = Path(__file__).parent / "templates"
@@ -56,7 +58,22 @@ def quarantine(request: Request):
 
 @router.get("/conflicts")
 def conflicts(request: Request):
-    rows, missing_files = _scan_csv(_reports_dir(request), "conflicts.csv")
+    summary, rows, blocked, safe, needs_review, missing_files = read_conflict_governance_report(_reports_dir(request))
+    if rows or summary:
+        return _render(
+            request,
+            "manual_review/conflicts.html",
+            {
+                "title": "Conflict Governance",
+                "summary": summary,
+                "conflicts": rows,
+                "blocked": blocked,
+                "safe": safe,
+                "needs_review": needs_review,
+                "missing_files": missing_files,
+            },
+        )
+    rows, scan_missing_files = _scan_csv(_reports_dir(request), "conflicts.csv")
     return _render(
         request,
         "manual_review/table.html",
@@ -65,7 +82,7 @@ def conflicts(request: Request):
             "headers": _headers(rows),
             "rows": rows,
             "empty_message": "No conflict rows available.",
-            "missing_files": missing_files,
+            "missing_files": [*missing_files, *scan_missing_files],
         },
     )
 
@@ -84,6 +101,11 @@ def blocked(request: Request):
             "missing_files": missing_files,
         },
     )
+
+
+@router.get("/duplicates/latest")
+def duplicate_review_latest(request: Request):
+    return summary(request)
 
 
 def _render(request: Request, template_name: str, context: dict[str, Any]):
@@ -215,9 +237,19 @@ def _summary_int(summary: dict[str, Any], key: str, fallback: int) -> int:
 
 def _nav_items() -> list[tuple[str, str]]:
     return [
-        ("/review", "Summary"),
-        ("/review/quarantine", "Quarantine"),
+        ("/", "Dashboard"),
+        ("/import", "Import"),
+        ("/library", "Library"),
+        ("/library/artists", "Artists"),
+        ("/library/albums", "Albums"),
+        ("/library/genres", "Genres"),
+        ("/library/tracks", "Tracks"),
+        ("/review", "Review"),
         ("/review/conflicts", "Conflicts"),
-        ("/review/blocked", "Blocked"),
-        ("/reports", "Reports"),
+        ("/review/duplicates", "Duplicates"),
+        ("/review/metadata", "Metadata"),
+        ("/review/canonical-graph", "Canonical Graph"),
+        ("/review/knowledge", "Knowledge"),
+        ("/player", "Player"),
+        ("/settings", "Settings"),
     ]

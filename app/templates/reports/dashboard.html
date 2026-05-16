@@ -1,5 +1,9 @@
 {% extends "reports/base.html" %}
 {% block content %}
+<section class="panel">
+  <h2>Today</h2>
+  <p class="meta">Start with import, move through review, then browse and play the organized library.</p>
+</section>
 <section class="cards">
   {% for label, value in cards %}
     <article class="card">
@@ -8,4 +12,63 @@
     </article>
   {% endfor %}
 </section>
+
+{% if quick_actions %}
+  <section class="section">
+    <h2>Quick Actions</h2>
+    <div class="actions">
+      {% for label, href in quick_actions %}
+        <a class="action" href="{{ href }}">{{ label }}</a>
+      {% endfor %}
+    </div>
+  </section>
+{% endif %}
+
+{% if top_albums %}
+  <section class="section">
+    <h2>Top Albums</h2>
+    <table>
+      <thead>
+        <tr><th>Album</th><th>Artist</th><th class="num">Tracks</th><th>Open</th></tr>
+      </thead>
+      <tbody>
+        {% for album in top_albums %}
+          <tr>
+            <td>{{ album.title }}</td>
+            <td>{{ album.artist }}</td>
+            <td class="num">{{ album.track_count }}</td>
+            <td><a href="/library/albums/{{ album.key }}">Open</a></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if incomplete_album_count %}
+      <p class="meta">{{ incomplete_album_count }} tracks do not have an album folder in the current library report.</p>
+    {% endif %}
+  </section>
+{% endif %}
+
+{% if latest_reports %}
+  <section class="section">
+    <h2>Latest Library Evidence</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Report</th>
+          <th>Timestamp</th>
+          <th>Open</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for name, report_timestamp, href in latest_reports %}
+          <tr>
+            <td>{{ name }}</td>
+            <td>{{ report_timestamp or "No report timestamp" }}</td>
+            <td><a href="{{ href }}">Open</a></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endif %}
 {% endblock %}

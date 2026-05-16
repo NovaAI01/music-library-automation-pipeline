@@ -1,4 +1,14 @@
 __pycache__/
 *.pyc
-music_library.sqlite3
+*.sqlite3
+data/
 reports/
+
+# local recovery/export bundles
+backup/
+
+# generated demo exports
+demo/
+
+# local review decision seed files
+review_decisions_seed.csv

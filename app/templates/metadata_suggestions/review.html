@@ -1,0 +1,141 @@
+{% extends "reports/base.html" %}
+{% block content %}
+<section class="notice">
+  <div>Suggestions are review-only.</div>
+  <div>No metadata is modified by this workflow.</div>
+  <div>Human approval required before future execution.</div>
+  <div>After decisions are recorded, run <code>python -m app.main build-normalization-knowledge --out reports</code>.</div>
+  <div><a href="/review/knowledge">Review learned normalization knowledge</a></div>
+</section>
+
+<section class="cards">
+  {% for label, value in cards %}
+    <article class="card">
+      <div class="label">{{ label }}</div>
+      <div class="value">{{ value }}</div>
+    </article>
+  {% endfor %}
+</section>
+
+<section class="split">
+  <div>
+    <h2>Confidence Breakdown</h2>
+    <table>
+      <thead>
+        <tr><th>Confidence</th><th class="num">Count</th></tr>
+      </thead>
+      <tbody>
+        {% for confidence in ["high", "medium", "low"] %}
+          <tr>
+            <td><span class="badge confidence-{{ confidence }}">{{ confidence }}</span></td>
+            <td class="num">{{ confidence_counts.get(confidence, 0) }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div>
+    <h2>Suggestion Types</h2>
+    <table>
+      <thead>
+        <tr><th>Suggestion Type</th><th class="num">Count</th></tr>
+      </thead>
+      <tbody>
+        {% for suggestion_type, count in type_counts.items() %}
+          <tr>
+            <td>{{ suggestion_type }}</td>
+            <td class="num">{{ count }}</td>
+          </tr>
+        {% else %}
+          <tr><td class="empty" colspan="2">No suggestion type counts available.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div>
+    <h2>Review Decisions</h2>
+    <table>
+      <thead>
+        <tr><th>Decision</th><th class="num">Count</th></tr>
+      </thead>
+      <tbody>
+        {% for decision in ["approved", "rejected", "deferred"] %}
+          <tr>
+            <td><span class="badge decision-{{ decision }}">{{ decision }}</span></td>
+            <td class="num">{{ decision_counts.get(decision ~ "_count", 0) }}</td>
+          </tr>
+        {% endfor %}
+        <tr>
+          <td><span class="muted">undecided</span></td>
+          <td class="num">{{ decision_counts.get("undecided_count", 0) }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="review-table">
+  <h2>Review Queue</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>File Path</th>
+        <th>Field</th>
+        <th>Current Value</th>
+        <th>Proposed Value</th>
+        <th>Confidence</th>
+        <th>Suggestion Type</th>
+        <th>Rationale</th>
+        <th>Source Evidence</th>
+        <th>Requires Human Review</th>
+        <th>Decision</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for suggestion in suggestions %}
+        <tr>
+          <td class="path">{{ suggestion.file_path }}</td>
+          <td>{{ suggestion.field }}</td>
+          <td>{{ suggestion.current_value }}</td>
+          <td>{{ suggestion.proposed_value }}</td>
+          <td><span class="badge confidence-{{ suggestion.confidence }}">{{ suggestion.confidence }}</span></td>
+          <td>{{ suggestion.suggestion_type }}</td>
+          <td>{{ suggestion.rationale }}</td>
+          <td>
+            {% for evidence in suggestion.source_evidence %}
+              <div>{{ evidence }}</div>
+            {% else %}
+              <span class="muted">No source evidence listed.</span>
+            {% endfor %}
+          </td>
+          <td>{{ suggestion.requires_human_review }}</td>
+          <td>
+            {% if suggestion.decision %}
+              <span class="badge decision-{{ suggestion.decision }}">{{ suggestion.decision }}</span>
+              {% if suggestion.decision_reason %}
+                <div>{{ suggestion.decision_reason }}</div>
+              {% endif %}
+              {% if suggestion.decided_at %}
+                <div class="muted">{{ suggestion.decided_at }}</div>
+              {% endif %}
+            {% else %}
+              <span class="muted">No decision</span>
+            {% endif %}
+            <form class="decision-form" method="post" action="/review/metadata-suggestions/decision">
+              <input type="hidden" name="suggestion_key" value="{{ suggestion.suggestion_key }}">
+              <input class="reason-input" name="reason" value="{{ suggestion.decision_reason }}" placeholder="Reason">
+              <div class="actions">
+                <button type="submit" name="decision" value="approved">Approve</button>
+                <button type="submit" name="decision" value="rejected">Reject</button>
+                <button type="submit" name="decision" value="deferred">Defer</button>
+              </div>
+            </form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td class="empty" colspan="10">{{ empty_message }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

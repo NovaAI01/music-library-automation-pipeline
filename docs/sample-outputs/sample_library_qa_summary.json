@@ -1,0 +1,17 @@
+{
+  "active_duplicate_group_count": 0,
+  "artist_count": 49,
+  "created_at": "2026-05-11T05:24:59.447050+00:00",
+  "genre_count": 9,
+  "historical_duplicate_group_count": 46,
+  "library_root": "<library_root>",
+  "missing_file_count": 52,
+  "quarantine_root": "<quarantine_root>",
+  "quarantined_duplicate_file_count": 52,
+  "subgenre_count": 22,
+  "total_library_files": 627,
+  "total_library_size_bytes": 30336096146,
+  "total_quarantine_files": 52,
+  "total_quarantine_size_bytes": 2443028189,
+  "unresolved_missing_file_count": 0
+}

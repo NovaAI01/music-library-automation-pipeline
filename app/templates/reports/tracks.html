@@ -1,0 +1,39 @@
+{% extends "reports/base.html" %}
+{% block content %}
+<form method="get" action="/library/tracks">
+  <input name="q" value="{{ query }}" placeholder="Search tracks, artists, genres, or paths">
+  <button type="submit">Search</button>
+</form>
+<table>
+  <thead>
+    <tr>
+      <th>Track</th>
+      <th>Artist</th>
+      <th>Album</th>
+      <th>Genre</th>
+      <th>Subgenre</th>
+      <th>Extension</th>
+      <th>Play</th>
+      <th class="num">Size Bytes</th>
+      <th>Path</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+      <tr>
+        <td>{{ row.title }}</td>
+        <td><a href="/library/artists?q={{ row.artist }}">{{ row.artist }}</a></td>
+        <td>{% if row.album %}<a href="/library/albums?q={{ row.album }}">{{ row.album }}</a>{% else %}<span class="muted">Unknown</span>{% endif %}</td>
+        <td><a href="/library/genres?q={{ row.genre }}">{{ row.genre }}</a></td>
+        <td>{{ row.subgenre }}</td>
+        <td>{{ row.extension }}</td>
+        <td>{% if row.playable %}<a class="play-link" href="{{ row.url }}">Play</a>{% else %}<span class="muted">Unavailable</span>{% endif %}</td>
+        <td class="num">{{ row.size_bytes }}</td>
+        <td class="path">{{ row.relative_path or row.path }}</td>
+      </tr>
+    {% else %}
+      <tr><td class="empty" colspan="9">No track rows available.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

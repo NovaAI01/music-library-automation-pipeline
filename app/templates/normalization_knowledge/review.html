@@ -1,0 +1,87 @@
+{% extends "reports/base.html" %}
+{% block content %}
+<section class="notice">
+  <div>Normalization knowledge is review evidence only.</div>
+  <div>No metadata is modified and no future suggestion is auto-approved.</div>
+</section>
+
+<section class="cards">
+  {% for label, value in cards %}
+    <article class="card">
+      <div class="label">{{ label }}</div>
+      <div class="value">{{ value }}</div>
+    </article>
+  {% endfor %}
+</section>
+
+<section class="split">
+  <div>
+    <h2>Rule Types</h2>
+    <table>
+      <thead>
+        <tr><th>Rule Type</th><th class="num">Count</th></tr>
+      </thead>
+      <tbody>
+        {% for rule_type, count in rule_type_counts.items() %}
+          <tr>
+            <td>{{ rule_type }}</td>
+            <td class="num">{{ count }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div>
+    <h2>Confidence</h2>
+    <table>
+      <thead>
+        <tr><th>Confidence</th><th class="num">Count</th></tr>
+      </thead>
+      <tbody>
+        {% for confidence, count in confidence_counts.items() %}
+          <tr>
+            <td><span class="badge confidence-{{ confidence }}">{{ confidence }}</span></td>
+            <td class="num">{{ count }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="review-table">
+  <h2>Learned Rules</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Rule Key</th>
+        <th>Rule Type</th>
+        <th>Source Value</th>
+        <th>Target Value</th>
+        <th>Confidence</th>
+        <th>Evidence</th>
+        <th>Approved</th>
+        <th>Rejected</th>
+        <th>Reason</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for rule in rules %}
+        <tr>
+          <td class="path">{{ rule.rule_key }}</td>
+          <td>{{ rule.rule_type }}</td>
+          <td>{{ rule.source_value }}</td>
+          <td>{{ rule.target_value }}</td>
+          <td><span class="badge confidence-{{ rule.confidence }}">{{ rule.confidence }}</span></td>
+          <td class="num">{{ rule.evidence_count }}</td>
+          <td class="num">{{ rule.approved_count }}</td>
+          <td class="num">{{ rule.rejected_count }}</td>
+          <td>{{ rule.confidence_reason }}</td>
+        </tr>
+      {% else %}
+        <tr><td class="empty" colspan="9">{{ empty_message }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

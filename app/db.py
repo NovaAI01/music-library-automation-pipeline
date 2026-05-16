@@ -205,6 +205,7 @@ CREATE TABLE IF NOT EXISTS placement_plans (
     source_path TEXT NOT NULL,
     planned_relative_path TEXT,
     planned_artist TEXT,
+    planned_album TEXT,
     planned_title TEXT,
     planned_primary_genre TEXT,
     planned_subgenre TEXT,
@@ -398,6 +399,109 @@ CREATE TABLE IF NOT EXISTS quarantine_restore_items (
     FOREIGN KEY (restore_run_id) REFERENCES quarantine_restore_runs(id),
     FOREIGN KEY (quarantine_item_id) REFERENCES duplicate_quarantine_items(id)
 );
+
+CREATE TABLE IF NOT EXISTS review_decisions (
+    decision_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    suggestion_key TEXT NOT NULL UNIQUE,
+    file_path TEXT NOT NULL DEFAULT '',
+    field TEXT NOT NULL DEFAULT '',
+    current_value TEXT NOT NULL DEFAULT '',
+    proposed_value TEXT NOT NULL DEFAULT '',
+    suggestion_type TEXT NOT NULL DEFAULT '',
+    confidence TEXT NOT NULL DEFAULT '',
+    decision TEXT NOT NULL CHECK (
+        decision IN (
+            'approved',
+            'rejected',
+            'deferred'
+        )
+    ),
+    decision_reason TEXT NOT NULL DEFAULT '',
+    source_evidence_json TEXT NOT NULL DEFAULT '[]',
+    decided_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS canonical_artists (
+    canonical_id TEXT PRIMARY KEY,
+    canonical_name TEXT NOT NULL,
+    confidence_score REAL NOT NULL,
+    confidence_tier TEXT NOT NULL,
+    evidence_count INTEGER NOT NULL,
+    conflict_count INTEGER NOT NULL,
+    first_seen TEXT NOT NULL,
+    last_seen TEXT NOT NULL,
+    status TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS canonical_albums (
+    canonical_id TEXT PRIMARY KEY,
+    canonical_name TEXT NOT NULL,
+    confidence_score REAL NOT NULL,
+    confidence_tier TEXT NOT NULL,
+    evidence_count INTEGER NOT NULL,
+    conflict_count INTEGER NOT NULL,
+    first_seen TEXT NOT NULL,
+    last_seen TEXT NOT NULL,
+    status TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS canonical_tracks (
+    canonical_id TEXT PRIMARY KEY,
+    canonical_name TEXT NOT NULL,
+    confidence_score REAL NOT NULL,
+    confidence_tier TEXT NOT NULL,
+    evidence_count INTEGER NOT NULL,
+    conflict_count INTEGER NOT NULL,
+    first_seen TEXT NOT NULL,
+    last_seen TEXT NOT NULL,
+    status TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS canonical_versions (
+    canonical_id TEXT PRIMARY KEY,
+    canonical_name TEXT NOT NULL,
+    confidence_score REAL NOT NULL,
+    confidence_tier TEXT NOT NULL,
+    evidence_count INTEGER NOT NULL,
+    conflict_count INTEGER NOT NULL,
+    first_seen TEXT NOT NULL,
+    last_seen TEXT NOT NULL,
+    status TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS entity_relationships (
+    relationship_id TEXT PRIMARY KEY,
+    source_entity TEXT NOT NULL,
+    target_entity TEXT NOT NULL,
+    relationship_type TEXT NOT NULL CHECK (
+        relationship_type IN (
+            'alias_of',
+            'belongs_to_album',
+            'probable_duplicate',
+            'probable_live_version',
+            'probable_remaster',
+            'probable_single',
+            'probable_compilation_member',
+            'probable_same_track'
+        )
+    ),
+    confidence_score REAL NOT NULL,
+    supporting_evidence_count INTEGER NOT NULL,
+    conflicting_evidence_count INTEGER NOT NULL,
+    rationale TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS canonical_unresolved_conflicts (
+    conflict_id TEXT PRIMARY KEY,
+    entity_type TEXT NOT NULL,
+    entity_key TEXT NOT NULL,
+    variants TEXT NOT NULL,
+    evidence_count INTEGER NOT NULL,
+    conflict_count INTEGER NOT NULL,
+    rationale TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
 """
 
 
@@ -415,6 +519,23 @@ def init_db(db_path: str | Path = DEFAULT_DB_PATH) -> None:
 
     with connect(db_path) as connection:
         connection.executescript(SCHEMA)
+        _ensure_column(connection, "placement_plans", "planned_album", "TEXT")
+
+
+def _ensure_column(
+    connection: sqlite3.Connection,
+    table_name: str,
+    column_name: str,
+    column_type: str,
+) -> None:
+    columns = {
+        row["name"]
+        for row in connection.execute(f"PRAGMA table_info({table_name})").fetchall()
+    }
+    if column_name not in columns:
+        connection.execute(
+            f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}"
+        )
 
 
 def get_scan_summary(

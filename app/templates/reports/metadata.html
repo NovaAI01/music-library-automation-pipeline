@@ -1,0 +1,76 @@
+{% extends "reports/base.html" %}
+{% block content %}
+<section class="notice">
+  <div>Metadata suggestions are review-only. This page does not write tags.</div>
+  <div>After decisions are recorded, run <code>python -m app.main build-normalization-knowledge --out reports</code>.</div>
+  <div><a href="/review/knowledge">Review learned normalization knowledge</a></div>
+</section>
+<section class="cards">
+  {% for label, value in cards %}
+    <article class="card">
+      <div class="label">{{ label }}</div>
+      <div class="value">{{ value }}</div>
+    </article>
+  {% endfor %}
+</section>
+
+<form method="get" action="/review/metadata">
+  <input name="q" value="{{ query }}" placeholder="Search metadata suggestions">
+  <button type="submit">Search</button>
+</form>
+<table>
+  <thead>
+    <tr>
+      <th>File</th>
+      <th>Field</th>
+      <th>Current</th>
+      <th>Proposed</th>
+      <th>Confidence</th>
+      <th>Reliability</th>
+      <th>Type</th>
+      <th>Rationale</th>
+      <th>Decision</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for suggestion in suggestions %}
+      <tr>
+        <td class="path">{{ suggestion.file_path }}</td>
+        <td>{{ suggestion.field }}</td>
+        <td>{{ suggestion.current_value }}</td>
+        <td>{{ suggestion.proposed_value }}</td>
+        <td><span class="badge confidence-{{ suggestion.confidence }}">{{ suggestion.confidence }}</span></td>
+        <td>
+          {{ "%.3f"|format(suggestion.reliability_score) }}
+          {% for flag in suggestion.reliability_flags[:3] %}
+            <div class="muted">{{ flag }}</div>
+          {% endfor %}
+        </td>
+        <td>{{ suggestion.suggestion_type }}</td>
+        <td>{{ suggestion.rationale }}</td>
+        <td>
+          {% if suggestion.decision %}
+            <span class="badge decision-{{ suggestion.decision }}">{{ suggestion.decision }}</span>
+            {% if suggestion.decision_reason %}
+              <div>{{ suggestion.decision_reason }}</div>
+            {% endif %}
+          {% else %}
+            <span class="muted">No decision</span>
+          {% endif %}
+          <form class="decision-form" method="post" action="/review/metadata-suggestions/decision">
+            <input type="hidden" name="suggestion_key" value="{{ suggestion.suggestion_key }}">
+            <input class="reason-input" name="reason" value="{{ suggestion.decision_reason }}" placeholder="Reason">
+            <div class="actions">
+              <button type="submit" name="decision" value="approved">Approve</button>
+              <button type="submit" name="decision" value="rejected">Reject</button>
+              <button type="submit" name="decision" value="deferred">Defer</button>
+            </div>
+          </form>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td class="empty" colspan="9">No metadata suggestions available.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

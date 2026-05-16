@@ -1,0 +1,50 @@
+{% extends "reports/base.html" %}
+{% block content %}
+{% if selected %}
+  <section class="panel">
+    <h2>{{ selected.title }}</h2>
+    <p class="meta">{{ selected.artist }}{% if selected.album %} / {{ selected.album }}{% endif %}{% if selected.genre %} / {{ selected.genre }}{% endif %}{% if selected.subgenre %} / {{ selected.subgenre }}{% endif %}</p>
+    <audio controls src="{{ selected.url }}"></audio>
+    <div class="path">{{ selected.relative_path }}</div>
+  </section>
+{% else %}
+  <section class="notice">No playable local track files are available from the current report data.</section>
+{% endif %}
+
+<form method="get" action="/player">
+  <input name="q" value="{{ query }}" placeholder="Search playable tracks">
+  <button type="submit">Search</button>
+</form>
+
+{% if albums %}
+  <section class="section">
+    <h2>Playable Albums</h2>
+    <div class="actions">
+      {% for album in albums %}
+        <a class="action" href="/library/albums/{{ album.key }}">{{ album.artist }} - {{ album.title }}</a>
+      {% endfor %}
+    </div>
+  </section>
+{% endif %}
+
+<table>
+  <thead>
+    <tr><th>Track</th><th>Artist</th><th>Album</th><th>Genre</th><th>Subgenre</th><th>Play</th><th>Relative Path</th></tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+      <tr>
+        <td>{{ row.title }}</td>
+        <td>{{ row.artist }}</td>
+        <td>{% if row.album %}<a href="/library/albums?q={{ row.album }}">{{ row.album }}</a>{% else %}<span class="muted">Unknown</span>{% endif %}</td>
+        <td>{{ row.genre }}</td>
+        <td>{{ row.subgenre }}</td>
+        <td>{% if row.url %}<a class="play-link" href="{{ row.url }}">Play file</a>{% endif %}</td>
+        <td class="path">{{ row.relative_path }}</td>
+      </tr>
+    {% else %}
+      <tr><td class="empty" colspan="7">No playable tracks available.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

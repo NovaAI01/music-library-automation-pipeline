@@ -7,18 +7,50 @@ from pathlib import Path
 
 from fastapi import FastAPI
 
+from app.album_cohesion import generate_album_cohesion_report
+from app.album_discovery import generate_album_discovery
+from app.album_organization import generate_album_organization_plan
 from app import db
+from app.alias_equivalence_audit import generate_alias_equivalence_audit_report
+from app.artist_credit_parser import analyze_artist_credits
 from app.classifier import classify_scan_run
+from app.canonical_entity_graph import generate_canonical_graph
+from app.canonical_entity_classifier import generate_canonical_entity_classification_report
+from app.canonical_confidence import generate_canonical_confidence_report
+from app.conflict_governance import generate_conflict_governance_report
 from app.duplicate_quarantine import quarantine_duplicates
 from app.duplicate_report import generate_duplicate_report
 from app.duplicate_review import generate_duplicate_review_plan
+from app.entity_boundary import generate_entity_boundary_report
+from app.entity_roles import generate_entity_role_report
+from app.evidence_reliability import generate_evidence_reliability_report
+from app.external_metadata import import_external_metadata
 from app.identity_engine import identify_scan_run
+from app.internet_archive_metadata import fetch_internet_archive_metadata
+from app.jamendo_metadata import (
+    MISSING_CLIENT_ID_MESSAGE,
+    JamendoCredentialError,
+    fetch_jamendo_metadata,
+)
+from app.large_scale_validation import validate_external_metadata
 from app.intake import run_intake
 from app.library_qa import generate_library_qa_report
+from app.library_app_ui import router as library_app_ui_router
 from app.manual_review_ui import router as manual_review_ui_router
+from app.metadata_audit import generate_metadata_audit_report
+from app.metadata_acquisition_planner import plan_metadata_acquisition
+from app.metadata_plan import generate_metadata_plan
+from app.metadata_suggestion_ui import router as metadata_suggestion_ui_router
+from app.metadata_suggestions import generate_metadata_suggestions
+from app.musicbrainz_converter import convert_musicbrainz_dump
+from app.normalization_knowledge import (
+    build_normalization_knowledge,
+    router as normalization_knowledge_router,
+)
 from app.pipeline import run_intake_pipeline
 from app.placement_executor import execute_placement
 from app.placement_planner import plan_scan_run_placements
+from app.promotion_lifecycle import generate_promotion_lifecycle_report
 from app.purchase_gateway import (
     add_purchase_option,
     attach_purchase_proof,
@@ -28,19 +60,32 @@ from app.purchase_gateway import (
 )
 from app.quarantine_restore import restore_quarantine
 from app.report_ui import router as report_ui_router
+from app.review_decisions import (
+    generate_review_decision_report,
+    import_review_decisions,
+    record_review_decision,
+)
 from app.review_report import generate_review_report
+from app.report_runs import resolve_report_out_dir, write_run_manifest
+from app.release_identity_analysis import analyze_release_identity
 from app.scanner import scan
+from app.validation_benchmark import benchmark_validation
+from tools.portfolio_demo.demo_generator import generate_demo
+from tools.portfolio_demo.ui_screenshot_capture import capture_ui_screenshots
 
 
-app = FastAPI(title="Music Library Reports")
+app = FastAPI(title="Music Library Intelligence Platform")
+app.include_router(library_app_ui_router)
 app.include_router(report_ui_router)
 app.include_router(manual_review_ui_router)
+app.include_router(metadata_suggestion_ui_router)
+app.include_router(normalization_knowledge_router)
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python -m app.main",
-        description="Music-library normalization observation ledger.",
+        description="Music Library Intelligence Platform observation ledger.",
     )
     parser.add_argument(
         "--db",
@@ -179,6 +224,228 @@ def build_parser() -> argparse.ArgumentParser:
     library_qa_parser.add_argument("--library-root", required=True)
     library_qa_parser.add_argument("--quarantine-root", required=True)
     library_qa_parser.add_argument("--out", default="reports")
+
+    metadata_audit_parser = subparsers.add_parser(
+        "metadata-audit",
+        help="Export read-only FLAC metadata audit reports.",
+    )
+    metadata_audit_parser.add_argument("--library-root", required=True)
+    metadata_audit_parser.add_argument("--out", required=True)
+
+    metadata_plan_parser = subparsers.add_parser(
+        "metadata-plan",
+        help="Create a read-only FLAC metadata tag correction plan.",
+    )
+    metadata_plan_parser.add_argument("--library-root", required=True)
+    metadata_plan_parser.add_argument("--out", required=True)
+
+    metadata_suggestions_parser = subparsers.add_parser(
+        "metadata-suggestions",
+        help="Create review-only metadata cleanup suggestions from plan and audit reports.",
+    )
+    metadata_suggestions_parser.add_argument("--metadata-plan", required=True)
+    metadata_suggestions_parser.add_argument("--metadata-audit", required=True)
+    metadata_suggestions_parser.add_argument("--out", default="reports")
+
+    review_decision_parser = subparsers.add_parser(
+        "review-decision",
+        help="Record a human decision for one metadata suggestion.",
+    )
+    review_decision_parser.add_argument("--suggestion-key", required=True)
+    review_decision_parser.add_argument(
+        "--decision", required=True, choices=("approved", "rejected", "deferred")
+    )
+    review_decision_parser.add_argument("--reason", required=True)
+
+    import_review_decisions_parser = subparsers.add_parser(
+        "import-review-decisions",
+        help="Import human review decisions from CSV into the audit ledger.",
+    )
+    import_review_decisions_parser.add_argument("--suggestions", required=True)
+    import_review_decisions_parser.add_argument("--decisions", required=True)
+
+    review_decision_report_parser = subparsers.add_parser(
+        "review-decision-report",
+        help="Export persisted review decision summary reports.",
+    )
+    review_decision_report_parser.add_argument("--out", default="reports")
+
+    build_normalization_knowledge_parser = subparsers.add_parser(
+        "build-normalization-knowledge",
+        help="Derive reusable normalization rules from human review decisions.",
+    )
+    build_normalization_knowledge_parser.add_argument("--out", default="reports")
+
+    album_organization_parser = subparsers.add_parser(
+        "plan-album-organization",
+        help="Create a read-only album-folder organization plan for a library.",
+    )
+    album_organization_parser.add_argument("--library-root", required=True)
+    album_organization_parser.add_argument("--out", default="reports")
+
+    album_cohesion_parser = subparsers.add_parser(
+        "album-cohesion",
+        help="Create read-only repeated-evidence album cohesion reports.",
+    )
+    album_cohesion_parser.add_argument("--out", default="reports")
+    album_cohesion_parser.add_argument(
+        "--library-root",
+        help="Optional library root to scan directly instead of reports/library_qa/file_health.csv.",
+    )
+
+    evidence_reliability_parser = subparsers.add_parser(
+        "evidence-reliability",
+        help="Score metadata evidence reliability from existing reports and review knowledge.",
+    )
+    evidence_reliability_parser.add_argument("--out", default="reports")
+
+    canonical_graph_parser = subparsers.add_parser(
+        "canonical-graph",
+        help="Build persistent canonical entities and evidence-governed relationships.",
+    )
+    canonical_graph_parser.add_argument("--out", default="reports")
+
+    conflict_governance_parser = subparsers.add_parser(
+        "conflict-governance",
+        help="Classify unresolved canonical conflicts into review-only governance buckets.",
+    )
+    conflict_governance_parser.add_argument("--out", default="reports")
+
+    alias_equivalence_audit_parser = subparsers.add_parser(
+        "alias-equivalence-audit",
+        help="Audit deterministic alias equivalence decisions against governance outcomes.",
+    )
+    alias_equivalence_audit_parser.add_argument("--out", default="reports")
+
+    entity_boundaries_parser = subparsers.add_parser(
+        "entity-boundaries",
+        help="Classify raw metadata candidate boundaries before canonical graph insertion.",
+    )
+    entity_boundaries_parser.add_argument("--out", default="reports")
+
+    entity_classification_parser = subparsers.add_parser(
+        "classify-canonical-entities",
+        help="Classify canonical entity candidates before graph promotion.",
+    )
+    entity_classification_parser.add_argument("--out", default="reports")
+
+    entity_roles_parser = subparsers.add_parser(
+        "entity-roles",
+        help="Aggregate role-aware canonical entity evidence without mutating media.",
+    )
+    entity_roles_parser.add_argument("--out", default="reports")
+
+    canonical_confidence_parser = subparsers.add_parser(
+        "canonical-confidence",
+        help="Score canonical entities with weighted positive and negative evidence.",
+    )
+    canonical_confidence_parser.add_argument("--out", default="reports")
+
+    promotion_lifecycle_parser = subparsers.add_parser(
+        "promotion-lifecycle",
+        help="Evaluate deterministic canonical entity promotion lifecycle states.",
+    )
+    promotion_lifecycle_parser.add_argument("--out", default="reports")
+
+    album_discovery_parser = subparsers.add_parser(
+        "discover-albums",
+        help="Create review-only album metadata suggestions for Unknown Album tracks.",
+    )
+    album_discovery_parser.add_argument("--library-root", required=True)
+    album_discovery_parser.add_argument("--out", default="reports")
+
+    external_metadata_parser = subparsers.add_parser(
+        "import-external-metadata",
+        help="Import external metadata from a local CSV or JSONL file.",
+    )
+    external_metadata_parser.add_argument("--source", required=True)
+    external_metadata_parser.add_argument("--input", required=True)
+    external_metadata_parser.add_argument("--out", default="reports")
+    external_metadata_parser.add_argument("--run-label")
+
+    validation_parser = subparsers.add_parser(
+        "validate-external-metadata",
+        help="Generate read-only cohort validation reports for ingested external metadata.",
+    )
+    validation_parser.add_argument("--source", required=True)
+    validation_parser.add_argument("--out", default="reports")
+
+    artist_credit_parser = subparsers.add_parser(
+        "analyze-artist-credits",
+        help="Parse read-only artist-credit collaboration strings from external metadata.",
+    )
+    artist_credit_parser.add_argument("--source", required=True)
+    artist_credit_parser.add_argument("--out", default="reports")
+    artist_credit_parser.add_argument("--limit", type=int)
+    artist_credit_parser.add_argument("--run-label")
+
+    benchmark_validation_parser = subparsers.add_parser(
+        "benchmark-validation",
+        help="Benchmark read-only external metadata validation distributions.",
+    )
+    benchmark_validation_parser.add_argument("--source", required=True)
+    benchmark_validation_parser.add_argument("--out", default="reports")
+    benchmark_validation_parser.add_argument("--run-label")
+
+    release_identity_parser = subparsers.add_parser(
+        "analyze-release-identity",
+        help="Analyze release-aware identity groups in external metadata.",
+    )
+    release_identity_parser.add_argument("--source", required=True)
+    release_identity_parser.add_argument("--out", default="reports")
+    release_identity_parser.add_argument("--limit", type=int)
+    release_identity_parser.add_argument("--run-label")
+
+    metadata_acquisition_parser = subparsers.add_parser(
+        "plan-metadata-acquisition",
+        help="Write metadata-only acquisition plans for supported external sources.",
+    )
+    metadata_acquisition_parser.add_argument("--source", required=True)
+    metadata_acquisition_parser.add_argument("--out", default="reports")
+
+    musicbrainz_converter_parser = subparsers.add_parser(
+        "convert-musicbrainz-dump",
+        help="Convert extracted local MusicBrainz dump tables to ExternalTrackRecord CSV.",
+    )
+    musicbrainz_converter_parser.add_argument("--dump-dir", required=True)
+    musicbrainz_converter_parser.add_argument("--out", required=True)
+    musicbrainz_converter_parser.add_argument("--limit", type=int)
+    musicbrainz_converter_parser.add_argument("--source", default="musicbrainz")
+    musicbrainz_converter_parser.add_argument("--run-label")
+
+    internet_archive_parser = subparsers.add_parser(
+        "fetch-internet-archive-metadata",
+        help="Fetch Internet Archive search metadata records without downloading media.",
+    )
+    internet_archive_parser.add_argument("--query", required=True)
+    internet_archive_parser.add_argument("--limit", type=int, required=True)
+    internet_archive_parser.add_argument("--out", default="reports")
+    internet_archive_parser.add_argument("--page-size", type=int, default=100)
+    internet_archive_parser.add_argument("--source", default="internet_archive")
+    internet_archive_parser.add_argument("--timeout", type=float, default=30.0)
+    internet_archive_parser.add_argument("--dry-run", action="store_true")
+
+    jamendo_parser = subparsers.add_parser(
+        "fetch-jamendo-metadata",
+        help="Fetch Jamendo track metadata records without downloading audio.",
+    )
+    jamendo_parser.add_argument("--limit", type=int, required=True)
+    jamendo_parser.add_argument("--out", default="reports")
+    jamendo_parser.add_argument("--page-size", type=int, default=100)
+    jamendo_parser.add_argument("--source", default="jamendo")
+    jamendo_parser.add_argument("--client-id")
+    jamendo_parser.add_argument("--timeout", type=float, default=30.0)
+    jamendo_parser.add_argument("--dry-run", action="store_true")
+
+    subparsers.add_parser(
+        "capture-ui-screenshots",
+        help="Capture deterministic screenshots from the local report UI.",
+    )
+
+    subparsers.add_parser(
+        "generate-demo",
+        help="Generate deterministic local demo frames and an optional MP4.",
+    )
 
     return parser
 
@@ -428,6 +695,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"genre_count={result.genre_count}")
         print(f"subgenre_count={result.subgenre_count}")
         print(f"artist_count={result.artist_count}")
+        print(f"album_count={result.album_count}")
         print(f"active_duplicate_group_count={result.active_duplicate_group_count}")
         print(
             "historical_duplicate_group_count="
@@ -439,6 +707,529 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(f"missing_file_count={result.missing_file_count}")
         print(f"unresolved_missing_file_count={result.unresolved_missing_file_count}")
+        return 0
+
+    if args.command == "metadata-audit":
+        result = generate_metadata_audit_report(
+            library_root=args.library_root,
+            out_dir=args.out,
+        )
+        print(f"report_path={result.report_path}")
+        print(f"total_flac_files={result.total_flac_files}")
+        print(f"readable_flac_files={result.readable_flac_files}")
+        print(f"unreadable_flac_files={result.unreadable_flac_files}")
+        print(f"missing_tag_count={result.missing_tag_count}")
+        print(f"malformed_tag_count={result.malformed_tag_count}")
+        print(
+            "inconsistent_artist_group_count="
+            f"{result.inconsistent_artist_group_count}"
+        )
+        print(
+            "inconsistent_title_group_count="
+            f"{result.inconsistent_title_group_count}"
+        )
+        return 0
+
+    if args.command == "metadata-plan":
+        result = generate_metadata_plan(
+            library_root=args.library_root,
+            out_dir=args.out,
+        )
+        print(f"report_path={result.report_path}")
+        print(f"total_flac_files={result.total_flac_files}")
+        print(f"readable_flac_files={result.readable_flac_files}")
+        print(f"unreadable_flac_files={result.unreadable_flac_files}")
+        print(f"proposed_update_count={result.proposed_update_count}")
+        return 0
+
+    if args.command == "metadata-suggestions":
+        result = generate_metadata_suggestions(
+            metadata_plan_path=args.metadata_plan,
+            metadata_audit_dir=args.metadata_audit,
+            out_dir=args.out,
+            db_path=db_path,
+        )
+        print(f"report_path={result.report_path}")
+        print(f"total_suggestions={result.total_suggestions}")
+        print(f"high_confidence_count={result.high_confidence_count}")
+        print(f"medium_confidence_count={result.medium_confidence_count}")
+        print(f"low_confidence_count={result.low_confidence_count}")
+        print(f"requires_human_review_count={result.requires_human_review_count}")
+        print(f"ai_enrichment_used={str(result.ai_enrichment_used).lower()}")
+        return 0
+
+    if args.command == "review-decision":
+        result = record_review_decision(
+            suggestion_key=args.suggestion_key,
+            decision=args.decision,
+            reason=args.reason,
+            db_path=db_path,
+        )
+        print(f"decision_id={result.decision_id}")
+        print(f"suggestion_key={result.suggestion_key}")
+        print(f"decision={result.decision}")
+        print(f"decided_at={result.decided_at}")
+        return 0
+
+    if args.command == "import-review-decisions":
+        result = import_review_decisions(
+            suggestions_path=args.suggestions,
+            decisions_path=args.decisions,
+            db_path=db_path,
+        )
+        print(f"imported={result.imported_count}")
+        print(f"updated={result.updated_count}")
+        print(f"skipped={result.skipped_count}")
+        return 0
+
+    if args.command == "review-decision-report":
+        result = generate_review_decision_report(out_dir=args.out, db_path=db_path)
+        print(f"report_path={result.report_path}")
+        print(f"total_decisions={result.total_decisions}")
+        print(f"approved={result.approved_count}")
+        print(f"rejected={result.rejected_count}")
+        print(f"deferred={result.deferred_count}")
+        return 0
+
+    if args.command == "build-normalization-knowledge":
+        result = build_normalization_knowledge(out_dir=args.out, db_path=db_path)
+        print(f"report_path={result.report_path}")
+        print(f"total_rules={result.total_rules}")
+        print(f"high_confidence={result.high_confidence_count}")
+        print(f"medium_confidence={result.medium_confidence_count}")
+        print(f"low_confidence={result.low_confidence_count}")
+        print(f"rejected_patterns={result.rejected_pattern_count}")
+        return 0
+
+    if args.command == "plan-album-organization":
+        result = generate_album_organization_plan(
+            library_root=args.library_root,
+            out_dir=args.out,
+        )
+        print(f"report_path={result.report_path}")
+        print(f"total_files={result.total_files}")
+        print(f"high_confidence={result.high_confidence}")
+        print(f"medium_confidence={result.medium_confidence}")
+        print(f"low_confidence={result.low_confidence}")
+        print(f"requires_review={result.requires_review}")
+        print(f"unknown_album_count={result.unknown_album_count}")
+        return 0
+
+    if args.command == "album-cohesion":
+        result = generate_album_cohesion_report(
+            out_dir=args.out,
+            library_root=args.library_root,
+        )
+        print(f"report_path={result.report_path}")
+        print(f"total_album_groups={result.total_album_groups}")
+        print(f"high_confidence_groups={result.high_confidence_groups}")
+        print(f"medium_confidence_groups={result.medium_confidence_groups}")
+        print(f"low_confidence_groups={result.low_confidence_groups}")
+        print(f"probable_singles={result.probable_singles}")
+        print(f"orphan_tracks={result.orphan_tracks}")
+        print(f"conflicting_album_groups={result.conflicting_album_groups}")
+        return 0
+
+    if args.command == "evidence-reliability":
+        result = generate_evidence_reliability_report(
+            out_dir=args.out,
+            db_path=db_path,
+        )
+        print(f"report_path={result.report_path}")
+        print(f"total_records={result.total_records}")
+        print(f"high_reliability={result.high_reliability}")
+        print(f"medium_reliability={result.medium_reliability}")
+        print(f"low_reliability={result.low_reliability}")
+        print(f"uploader_artifacts_detected={result.uploader_artifacts_detected}")
+        print(f"noisy_titles_detected={result.noisy_titles_detected}")
+        print(f"conflicting_artist_patterns={result.conflicting_artist_patterns}")
+        print(f"canonical_matches={result.canonical_matches}")
+        return 0
+
+    if args.command == "canonical-graph":
+        result = generate_canonical_graph(out_dir=args.out, db_path=db_path)
+        print(f"report_path={result.report_path}")
+        print(f"canonical_artist_count={result.canonical_artist_count}")
+        print(f"canonical_album_count={result.canonical_album_count}")
+        print(f"canonical_track_count={result.canonical_track_count}")
+        print(f"blocked_candidate_count={result.blocked_candidate_count}")
+        print(f"alias_relationships={result.alias_relationships}")
+        print(f"duplicate_relationships={result.duplicate_relationships}")
+        print(f"unresolved_conflicts={result.unresolved_conflicts}")
+        print(f"high_confidence_entities={result.high_confidence_entities}")
+        print(f"medium_confidence_entities={result.medium_confidence_entities}")
+        print(f"low_confidence_entities={result.low_confidence_entities}")
+        return 0
+
+    if args.command == "conflict-governance":
+        result = generate_conflict_governance_report(out_dir=args.out, db_path=db_path)
+        print(f"report_path={result.report_path}")
+        print(f"total_conflicts={result.total_conflicts}")
+        print(f"blocked_merges={result.blocked_merges}")
+        print(f"safe_merge_candidates={result.safe_merge_candidates}")
+        print(f"needs_review={result.needs_review}")
+        print(f"deferred={result.deferred}")
+        print(f"resolved={result.resolved}")
+        print(f"high_severity={result.high_severity}")
+        print(f"medium_severity={result.medium_severity}")
+        print(f"low_severity={result.low_severity}")
+        return 0
+
+    if args.command == "alias-equivalence-audit":
+        result = generate_alias_equivalence_audit_report(out_dir=args.out, db_path=db_path)
+        print(f"report_path={result.report_path}")
+        print(f"total_audited_conflicts={result.total_audited_conflicts}")
+        print(f"equivalence_matches={result.equivalence_matches}")
+        print(f"prevented_escalations={result.prevented_escalations}")
+        print(f"missed_safe_aliases={result.missed_safe_aliases}")
+        print(f"remaining_escalations={result.remaining_escalations}")
+        print(f"casing_only_matches={result.casing_only_matches}")
+        print(f"punctuation_only_matches={result.punctuation_only_matches}")
+        print(f"whitespace_only_matches={result.whitespace_only_matches}")
+        print(f"suffix_noise_rejections={result.suffix_noise_rejections}")
+        print(f"collaboration_rejections={result.collaboration_rejections}")
+        print(f"source_artifact_rejections={result.source_artifact_rejections}")
+        print(f"role_collision_rejections={result.role_collision_rejections}")
+        print(f"album_title_equivalence_matches={result.album_title_equivalence_matches}")
+        print(f"album_title_prevented_escalations={result.album_title_prevented_escalations}")
+        print(f"album_title_missed_safe_equivalents={result.album_title_missed_safe_equivalents}")
+        return 0
+
+    if args.command == "entity-boundaries":
+        result = generate_entity_boundary_report(out_dir=args.out, db_path=db_path)
+        print(f"report_path={result.report_path}")
+        print(f"total_candidates={result.total_candidates}")
+        print(f"allowed_candidates={result.allowed_candidates}")
+        print(f"blocked_candidates={result.blocked_candidates}")
+        print(f"quarantined_candidates={result.quarantined_candidates}")
+        print(f"needs_review_candidates={result.needs_review_candidates}")
+        print(f"source_artifacts_blocked={result.source_artifacts_blocked}")
+        print(f"collaboration_strings_quarantined={result.collaboration_strings_quarantined}")
+        print(f"title_pollution_blocked={result.title_pollution_blocked}")
+        print(f"release_annotations_quarantined={result.release_annotations_quarantined}")
+        return 0
+
+    if args.command == "classify-canonical-entities":
+        result = generate_canonical_entity_classification_report(out_dir=args.out, db_path=db_path)
+        print(f"report_path={result.report_path}")
+        print(f"total_candidates={result.total_candidates}")
+        print(f"canonical_artist_candidates={result.canonical_artist_candidates}")
+        print(f"canonical_album_candidates={result.canonical_album_candidates}")
+        print(f"canonical_track_candidates={result.canonical_track_candidates}")
+        print(f"blocked_candidates={result.blocked_candidates}")
+        print(f"ambiguous_candidates={result.ambiguous_candidates}")
+        print(f"source_artifacts={result.source_artifacts}")
+        print(f"misclassified_track_titles={result.misclassified_track_titles}")
+        return 0
+
+    if args.command == "entity-roles":
+        result = generate_entity_role_report(out_dir=args.out, db_path=db_path)
+        print(f"report_path={result.report_path}")
+        print(f"total_role_records={result.total_role_records}")
+        print(f"multi_role_entities={result.multi_role_entities}")
+        print(f"conflicted_roles={result.conflicted_roles}")
+        print(f"canonical_role_agreements={result.canonical_role_agreements}")
+        print(f"blocked_role_collisions={result.blocked_role_collisions}")
+        return 0
+
+    if args.command == "canonical-confidence":
+        result = generate_canonical_confidence_report(out_dir=args.out, db_path=db_path)
+        print(f"report_path={result.report_path}")
+        print(f"total_scored_entities={result.total_scored_entities}")
+        print(f"high_confidence_count={result.high_confidence_count}")
+        print(f"medium_confidence_count={result.medium_confidence_count}")
+        print(f"low_confidence_count={result.low_confidence_count}")
+        print(f"blocked_confidence_count={result.blocked_confidence_count}")
+        print(f"average_confidence={result.average_confidence}")
+        print(f"average_positive_score={result.average_positive_score}")
+        print(f"average_negative_score={result.average_negative_score}")
+        return 0
+
+    if args.command == "promotion-lifecycle":
+        result = generate_promotion_lifecycle_report(out_dir=args.out, db_path=db_path)
+        print(f"report_path={result.report_path}")
+        print(f"candidate_count={result.candidate_count}")
+        print(f"probationary_count={result.probationary_count}")
+        print(f"canonical_count={result.canonical_count}")
+        print(f"conflicted_count={result.conflicted_count}")
+        print(f"blocked_count={result.blocked_count}")
+        print(f"deprecated_count={result.deprecated_count}")
+        print(f"promoted_this_run={result.promoted_this_run}")
+        print(f"demoted_this_run={result.demoted_this_run}")
+        return 0
+
+    if args.command == "discover-albums":
+        result = generate_album_discovery(
+            library_root=args.library_root,
+            out_dir=args.out,
+        )
+        print(f"report_path={result.report_path}")
+        print(f"total_tracks_checked={result.total_tracks_checked}")
+        print(f"unknown_album_tracks={result.unknown_album_tracks}")
+        print(f"total_suggestions={result.total_suggestions}")
+        print(f"high_confidence_count={result.high_confidence_count}")
+        print(f"medium_confidence_count={result.medium_confidence_count}")
+        print(f"low_confidence_count={result.low_confidence_count}")
+        print(f"network_lookup_used={str(result.network_lookup_used).lower()}")
+        print(f"cache_entries={result.cache_entries}")
+        return 0
+
+    if args.command == "import-external-metadata":
+        report_out_dir = resolve_report_out_dir(
+            args.out,
+            source_name=args.source,
+            run_label=args.run_label,
+        )
+        result = import_external_metadata(
+            source_name=args.source,
+            input_path=args.input,
+            out_dir=report_out_dir,
+        )
+        write_run_manifest(
+            out_dir="reports" if Path(args.out).suffix.casefold() == ".csv" else args.out,
+            source_name=args.source,
+            run_label=args.run_label,
+            command_name=args.command,
+            report_path=result.report_path,
+        )
+        print(f"report_path={result.report_path}")
+        print(f"source_name={result.source_name}")
+        print(f"input_records={result.input_records}")
+        print(f"accepted_records={result.accepted_records}")
+        print(f"rejected_records={result.rejected_records}")
+        print(f"generated_id_count={result.generated_id_count}")
+        print(f"output_csv={result.output_csv}")
+        print(f"output_jsonl={result.output_jsonl}")
+        return 0
+
+    if args.command == "validate-external-metadata":
+        result = validate_external_metadata(
+            source_name=args.source,
+            out_dir=args.out,
+        )
+        print(f"report_path={result.report_path}")
+        print(f"source_name={result.source_name}")
+        print(f"total_records={result.total_records}")
+        print(f"total_cohorts={result.total_cohorts}")
+        print(f"high_priority_cohorts={result.high_priority_cohorts}")
+        print(f"malformed_record_count={result.malformed_record_count}")
+        return 0
+
+    if args.command == "analyze-artist-credits":
+        report_out_dir = resolve_report_out_dir(
+            args.out,
+            source_name=args.source,
+            run_label=args.run_label,
+        )
+        result = analyze_artist_credits(
+            source_name=args.source,
+            out_dir=report_out_dir,
+            limit=args.limit,
+        )
+        write_run_manifest(
+            out_dir=args.out,
+            source_name=args.source,
+            run_label=args.run_label,
+            command_name=args.command,
+            report_path=result.report_path,
+        )
+        print(f"report_path={result.report_path}")
+        print(f"source_name={result.source_name}")
+        print(f"total_records={result.total_records}")
+        print(f"parsed_records={result.parsed_records}")
+        print(f"collaboration_count={result.collaboration_count}")
+        print(f"featured_artist_count={result.featured_artist_count}")
+        print(f"unresolved_count={result.unresolved_count}")
+        print(f"top_pattern={result.top_pattern}")
+        return 0
+
+    if args.command == "benchmark-validation":
+        report_out_dir = resolve_report_out_dir(
+            args.out,
+            source_name=args.source,
+            run_label=args.run_label,
+        )
+        result = benchmark_validation(
+            source_name=args.source,
+            out_dir=report_out_dir,
+        )
+        write_run_manifest(
+            out_dir=args.out,
+            source_name=args.source,
+            run_label=args.run_label,
+            command_name=args.command,
+            report_path=result.report_path,
+        )
+        print(f"report_path={result.report_path}")
+        print(f"source_name={result.source_name}")
+        print(f"total_records={result.total_records}")
+        print(f"total_cohorts={result.total_cohorts}")
+        print(f"total_conflicts={result.total_conflicts}")
+        print(f"safe_merge_candidates={result.safe_merge_candidates}")
+        print(f"blocked_merges={result.blocked_merges}")
+        print(f"deferred_conflicts={result.deferred_conflicts}")
+        print(f"benchmark_duration_seconds={result.benchmark_duration_seconds}")
+        return 0
+
+    if args.command == "analyze-release-identity":
+        report_out_dir = resolve_report_out_dir(
+            args.out,
+            source_name=args.source,
+            run_label=args.run_label,
+        )
+        result = analyze_release_identity(
+            source_name=args.source,
+            out_dir=report_out_dir,
+            limit=args.limit,
+        )
+        write_run_manifest(
+            out_dir=args.out,
+            source_name=args.source,
+            run_label=args.run_label,
+            command_name=args.command,
+            report_path=result.report_path,
+        )
+        print(f"report_path={result.report_path}")
+        print(f"source_name={result.source_name}")
+        print(f"total_records={result.total_records}")
+        print(f"total_identity_groups={result.total_identity_groups}")
+        print(f"legitimate_release_appearance_count={result.legitimate_release_appearance_count}")
+        print(f"possible_true_duplicate_count={result.possible_true_duplicate_count}")
+        print(f"ambiguous_identity_group_count={result.ambiguous_identity_group_count}")
+        return 0
+
+    if args.command == "plan-metadata-acquisition":
+        result = plan_metadata_acquisition(
+            source_name=args.source,
+            out_dir=args.out,
+        )
+        print(f"report_path={result.report_path}")
+        print(f"source_name={result.source_name}")
+        print(f"acquisition_plan={result.acquisition_plan_path}")
+        print(f"acquisition_steps={result.acquisition_steps_path}")
+        print(f"source_risk_assessment={result.source_risk_assessment_path}")
+        print(f"storage_target={result.storage_target}")
+        print(f"raw_dump_target={result.raw_dump_target}")
+        print(f"cache_target={result.cache_target}")
+        print(f"risk_level={result.risk_level}")
+        return 0
+
+    if args.command == "convert-musicbrainz-dump":
+        output_csv = Path(args.out)
+        reports_dir = Path("reports")
+        report_run_root = Path(args.out)
+        if args.run_label:
+            if output_csv.suffix.casefold() == ".csv":
+                report_run_root = Path("reports")
+            else:
+                output_csv = (
+                    Path(args.out)
+                    / "runs"
+                    / args.source
+                    / args.run_label
+                    / "musicbrainz_conversion"
+                    / "external_tracks.csv"
+                )
+            reports_dir = resolve_report_out_dir(
+                report_run_root,
+                source_name=args.source,
+                run_label=args.run_label,
+            )
+        result = convert_musicbrainz_dump(
+            dump_dir=args.dump_dir,
+            output_csv=output_csv,
+            limit=args.limit,
+            reports_dir=reports_dir,
+        )
+        write_run_manifest(
+            out_dir=report_run_root,
+            source_name=args.source,
+            run_label=args.run_label,
+            command_name=args.command,
+            report_path=result.report_path,
+        )
+        print(f"report_path={result.report_path}")
+        print(f"input_tracks_seen={result.input_tracks_seen}")
+        print(f"accepted_records={result.accepted_records}")
+        print(f"rejected_records={result.rejected_records}")
+        print(f"output_csv={result.output_csv}")
+        print(f"rejected_csv={result.rejected_csv}")
+        print(f"limit_applied={result.limit_applied}")
+        print(f"duration_seconds={result.duration_seconds}")
+        return 0
+
+    if args.command == "fetch-internet-archive-metadata":
+        result = fetch_internet_archive_metadata(
+            query=args.query,
+            limit=args.limit,
+            out_dir=args.out,
+            page_size=args.page_size,
+            source=args.source,
+            timeout=args.timeout,
+            dry_run=args.dry_run,
+        )
+        print(f"report_path={result.report_path}")
+        print(f"source_name={result.source_name}")
+        print(f"query={result.query}")
+        print(f"requested_limit={result.requested_limit}")
+        print(f"fetched_records={result.fetched_records}")
+        print(f"accepted_records={result.accepted_records}")
+        print(f"rejected_records={result.rejected_records}")
+        print(f"output_csv={result.output_csv}")
+        print(f"output_jsonl={result.output_jsonl}")
+        print(f"metadata_only={str(result.metadata_only).lower()}")
+        print(f"audio_download_allowed={str(result.audio_download_allowed).lower()}")
+        return 0
+
+    if args.command == "fetch-jamendo-metadata":
+        try:
+            result = fetch_jamendo_metadata(
+                limit=args.limit,
+                out_dir=args.out,
+                page_size=args.page_size,
+                source=args.source,
+                client_id=args.client_id,
+                timeout=args.timeout,
+                dry_run=args.dry_run,
+            )
+        except JamendoCredentialError:
+            print(MISSING_CLIENT_ID_MESSAGE)
+            return 1
+        print(f"report_path={result.report_path}")
+        print(f"source_name={result.source_name}")
+        print(f"requested_limit={result.requested_limit}")
+        print(f"fetched_records={result.fetched_records}")
+        print(f"accepted_records={result.accepted_records}")
+        print(f"rejected_records={result.rejected_records}")
+        print(f"output_csv={result.output_csv}")
+        print(f"output_jsonl={result.output_jsonl}")
+        print(f"metadata_only={str(result.metadata_only).lower()}")
+        print(f"audio_download_allowed={str(result.audio_download_allowed).lower()}")
+        print(f"client_id_source={result.client_id_source}")
+        return 0
+
+    if args.command == "capture-ui-screenshots":
+        result = capture_ui_screenshots()
+        failed_count = getattr(result, "failed_count", 0)
+        print(f"captured={len(result)}")
+        print(f"failed={failed_count}")
+        for path in result:
+            print(path)
+        return 0 if result else 1
+
+    if args.command == "generate-demo":
+        result = generate_demo()
+        print(f"regenerated_screenshot_count={result.regenerated_screenshot_count}")
+        print(f"frame_count={len(result.frames)}")
+        print(f"frames_dir={result.frames_dir}")
+        print(f"manifest_path={result.manifest_path}")
+        print(f"script_path={result.script_path}")
+        if result.video_path is None:
+            print("output_video_path=")
+            print("ffmpeg_available=false")
+        else:
+            print(f"output_video_path={result.video_path}")
+            print("ffmpeg_available=true")
         return 0
 
     parser.error(f"unknown command: {args.command}")

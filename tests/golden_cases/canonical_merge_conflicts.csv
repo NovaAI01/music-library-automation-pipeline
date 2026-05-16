@@ -1,0 +1,5 @@
+case_id,candidate_value,field_name,folder_artist,filename_artist,filename_title,tag_title,tag_album,value_artist_count,value_album_count,value_title_count,other_title_count,role_status,role_evidence_count,active_roles,role_flags,approved_review_support,normalization_knowledge_support,expected_proposed_entity_type,expected_classifier_confidence_tier,scoring_profile,expected_weighted_confidence_tier,expected_lifecycle_state,expected_blocked,expected_roles,expected_alias_target,expected_base_title
+merge_001,Deftones,artist,Deftones,,,,,2,0,0,0,probationary,2,artist,,false,false,canonical_artist,high,merge_conflict,medium,conflicted,false,artist,,
+merge_002,Deftone,artist,Deftone,,,,,2,0,0,0,probationary,2,artist,,false,false,canonical_artist,high,merge_conflict,medium,conflicted,false,artist,,
+merge_003,Static-X,artist,Static-X,,,,,2,0,0,0,probationary,2,artist,,false,false,canonical_artist,high,merge_conflict,medium,conflicted,false,artist,,
+merge_004,Static X,artist,Static X,,,,,2,0,0,0,probationary,2,artist,,false,false,canonical_artist,high,merge_conflict,medium,conflicted,false,artist,,

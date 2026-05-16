@@ -1,0 +1,48 @@
+{% extends "reports/base.html" %}
+{% block content %}
+<section class="cards">
+  {% for label, value in cards %}
+    <article class="card">
+      <div class="label">{{ label }}</div>
+      <div class="value">{{ value }}</div>
+    </article>
+  {% endfor %}
+</section>
+
+<section class="notice">
+  <div>Metadata decisions update the review ledger only.</div>
+  <div>After decisions are recorded, run <code>python -m app.main build-normalization-knowledge --out reports</code>.</div>
+  <div><a href="/review/knowledge">Open normalization knowledge</a></div>
+</section>
+
+<section class="section">
+  <h2>Review Queues</h2>
+  <div class="cards">
+    {% for title, href, summary in review_links %}
+      <article class="card">
+        <div class="label">{{ title }}</div>
+        <p>{{ summary }}</p>
+        <a class="play-link" href="{{ href }}">Open queue</a>
+      </article>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="section">
+  <h2>Confidence Summary</h2>
+  <table>
+    <thead>
+      <tr><th>Confidence</th><th>Status</th><th class="num">Count</th></tr>
+    </thead>
+    <tbody>
+      {% for confidence in ["high", "medium", "low"] %}
+        <tr>
+          <td>{{ confidence }}</td>
+          <td><span class="badge confidence-{{ confidence }}">{{ confidence }}</span></td>
+          <td class="num">{{ confidence_counts.get(confidence, 0) }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

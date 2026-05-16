@@ -34,6 +34,7 @@ class LibraryQAResult:
     genre_count: int
     subgenre_count: int
     artist_count: int
+    album_count: int
     active_duplicate_group_count: int
     historical_duplicate_group_count: int
     quarantined_duplicate_file_count: int
@@ -104,6 +105,7 @@ def generate_library_qa_report(
             {(row["genre"], row["subgenre"]) for row in genres if row["subgenre"]}
         ),
         "artist_count": len({row["artist"] for row in artists}),
+        "album_count": len(_album_keys(library_files)),
         "active_duplicate_group_count": active_duplicate_group_count,
         "historical_duplicate_group_count": historical_duplicate_group_count,
         "quarantined_duplicate_file_count": len(quarantine_files),
@@ -134,6 +136,7 @@ def generate_library_qa_report(
         genre_count=summary["genre_count"],
         subgenre_count=summary["subgenre_count"],
         artist_count=summary["artist_count"],
+        album_count=summary["album_count"],
         active_duplicate_group_count=summary["active_duplicate_group_count"],
         historical_duplicate_group_count=summary["historical_duplicate_group_count"],
         quarantined_duplicate_file_count=summary["quarantined_duplicate_file_count"],
@@ -215,6 +218,15 @@ def _genre_rows(records: Iterable[FileRecord]) -> list[dict[str, Any]]:
     ]
 
 
+def _album_keys(records: Iterable[FileRecord]) -> set[tuple[str, str, str, str]]:
+    keys: set[tuple[str, str, str, str]] = set()
+    for record in records:
+        genre, subgenre, artist, album = _path_album(record.relative_path)
+        if artist and album:
+            keys.add((genre, subgenre, artist, album))
+    return keys
+
+
 def _quarantine_rows(records: Iterable[FileRecord]) -> list[dict[str, Any]]:
     counts: Counter[str] = Counter()
     sizes: Counter[str] = Counter()
@@ -238,6 +250,13 @@ def _path_taxonomy(relative_path: str) -> tuple[str, str, str]:
     subgenre = parts[1] if len(parts) >= 2 else ""
     artist = parts[2] if len(parts) >= 3 else ""
     return genre, subgenre, artist
+
+
+def _path_album(relative_path: str) -> tuple[str, str, str, str]:
+    parts = Path(relative_path).parts
+    genre, subgenre, artist = _path_taxonomy(relative_path)
+    album = parts[3] if len(parts) >= 5 else ""
+    return genre, subgenre, artist, album
 
 
 def _missing_placement_records(

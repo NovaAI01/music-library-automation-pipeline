@@ -1,5 +1,9 @@
 {% extends "reports/base.html" %}
 {% block content %}
+<form method="get" action="/library/genres">
+  <input name="q" value="{{ query|default('') }}" placeholder="Search genres or subgenres">
+  <button type="submit">Search</button>
+</form>
 <div class="stack">
   {% for genre in genres %}
     <section class="group">

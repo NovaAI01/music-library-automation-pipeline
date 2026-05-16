@@ -22,8 +22,9 @@ def test_classified_identified_track_creates_planned_path(tmp_path):
     assert summary.planned == 1
     assert row["placement_status"] == "planned"
     assert row["planned_relative_path"] == (
-        "Alternative Metal/Shoegaze Metal/Deftones/Deftones - Change.mp3"
+        "Alternative Metal/Deftones/Unknown Album/Deftones - Change.mp3"
     )
+    assert row["planned_album"] == "Unknown Album"
 
 
 def test_null_subgenre_becomes_unsorted(tmp_path):
@@ -34,7 +35,9 @@ def test_null_subgenre_becomes_unsorted(tmp_path):
     row = _fetch_all(db_path, "SELECT planned_relative_path, planned_subgenre FROM placement_plans")[0]
 
     assert row["planned_subgenre"] == "_Unsorted"
-    assert "/_Unsorted/" in row["planned_relative_path"]
+    assert row["planned_relative_path"] == (
+        "Alternative Metal/Deftones/Unknown Album/Deftones - Change.mp3"
+    )
 
 
 def test_unknown_identity_blocks_placement(tmp_path):
@@ -106,6 +109,7 @@ def test_planned_relative_path_is_never_absolute():
         primary_genre="/Alternative Metal",
         subgenre="/Shoegaze Metal",
         artist="/Deftones",
+        album="/White Pony",
         title="/Change",
         extension=".mp3",
     )
@@ -118,6 +122,7 @@ def test_path_traversal_is_stripped():
         primary_genre="../Alternative Metal",
         subgenre="../../Shoegaze Metal",
         artist="../Deftones",
+        album="../White Pony",
         title="../Change",
         extension=".mp3",
     )
@@ -127,15 +132,15 @@ def test_path_traversal_is_stripped():
 
 def test_collision_appends_numeric_suffix():
     existing = {
-        "Alternative Metal/Shoegaze Metal/Deftones/Deftones - Change.mp3"
+        "Alternative Metal/Deftones/Unknown Album/Deftones - Change.mp3"
     }
 
     result = detect_planned_path_collision(
-        "Alternative Metal/Shoegaze Metal/Deftones/Deftones - Change.mp3",
+        "Alternative Metal/Deftones/Unknown Album/Deftones - Change.mp3",
         existing,
     )
 
-    assert result == "Alternative Metal/Shoegaze Metal/Deftones/Deftones - Change (2).mp3"
+    assert result == "Alternative Metal/Deftones/Unknown Album/Deftones - Change (2).mp3"
 
 
 def test_repeated_planner_run_does_not_duplicate_rows(tmp_path):
@@ -204,6 +209,7 @@ def test_create_placement_plan_collision_within_batch():
 
     assert first.planned_relative_path.endswith("Deftones - Change.mp3")
     assert second.planned_relative_path.endswith("Deftones - Change (2).mp3")
+    assert first.planned_album == "Unknown Album"
 
 
 def _insert_track(

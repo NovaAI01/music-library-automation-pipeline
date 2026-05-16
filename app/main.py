@@ -25,6 +25,7 @@ from app.entity_roles import generate_entity_role_report
 from app.evidence_reliability import generate_evidence_reliability_report
 from app.external_metadata import import_external_metadata
 from app.identity_engine import identify_scan_run
+from app.internet_archive_metadata import fetch_internet_archive_metadata
 from app.large_scale_validation import validate_external_metadata
 from app.intake import run_intake
 from app.library_qa import generate_library_qa_report
@@ -381,6 +382,18 @@ def build_parser() -> argparse.ArgumentParser:
     musicbrainz_converter_parser.add_argument("--dump-dir", required=True)
     musicbrainz_converter_parser.add_argument("--out", required=True)
     musicbrainz_converter_parser.add_argument("--limit", type=int)
+
+    internet_archive_parser = subparsers.add_parser(
+        "fetch-internet-archive-metadata",
+        help="Fetch Internet Archive search metadata records without downloading media.",
+    )
+    internet_archive_parser.add_argument("--query", required=True)
+    internet_archive_parser.add_argument("--limit", type=int, required=True)
+    internet_archive_parser.add_argument("--out", default="reports")
+    internet_archive_parser.add_argument("--page-size", type=int, default=100)
+    internet_archive_parser.add_argument("--source", default="internet_archive")
+    internet_archive_parser.add_argument("--timeout", type=float, default=30.0)
+    internet_archive_parser.add_argument("--dry-run", action="store_true")
 
     subparsers.add_parser(
         "capture-ui-screenshots",
@@ -994,6 +1007,29 @@ def main(argv: list[str] | None = None) -> int:
         print(f"rejected_csv={result.rejected_csv}")
         print(f"limit_applied={result.limit_applied}")
         print(f"duration_seconds={result.duration_seconds}")
+        return 0
+
+    if args.command == "fetch-internet-archive-metadata":
+        result = fetch_internet_archive_metadata(
+            query=args.query,
+            limit=args.limit,
+            out_dir=args.out,
+            page_size=args.page_size,
+            source=args.source,
+            timeout=args.timeout,
+            dry_run=args.dry_run,
+        )
+        print(f"report_path={result.report_path}")
+        print(f"source_name={result.source_name}")
+        print(f"query={result.query}")
+        print(f"requested_limit={result.requested_limit}")
+        print(f"fetched_records={result.fetched_records}")
+        print(f"accepted_records={result.accepted_records}")
+        print(f"rejected_records={result.rejected_records}")
+        print(f"output_csv={result.output_csv}")
+        print(f"output_jsonl={result.output_jsonl}")
+        print(f"metadata_only={str(result.metadata_only).lower()}")
+        print(f"audio_download_allowed={str(result.audio_download_allowed).lower()}")
         return 0
 
     if args.command == "capture-ui-screenshots":

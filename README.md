@@ -290,6 +290,7 @@ python -m app.main evidence-reliability --out reports
 python -m app.main canonical-graph --out reports
 python -m app.main plan-metadata-acquisition --source musicbrainz --out reports
 python -m app.main convert-musicbrainz-dump --dump-dir ... --out ... --limit 10000
+python -m app.main fetch-internet-archive-metadata --query "collection:audio" --limit 10000 --out reports
 python -m app.main benchmark-validation --source local_fixture --out reports
 python -m app.main discover-albums ...
 python -m app.main duplicate-report ...
@@ -304,6 +305,9 @@ Large external metadata storage is configurable with
 planning is report-only in v1: it targets external raw dump, metadata, and cache
 directories, but it does not live-fetch data or download audio. See
 [docs/metadata-acquisition-planning.md](docs/metadata-acquisition-planning.md).
+Internet Archive acquisition is available as a metadata-only validation input:
+it fetches search metadata records only, never media files. See
+[docs/internet-archive-metadata.md](docs/internet-archive-metadata.md).
 
 Example report commands:
 

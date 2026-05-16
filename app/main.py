@@ -986,7 +986,7 @@ def main(argv: list[str] | None = None) -> int:
             out_dir=report_out_dir,
         )
         write_run_manifest(
-            out_dir=args.out,
+            out_dir="reports" if Path(args.out).suffix.casefold() == ".csv" else args.out,
             source_name=args.source,
             run_label=args.run_label,
             command_name=args.command,
@@ -1117,13 +1117,24 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "convert-musicbrainz-dump":
         output_csv = Path(args.out)
         reports_dir = Path("reports")
+        report_run_root = Path(args.out)
         if args.run_label:
+            if output_csv.suffix.casefold() == ".csv":
+                report_run_root = Path("reports")
+            else:
+                output_csv = (
+                    Path(args.out)
+                    / "runs"
+                    / args.source
+                    / args.run_label
+                    / "musicbrainz_conversion"
+                    / "external_tracks.csv"
+                )
             reports_dir = resolve_report_out_dir(
-                args.out,
+                report_run_root,
                 source_name=args.source,
                 run_label=args.run_label,
             )
-            output_csv = reports_dir / "musicbrainz_conversion" / "external_tracks.csv"
         result = convert_musicbrainz_dump(
             dump_dir=args.dump_dir,
             output_csv=output_csv,
@@ -1131,7 +1142,7 @@ def main(argv: list[str] | None = None) -> int:
             reports_dir=reports_dir,
         )
         write_run_manifest(
-            out_dir=args.out,
+            out_dir=report_run_root,
             source_name=args.source,
             run_label=args.run_label,
             command_name=args.command,

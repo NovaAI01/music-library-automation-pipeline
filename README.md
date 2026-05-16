@@ -65,6 +65,8 @@ appropriate, and preserve recovery information.
 ## Validation Evidence
 
 - [MusicBrainz 50k consolidated result](docs/validation-results/musicbrainz-50k-consolidated-result.md)
+- Durable isolated run: `reports/runs/musicbrainz/musicbrainz_50k/`
+- Manifest guarantees: `metadata_only=true`, `audio_downloaded=false`, `local_library_mutated=false`, `canonical_graph_mutated=false`.
 - 50,000 MusicBrainz metadata rows processed; 49,773 accepted after conversion.
 - 49,773 ingested records; 0 rejected records; 0 missing artist, album, or title fields.
 - Release identity analysis explained 13,712 duplicate-looking external records; integrated benchmark `duplicate_external_records=0`.

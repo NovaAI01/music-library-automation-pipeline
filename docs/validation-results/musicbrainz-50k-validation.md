@@ -4,10 +4,25 @@
 
 - Source: MusicBrainz full metadata dump
 - Dump: `20260513-001936`
+- Isolated run: `reports/runs/musicbrainz/musicbrainz_50k/`
+- Metadata only: true
 - Audio downloaded: no
 - Local library mutated: no
 - Canonical graph mutated: no
 - External data root: `$MUSIC_INTELLIGENCE_DATA_ROOT`
+
+The committed validation metrics cite the durable isolated run directory above,
+not generic report directories that can be overwritten by later smoke tests,
+fixture runs, or local validation experiments.
+
+Run manifest guarantees:
+
+| Manifest field | Value |
+|---|---|
+| `metadata_only` | `true` |
+| `audio_downloaded` | `false` |
+| `local_library_mutated` | `false` |
+| `canonical_graph_mutated` | `false` |
 
 ## Conversion Result
 
@@ -17,7 +32,7 @@
 | Accepted records | 49,773 |
 | Rejected records | 227 |
 | Rejection rate | 0.45% |
-| Conversion duration | 54.79s |
+| Conversion duration | 82.84s |
 
 ## Ingestion Result
 
@@ -56,7 +71,7 @@ multi-release appearances, and unresolved identity evidence.
 | Source artifact candidates | 393 |
 | Collaboration string candidates | 0 |
 | Malformed records | 0 |
-| Benchmark duration | 2.50s |
+| Benchmark duration | 2.45s |
 
 ## Artist Credit Benchmark Integration
 
@@ -98,6 +113,9 @@ artist merge behavior.
 | source_artifact_candidate | 393 | 0.79% | high | Block from canonical promotion proposals until reviewed |
 | artist_credit_unresolved | 356 | 0.72% | high | Keep blocked from canonical artist promotion until parser or human review resolves it. |
 | remaster_version_noise | 350 | 0.70% | medium | Separate version descriptors from canonical titles |
+| possible_album_as_artist | 319 | 0.64% | high | Review as possible album-title evidence before artist promotion. |
+| possible_track_as_artist | 191 | 0.38% | high | Review as possible track-title evidence before artist promotion. |
+| release_identity_possible_true_duplicate | 169 | 0.34% | high | Keep as review-only duplicate evidence; do not auto-remediate. |
 
 ## Interpretation
 
@@ -107,11 +125,20 @@ The dominant issue is no longer one raw collaboration-string bucket. Artist
 Credit Parsing v1 explains most collaboration-like strings and leaves a smaller
 unresolved artist-credit cohort visible for review.
 
+`collaboration_string_candidates=0` does not mean collaborations vanished. It
+means artist-credit analysis now explains collaboration evidence as structured
+parser cohorts.
+
 Release Identity Validation Integration v1 also removes the raw
 `duplicate_external_record` benchmark bucket when matching release identity
 analysis exists. The dominant duplicate-like evidence is now explained as
 legitimate release appearances, while possible true duplicate candidates remain
 visible as high-severity review evidence.
+
+`duplicate_external_records=0` does not mean duplicates vanished. It means
+release identity analysis explains duplicate-like records as release-aware
+cohorts. Possible true duplicates remain review-only evidence, not automatic
+remediation.
 
 Primary next engineering target:
 

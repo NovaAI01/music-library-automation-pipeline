@@ -6,6 +6,12 @@ The MusicBrainz 50k validation run shows that the system can convert noisy
 external metadata into explainable operational cohorts without mutating the
 local music library or canonical graph.
 
+The committed evidence for this result comes from the isolated run directory:
+
+```text
+reports/runs/musicbrainz/musicbrainz_50k/
+```
+
 The run converted 50,000 MusicBrainz metadata rows into 49,773 accepted
 external records, ingested all accepted records with no missing artist, album,
 or title fields, and then used specialist reporting to replace raw validation
@@ -24,6 +30,7 @@ does not prove that every metadata problem is solved.
 ## Dataset Boundary
 
 - Source: MusicBrainz full metadata dump sample.
+- Isolated run: `reports/runs/musicbrainz/musicbrainz_50k/`.
 - Scope: metadata only.
 - Input tracks seen: 50,000.
 - Audio downloaded: no.
@@ -38,6 +45,15 @@ The validation treated MusicBrainz as an external metadata corpus. It did not
 download audio, modify local music files, write tags, mutate canonical graph
 state, or execute cleanup decisions.
 
+The run manifest guarantees:
+
+| Manifest field | Value |
+|---|---|
+| `metadata_only` | `true` |
+| `audio_downloaded` | `false` |
+| `local_library_mutated` | `false` |
+| `canonical_graph_mutated` | `false` |
+
 ## Conversion Result
 
 | Metric | Value |
@@ -45,13 +61,13 @@ state, or execute cleanup decisions.
 | `input_tracks_seen` | 50,000 |
 | `accepted_records` | 49,773 |
 | `rejected_records` | 227 |
-| `conversion_duration_seconds` | 54.79 |
+| `duration_seconds` | 82.84 |
 
 The conversion stage accepted 99.55% of the sampled MusicBrainz rows and
 rejected 227 records before ingestion. These metrics are taken from the
-committed 50k validation result because the current generated
-`reports/musicbrainz_conversion/conversion_summary.json` in the worktree
-contains a small pytest fixture result rather than the 50k run summary.
+isolated run artifacts under
+`reports/runs/musicbrainz/musicbrainz_50k/`, rather than overwrite-prone
+legacy report paths.
 
 ## Ingestion Result
 
@@ -73,6 +89,7 @@ schema failures.
 
 | Metric | Value |
 |---|---:|
+| `total_records` | 49,773 |
 | `parsed_records` | 49,407 |
 | `solo_artist_count` | 46,971 |
 | `collaboration_count` | 2,009 |
@@ -130,9 +147,15 @@ Integrated benchmark summary:
 |---|---:|
 | `artist_credit_analysis_used` | true |
 | `release_identity_analysis_used` | true |
-| `duplicate_external_records` | 0 |
+| `total_records` | 49,773 |
 | `total_cohorts` | 1,212 |
 | `total_conflicts` | 1,212 |
+| `safe_merge_candidates` | 350 |
+| `blocked_merges` | 851 |
+| `deferred_conflicts` | 11 |
+| `collaboration_string_candidates` | 0 |
+| `duplicate_external_records` | 0 |
+| `benchmark_duration_seconds` | 2.45 |
 
 ## Remaining Dominant Cohorts
 
@@ -143,13 +166,29 @@ Integrated benchmark summary:
 | `artist_credit_parsed_medium_confidence` | 2,256 | 4.53% | medium |
 | `artist_credit_collaboration` | 2,009 | 4.04% | medium |
 | `release_identity_compilation_or_multi_release` | 1,355 | 2.72% | medium |
+| `artist_credit_featured` | 427 | 0.86% | medium |
+| `artist_credit_ambiguous_group` | 412 | 0.83% | medium |
+| `source_artifact_candidate` | 393 | 0.79% | high |
+| `artist_credit_unresolved` | 356 | 0.72% | high |
+| `remaster_version_noise` | 350 | 0.70% | medium |
+| `possible_album_as_artist` | 319 | 0.64% | high |
+| `possible_track_as_artist` | 191 | 0.38% | high |
 | `release_identity_possible_true_duplicate` | 169 | 0.34% | high |
-| `release_identity_edition_or_reissue` | 113 | 0.23% | medium |
 
 The dominant remaining cohorts are not a single unresolved failure mode. They
 separate low-severity release appearances, parsed artist-credit evidence,
 medium-severity collaboration or compilation contexts, and a much smaller
 high-severity possible-true-duplicate cohort.
+
+`collaboration_string_candidates=0` does not mean collaborations vanished. It
+means artist-credit analysis now explains them as structured parser cohorts,
+including collaboration, featured-artist, ambiguous-group, and unresolved
+artist-credit evidence.
+
+`duplicate_external_records=0` does not mean duplicates vanished. It means
+release identity analysis explains duplicate-like records as release-aware
+cohorts. Possible true duplicates remain review-only evidence, not automatic
+remediation.
 
 ## What This Proves
 

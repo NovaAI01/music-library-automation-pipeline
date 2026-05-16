@@ -1,0 +1,52 @@
+{% extends "reports/base.html" %}
+{% block content %}
+<section class="split">
+  <article class="panel">
+    <h2>Paths</h2>
+    <p class="meta">Library intake path</p>
+    <p class="path">{{ intake_path|default("") }}</p>
+    <p class="meta">Reports directory</p>
+    <p class="path">{{ reports_dir|default("") }}</p>
+  </article>
+  <article class="panel">
+    <h2>Latest summaries</h2>
+    {% if summaries %}
+      <table>
+        <tbody>
+          {% for label, value in summaries %}
+            <tr>
+              <th>{{ label }}</th>
+              <td>{{ value }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="empty">No summaries available.</div>
+    {% endif %}
+  </article>
+</section>
+<section class="section">
+  <h2>Operational Workflow</h2>
+  {% if steps %}
+    <table>
+      <thead>
+        <tr>
+          <th>Step</th>
+          <th>Command</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for label, command in steps %}
+          <tr>
+            <td>{{ label }}</td>
+            <td><code>{{ command }}</code></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="empty">No workflow steps available.</div>
+  {% endif %}
+</section>
+{% endblock %}

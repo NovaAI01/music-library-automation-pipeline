@@ -86,9 +86,12 @@ appropriate, and preserve recovery information.
 
 ## Setup
 
-Install the Python dependencies:
+Create a virtual environment and install the Python dependencies:
 
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
@@ -740,7 +743,8 @@ CLI commands below still work as compatibility entry points.
 
 ### UI Screenshot Capture
 
-Install the Python dependencies, then install the Playwright Chromium browser:
+With the project virtual environment active, install the Python dependencies,
+then install the Playwright Chromium browser:
 
 ```bash
 python -m pip install -r requirements.txt

@@ -1,0 +1,67 @@
+{% extends "reports/base.html" %}
+{% macro cards_section(cards) -%}
+  {% if cards %}
+    <section class="cards">
+      {% for label, value in cards %}
+        <article class="card">
+          <div class="label">{{ label }}</div>
+          <div class="value">{{ value }}</div>
+        </article>
+      {% endfor %}
+    </section>
+  {% endif %}
+{%- endmacro %}
+{% macro rows_table(title, rows, columns) -%}
+  <section class="section">
+    <h2>{{ title }}</h2>
+    {% if rows %}
+      <table>
+        <thead>
+          <tr>
+            {% for key, label in columns %}<th>{{ label }}</th>{% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              {% for key, label in columns %}
+                <td>{{ row.get(key, "") }}</td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="empty">No rows available.</div>
+    {% endif %}
+  </section>
+{%- endmacro %}
+{% block content %}
+{{ cards_section(cards|default([])) }}
+{% if query %}<p class="meta">Filtered by: {{ query }}</p>{% endif %}
+{{ rows_table("Multi-role entities", multi_role|default([]), [
+  ("entity_value", "Entity"),
+  ("roles", "Roles"),
+  ("canonical_agreement", "Canonical Agreement"),
+  ("evidence_count", "Evidence")
+]) }}
+{{ rows_table("Conflicted roles", conflicted|default([]), [
+  ("entity_value", "Entity"),
+  ("roles", "Roles"),
+  ("conflict_reason", "Conflict"),
+  ("evidence_count", "Evidence")
+]) }}
+{{ rows_table("Blocked collisions", blocked|default([]), [
+  ("entity_value", "Entity"),
+  ("roles", "Roles"),
+  ("block_reason", "Reason"),
+  ("evidence_count", "Evidence")
+]) }}
+{{ rows_table("Role records", records|default([]), [
+  ("entity_value", "Entity"),
+  ("role", "Role"),
+  ("source_field", "Field"),
+  ("canonical_status", "Canonical Status"),
+  ("evidence_count", "Evidence")
+]) }}
+{% endblock %}

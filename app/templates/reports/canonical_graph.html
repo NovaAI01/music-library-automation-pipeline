@@ -1,0 +1,73 @@
+{% extends "reports/base.html" %}
+{% macro cards_section(cards) -%}
+  {% if cards %}
+    <section class="cards">
+      {% for label, value in cards %}
+        <article class="card">
+          <div class="label">{{ label }}</div>
+          <div class="value">{{ value }}</div>
+        </article>
+      {% endfor %}
+    </section>
+  {% endif %}
+{%- endmacro %}
+{% macro rows_table(title, rows, columns) -%}
+  <section class="section">
+    <h2>{{ title }}</h2>
+    {% if rows %}
+      <table>
+        <thead>
+          <tr>
+            {% for key, label in columns %}<th>{{ label }}</th>{% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              {% for key, label in columns %}
+                <td>{{ row.get(key, "") }}</td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="empty">No rows available.</div>
+    {% endif %}
+  </section>
+{%- endmacro %}
+{% block content %}
+<p class="meta">This canonical graph is observational and read-only.</p>
+{{ cards_section(cards|default([])) }}
+{% if query %}<p class="meta">Filtered by: {{ query }}</p>{% endif %}
+{{ rows_table("Canonical artists", artists|default([]), [
+  ("canonical_id", "Canonical ID"),
+  ("canonical_name", "Name"),
+  ("confidence_tier", "Confidence"),
+  ("evidence_count", "Evidence")
+]) }}
+{{ rows_table("Canonical albums", albums|default([]), [
+  ("canonical_id", "Canonical ID"),
+  ("canonical_name", "Album"),
+  ("status", "Status"),
+  ("confidence_tier", "Confidence")
+]) }}
+{{ rows_table("Canonical tracks", tracks|default([]), [
+  ("canonical_id", "Canonical ID"),
+  ("canonical_name", "Track"),
+  ("status", "Status"),
+  ("confidence_tier", "Confidence")
+]) }}
+{{ rows_table("Relationships", relationships|default([]), [
+  ("source_entity", "Source"),
+  ("target_entity", "Target"),
+  ("relationship_type", "Relationship"),
+  ("confidence_score", "Confidence")
+]) }}
+{{ rows_table("Unresolved conflicts", conflicts|default([]), [
+  ("entity_type", "Type"),
+  ("entity_key", "Entity"),
+  ("variants", "Variants"),
+  ("rationale", "Rationale")
+]) }}
+{% endblock %}

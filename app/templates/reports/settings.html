@@ -1,0 +1,20 @@
+{% extends "reports/base.html" %}
+{% block content %}
+<section class="section">
+  <h2>Configured paths</h2>
+  {% if settings %}
+    <table>
+      <tbody>
+        {% for label, value in settings %}
+          <tr>
+            <th>{{ label }}</th>
+            <td class="path">{{ value }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="empty">No settings available.</div>
+  {% endif %}
+</section>
+{% endblock %}

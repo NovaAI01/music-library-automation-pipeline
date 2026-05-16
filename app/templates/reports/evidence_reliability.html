@@ -1,0 +1,70 @@
+{% extends "reports/base.html" %}
+{% macro cards_section(cards) -%}
+  {% if cards %}
+    <section class="cards">
+      {% for label, value in cards %}
+        <article class="card">
+          <div class="label">{{ label }}</div>
+          <div class="value">{{ value }}</div>
+        </article>
+      {% endfor %}
+    </section>
+  {% endif %}
+{%- endmacro %}
+{% macro rows_table(title, rows, columns) -%}
+  <section class="section">
+    <h2>{{ title }}</h2>
+    {% if rows %}
+      <table>
+        <thead>
+          <tr>
+            {% for key, label in columns %}<th>{{ label }}</th>{% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              {% for key, label in columns %}
+                <td>{{ row.get(key, "") }}</td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="empty">No rows available.</div>
+    {% endif %}
+  </section>
+{%- endmacro %}
+{% block content %}
+{{ cards_section(cards|default([])) }}
+{% if query %}<p class="meta">Filtered by: {{ query }}</p>{% endif %}
+{{ rows_table("Low reliability records", unreliable|default([]), [
+  ("file_path", "File"),
+  ("artist", "Artist"),
+  ("title", "Title"),
+  ("reliability_tier", "Tier"),
+  ("reliability_flags", "Flags")
+]) }}
+{{ rows_table("Uploader Artifacts", uploader_artifacts|default([]), [
+  ("file_path", "File"),
+  ("field", "Field"),
+  ("value", "Value"),
+  ("reliability_tier", "Tier"),
+  ("reliability_flags", "Flags")
+]) }}
+{{ rows_table("Canonical Matches", canonical_matches|default([]), [
+  ("file_path", "File"),
+  ("field", "Field"),
+  ("value", "Value"),
+  ("reliability_tier", "Tier"),
+  ("reliability_flags", "Flags")
+]) }}
+{{ rows_table("All evidence records", records|default([]), [
+  ("file_path", "File"),
+  ("field", "Field"),
+  ("value", "Value"),
+  ("source", "Source"),
+  ("reliability_tier", "Tier")
+]) }}
+{% endblock %}

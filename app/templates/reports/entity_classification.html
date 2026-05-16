@@ -1,0 +1,63 @@
+{% extends "reports/base.html" %}
+{% macro cards_section(cards) -%}
+  {% if cards %}
+    <section class="cards">
+      {% for label, value in cards %}
+        <article class="card">
+          <div class="label">{{ label }}</div>
+          <div class="value">{{ value }}</div>
+        </article>
+      {% endfor %}
+    </section>
+  {% endif %}
+{%- endmacro %}
+{% macro rows_table(title, rows, columns) -%}
+  <section class="section">
+    <h2>{{ title }}</h2>
+    {% if rows %}
+      <table>
+        <thead>
+          <tr>
+            {% for key, label in columns %}<th>{{ label }}</th>{% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              {% for key, label in columns %}
+                <td>{{ row.get(key, "") }}</td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="empty">No rows available.</div>
+    {% endif %}
+  </section>
+{%- endmacro %}
+{% block content %}
+{{ cards_section(cards|default([])) }}
+{% if query %}<p class="meta">Filtered by: {{ query }}</p>{% endif %}
+{{ rows_table("Blocked candidates", blocked|default([]), [
+  ("candidate_value", "Entity"),
+  ("field_name", "Field"),
+  ("proposed_entity_type", "Classification"),
+  ("confidence_tier", "Confidence"),
+  ("rationale", "Rationale")
+]) }}
+{{ rows_table("Ambiguous candidates", ambiguous|default([]), [
+  ("candidate_value", "Entity"),
+  ("field_name", "Field"),
+  ("proposed_entity_type", "Classification"),
+  ("confidence_tier", "Confidence"),
+  ("rationale", "Rationale")
+]) }}
+{{ rows_table("All candidates", records|default([]), [
+  ("candidate_value", "Entity"),
+  ("field_name", "Field"),
+  ("proposed_entity_type", "Classification"),
+  ("flags", "Flags"),
+  ("confidence_tier", "Confidence")
+]) }}
+{% endblock %}

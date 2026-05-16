@@ -36,6 +36,11 @@ canonical comparison or reviewed import work. It highlights evidence patterns
 such as missing fields, duplicate records, casing variants, source artifacts,
 collaboration strings, version noise, malformed dates, and malformed durations.
 
+Artist Credit Parsing v1 follows up on the `collaboration_string` cohort by
+separating primary, featured, collaborator, and unresolved artist-credit evidence
+for future canonical graph integration. It is still analysis-only and does not
+change canonical entities in v1.
+
 This prevents song-by-song debugging because one report can show whether a
 problem is isolated or systemic. A cohort like `source_artifact_candidate` or
 `official_audio_video_noise` can represent hundreds of records that need one

@@ -12,6 +12,7 @@ from app.album_discovery import generate_album_discovery
 from app.album_organization import generate_album_organization_plan
 from app import db
 from app.alias_equivalence_audit import generate_alias_equivalence_audit_report
+from app.artist_credit_parser import analyze_artist_credits
 from app.classifier import classify_scan_run
 from app.canonical_entity_graph import generate_canonical_graph
 from app.canonical_entity_classifier import generate_canonical_entity_classification_report
@@ -365,6 +366,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     validation_parser.add_argument("--source", required=True)
     validation_parser.add_argument("--out", default="reports")
+
+    artist_credit_parser = subparsers.add_parser(
+        "analyze-artist-credits",
+        help="Parse read-only artist-credit collaboration strings from external metadata.",
+    )
+    artist_credit_parser.add_argument("--source", required=True)
+    artist_credit_parser.add_argument("--out", default="reports")
+    artist_credit_parser.add_argument("--limit", type=int)
 
     benchmark_validation_parser = subparsers.add_parser(
         "benchmark-validation",
@@ -976,6 +985,22 @@ def main(argv: list[str] | None = None) -> int:
         print(f"total_cohorts={result.total_cohorts}")
         print(f"high_priority_cohorts={result.high_priority_cohorts}")
         print(f"malformed_record_count={result.malformed_record_count}")
+        return 0
+
+    if args.command == "analyze-artist-credits":
+        result = analyze_artist_credits(
+            source_name=args.source,
+            out_dir=args.out,
+            limit=args.limit,
+        )
+        print(f"report_path={result.report_path}")
+        print(f"source_name={result.source_name}")
+        print(f"total_records={result.total_records}")
+        print(f"parsed_records={result.parsed_records}")
+        print(f"collaboration_count={result.collaboration_count}")
+        print(f"featured_artist_count={result.featured_artist_count}")
+        print(f"unresolved_count={result.unresolved_count}")
+        print(f"top_pattern={result.top_pattern}")
         return 0
 
     if args.command == "benchmark-validation":

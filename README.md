@@ -228,6 +228,9 @@ Evidence is represented in generated report artifacts under:
   the external metadata ingestion contract.
 - Read-only large-scale external metadata validation that groups evidence
   problems into cohorts before any reviewed canonical comparison work.
+- Read-only artist-credit parsing analysis that separates primary, featured,
+  collaboration, and unresolved external artist-credit strings without changing
+  canonical graph entities.
 
 ## Operational Characteristics
 
@@ -544,6 +547,18 @@ python -m app.main entity-boundaries --out reports
 ```
 
 It writes `reports/entity_boundaries/` and remains review-only.
+
+Artist Credit Parsing v1 analyzes the collaboration-string validation cohort
+without changing canonical entities:
+
+```bash
+python -m app.main analyze-artist-credits --source musicbrainz --out reports
+```
+
+It writes `reports/artist_credit_analysis/` with parsed primary artists,
+featured artists, collaborators, unresolved credits, pattern counts, and top
+collaborators. The output prepares future canonical graph integration but does
+not auto-merge artists or create canonical aliases in v1.
 
 Album metadata discovery is also review-only. The `discover-albums` command
 looks at existing tags, filenames, and local path evidence for tracks with

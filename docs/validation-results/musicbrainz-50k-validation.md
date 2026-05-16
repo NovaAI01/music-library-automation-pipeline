@@ -69,6 +69,12 @@ Primary next engineering target:
 
 `Artist Credit Parsing v1`
 
+Artist Credit Parsing v1 analyzes this collaboration cohort and prepares
+role-aware primary, featured, collaborator, and unresolved artist-credit
+evidence for future canonical graph integration. It does not change canonical
+entities, create aliases, merge artists, mutate local music data, or write
+metadata tags in v1.
+
 The second major issue is release-aware duplicate identity. The `duplicate_external_records` count likely reflects multiple releases, editions, countries, and reissues rather than simple duplicate tracks.
 
 Do not treat those as removable duplicates without release-aware identity logic.

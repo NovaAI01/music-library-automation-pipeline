@@ -861,24 +861,19 @@ app/
   scanner.py              Local media observation
   identity_engine.py      Deterministic identity resolution
   classifier.py           Classification rules
-  placement.py            Placement planning and execution
+  placement_planner.py    Reviewable destination path planning
+  placement_executor.py   Controlled copy execution from approved plans
   duplicate_*.py          Duplicate reporting, review, quarantine, restore
   album_cohesion.py       Repeated-evidence album grouping reports
   metadata_*.py           FLAC audit and normalization planning
   library_app_ui.py       Unified local music library UI routes
   report_*.py             Report generation and compatibility UI helpers
 
-reports/
-  library_qa/             Library health reports
-  duplicates_scan_1/      Duplicate report outputs
-  metadata_audit/         Metadata audit outputs
-  metadata_plan/          Metadata normalization plan outputs
-  album_cohesion/         Album cohesion grouping and conflict reports
-
 tests/
   test_*.py               Focused pytest coverage for pipeline behavior
 
 docs/
+  validation-results/     Committed summarized validation evidence
   sample-outputs/         Sanitized report excerpts
 
 tools/portfolio_demo/
@@ -886,6 +881,11 @@ tools/portfolio_demo/
   ui_screenshot_capture.py Screenshot capture helper
   docs/                   Demo workflow, script, and screenshots
 ```
+
+Generated report directories such as `reports/library_qa/`,
+`reports/metadata_audit/`, and `reports/runs/musicbrainz/musicbrainz_50k/`
+are local runtime outputs and are ignored by git. Public validation evidence is
+committed as summarized documentation under `docs/validation-results/`.
 
 ## 14. Screenshots
 

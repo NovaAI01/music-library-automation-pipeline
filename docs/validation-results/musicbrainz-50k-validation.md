@@ -4,16 +4,17 @@
 
 - Source: MusicBrainz full metadata dump
 - Dump: `20260513-001936`
-- Isolated run: `reports/runs/musicbrainz/musicbrainz_50k/`
+- Ignored local isolated run path: `reports/runs/musicbrainz/musicbrainz_50k/`
 - Metadata only: true
 - Audio downloaded: no
 - Local library mutated: no
 - Canonical graph mutated: no
 - External data root: `$MUSIC_INTELLIGENCE_DATA_ROOT`
 
-The committed validation metrics cite the durable isolated run directory above,
-not generic report directories that can be overwritten by later smoke tests,
-fixture runs, or local validation experiments.
+The public repository commits this summarized validation document under
+`docs/validation-results/`. The full generated run artifacts live under the
+ignored local `reports/` tree and are reproducible via the documented
+validation commands; they are not expected to be present in a public checkout.
 
 Run manifest guarantees:
 

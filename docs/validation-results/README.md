@@ -3,23 +3,18 @@
 - [MusicBrainz 50k validation result](musicbrainz-50k-validation.md)
 - [MusicBrainz 50k consolidated result](musicbrainz-50k-consolidated-result.md)
 
-Committed validation result docs should cite artifacts from isolated report
-runs, for example:
+The public repository commits summarized validation result documents here. Full
+generated run artifacts are local report outputs under ignored `reports/`
+paths and are not expected to be present in a public checkout.
 
-```text
-reports/runs/musicbrainz/musicbrainz_50k/
-```
+Isolated local report runs use ignored generated paths such as `reports/runs/musicbrainz/musicbrainz_50k/`.
 
-Each labeled run contains command-specific report directories plus
+Each labeled local run contains command-specific report directories plus
 `run_manifest.json`. This prevents later smoke tests or fixture runs from
 overwriting benchmark evidence under legacy paths such as
 `reports/validation_benchmark/`.
 
-The current verified MusicBrainz 50k evidence is the isolated run:
-
-```text
-reports/runs/musicbrainz/musicbrainz_50k/
-```
+The current verified MusicBrainz 50k metrics were produced from the ignored local isolated run `reports/runs/musicbrainz/musicbrainz_50k/`.
 
 Its manifest records:
 

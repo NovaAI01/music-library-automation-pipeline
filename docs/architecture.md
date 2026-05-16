@@ -6,9 +6,11 @@ normalizes metadata, detects duplicates, scores confidence, proposes
 reviewable remediation, and preserves audit history before any controlled file
 operation runs.
 
-v1 has no network or AI behavior. External metadata ingestion and validation
-are metadata-only workflows over local CSV/JSONL fixtures; they do not mutate
-the local canonical graph.
+v1 has no audio download, media download, AI/LLM enrichment, or remote
+canonical mutation. External metadata ingestion and validation are
+metadata-only workflows over local CSV/JSONL fixtures or optional
+metadata-only acquisition commands; they do not mutate the local library or
+canonical graph.
 
 ## Local-First Flow
 
@@ -70,7 +72,10 @@ Audit logs and read-only UI
 - Not a substitute for streaming services.
 - Not an AI wrapper.
 - Not an automatic tag writer.
-- No network or AI behavior in v1.
+- No audio download, media download, AI/LLM enrichment, or remote canonical
+  mutation in v1.
+- Optional metadata-only acquisition commands are isolated from local library
+  and canonical graph mutation.
 - No autonomous mutation of media tags, files, or canonical graph state.
 - External metadata validation stays separate from local graph mutation.
 

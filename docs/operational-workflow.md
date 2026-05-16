@@ -13,7 +13,7 @@ Current generated evidence includes:
 - 0 unresolved missing files
 - 627 readable FLAC files
 - 2063 proposed metadata updates
-- 232 passing tests
+- 585 passing tests
 
 ## 1. Intake
 
@@ -178,7 +178,7 @@ metadata audit, metadata planning, and UI helpers.
 
 Inputs: the repository test suite.
 
-Outputs: pytest results. Current evidence records 232 passing tests.
+Outputs: pytest results. Current evidence records 585 passing tests.
 
 Safety boundary: tests exercise behavior without requiring operators to mutate
 the production library.

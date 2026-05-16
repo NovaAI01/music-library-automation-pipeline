@@ -5,14 +5,17 @@ normalizing, and safely remediating user-owned or legally sourced music
 libraries.
 
 The platform organizes evidence around Artists -> Albums -> Tracks without
-cloud services, accounts, remote enrichment, or destructive automation. It
+cloud accounts, AI/LLM enrichment, media downloads, or destructive automation. It
 observes local files, normalizes metadata evidence, detects duplicates, scores
 confidence, proposes evidence-based remediation, keeps audit logs, and routes
 uncertain decisions through human review. External metadata validation is
 metadata-only and remains separate from the local canonical graph.
 
 It is not a downloader, not a substitute for streaming services, not an AI
-wrapper, and not an automatic tag writer. v1 has no network or AI behavior.
+wrapper, and not an automatic tag writer. Optional metadata-only acquisition
+commands exist for supported sources, but they do not download audio or media,
+do not enrich the canonical graph remotely, and do not mutate local library
+state.
 
 ## 1. Overview
 
@@ -27,7 +30,7 @@ Import messy music
   -> review duplicates
   -> review metadata suggestions
   -> browse organized artists, albums, and tracks
-  -> play tracks locally
+  -> optionally preview local tracks
 ```
 
 The command-line pipeline still performs the deterministic scanning, planning,
@@ -65,12 +68,42 @@ appropriate, and preserve recovery information.
 ## Validation Evidence
 
 - [MusicBrainz 50k consolidated result](docs/validation-results/musicbrainz-50k-consolidated-result.md)
-- Durable isolated run: `reports/runs/musicbrainz/musicbrainz_50k/`
+- Public validation evidence is committed as summarized documentation under
+  [docs/validation-results/](docs/validation-results/).
+- Full generated run artifacts are local ignored report outputs. A representative
+  local ignored isolated run path is `reports/runs/musicbrainz/musicbrainz_50k/`, but
+  `reports/` is ignored and is not expected to be present in the public
+  repository.
 - Manifest guarantees: `metadata_only=true`, `audio_downloaded=false`, `local_library_mutated=false`, `canonical_graph_mutated=false`.
 - 50,000 MusicBrainz metadata rows processed; 49,773 accepted after conversion.
 - 49,773 ingested records; 0 rejected records; 0 missing artist, album, or title fields.
 - Release identity analysis explained 13,712 duplicate-looking external records; integrated benchmark `duplicate_external_records=0`.
 - Integrated benchmark reports 1,212 cohorts and 1,212 conflicts after artist-credit and release-identity analysis.
+
+## Setup
+
+Install the Python dependencies:
+
+```bash
+python -m pip install -r requirements.txt
+```
+
+Run the test suite:
+
+```bash
+python -m pytest -q
+```
+
+Example metadata-only validation command:
+
+```bash
+python -m app.main benchmark-validation --source local_fixture --out reports
+```
+
+Generated reports and local data are ignored by git. Large metadata dumps and
+working data should live outside the repository by setting
+`MUSIC_INTELLIGENCE_DATA_ROOT`; see
+[docs/external-data-root.md](docs/external-data-root.md).
 
 ## 2. Problem Statement
 
@@ -197,14 +230,18 @@ Current generated evidence shows:
 - 0 unresolved missing files
 - 627 readable FLAC files in metadata audit
 - 2063 proposed metadata updates
-- 491 passing tests
+- 585 passing tests
 
-Evidence is represented in generated report artifacts under:
+Local generated evidence is represented in ignored report artifacts under:
 
 - `reports/library_qa/`
 - `reports/duplicates_scan_1/`
 - `reports/metadata_audit/`
 - `reports/metadata_plan/`
+
+The public repository commits source code, tests, documentation, sample
+outputs, and summarized validation results. Generated `reports/`, `data/`,
+demo exports, SQLite databases, and caches are local runtime artifacts.
 
 ## 6. Core Capabilities
 
@@ -813,7 +850,7 @@ python -m pytest -q
 Current result:
 
 ```text
-491 passed
+585 passed
 ```
 
 ## 13. Repository Structure
@@ -857,14 +894,9 @@ tools/portfolio_demo/
 | <img src="tools/portfolio_demo/docs/screenshots/01_dashboard.png" alt="Dashboard" width="240"><br><sub>Dashboard</sub> | <img src="tools/portfolio_demo/docs/screenshots/02_library_browser.png" alt="Library browser" width="240"><br><sub>Library browser</sub> | <img src="tools/portfolio_demo/docs/screenshots/03_review_hub.png" alt="Review hub" width="240"><br><sub>Review hub</sub> |
 | <img src="tools/portfolio_demo/docs/screenshots/04_metadata_review.png" alt="Metadata review" width="240"><br><sub>Metadata review</sub> | <img src="tools/portfolio_demo/docs/screenshots/05_player.png" alt="Player" width="240"><br><sub>Player</sub> |  |
 
-## 15. Roadmap
+## 15. Public Repository Hygiene
 
-- Add real UI screenshots for the documented app screens.
-- Add a scripted demo dataset so portfolio metrics can be regenerated
-  reproducibly.
-- Expand command documentation with input and output contracts.
-- Add portable report bundles that avoid exposing local absolute paths.
-- Improve metadata plan review workflow while keeping tag writing separate from
-  audit and planning.
-- Add more failure-mode tests for interrupted quarantine and restore boundary
-  validation.
+Generated reports, local data roots, demo exports, SQLite databases, caches, and
+large metadata dumps are intentionally ignored. Public review should evaluate
+the tracked source code, tests, documentation, sanitized sample outputs, and
+summarized validation evidence under `docs/validation-results/`.

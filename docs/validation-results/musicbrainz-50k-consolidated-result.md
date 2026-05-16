@@ -6,11 +6,9 @@ The MusicBrainz 50k validation run shows that the system can convert noisy
 external metadata into explainable operational cohorts without mutating the
 local music library or canonical graph.
 
-The committed evidence for this result comes from the isolated run directory:
-
-```text
-reports/runs/musicbrainz/musicbrainz_50k/
-```
+The public repository commits summarized evidence for this result under
+`docs/validation-results/`. The full generated artifacts were produced in the
+ignored local isolated run directory `reports/runs/musicbrainz/musicbrainz_50k/`.
 
 The run converted 50,000 MusicBrainz metadata rows into 49,773 accepted
 external records, ingested all accepted records with no missing artist, album,
@@ -30,7 +28,7 @@ does not prove that every metadata problem is solved.
 ## Dataset Boundary
 
 - Source: MusicBrainz full metadata dump sample.
-- Isolated run: `reports/runs/musicbrainz/musicbrainz_50k/`.
+- Ignored local isolated run path: `reports/runs/musicbrainz/musicbrainz_50k/`.
 - Scope: metadata only.
 - Input tracks seen: 50,000.
 - Audio downloaded: no.
@@ -64,10 +62,11 @@ The run manifest guarantees:
 | `duration_seconds` | 82.84 |
 
 The conversion stage accepted 99.55% of the sampled MusicBrainz rows and
-rejected 227 records before ingestion. These metrics are taken from the
-isolated run artifacts under
-`reports/runs/musicbrainz/musicbrainz_50k/`, rather than overwrite-prone
-legacy report paths.
+rejected 227 records before ingestion. These metrics are taken from the local
+isolated run artifacts under the ignored local path `reports/runs/musicbrainz/musicbrainz_50k/`,
+rather than overwrite-prone legacy report paths. The generated `reports/` tree
+is ignored; public review should use this summarized document unless the run is
+regenerated locally.
 
 ## Ingestion Result
 

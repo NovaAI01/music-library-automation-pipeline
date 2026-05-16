@@ -200,11 +200,8 @@ python -m app.main analyze-release-identity --source musicbrainz --out reports -
 python -m app.main benchmark-validation --source musicbrainz --out reports --run-label musicbrainz_50k
 ```
 
-Those commands share:
-
-```text
-reports/runs/musicbrainz/musicbrainz_50k/
-```
-
+Those commands share the ignored local generated report path `reports/runs/musicbrainz/musicbrainz_50k/`,
 with command-specific subdirectories and a `run_manifest.json` recording the
-commands run, report paths, data root, and no-mutation boundaries.
+commands run, report paths, data root, and no-mutation boundaries. The public
+repository commits summarized validation docs under `docs/validation-results/`;
+the full `reports/runs/` artifacts are local and reproducible.

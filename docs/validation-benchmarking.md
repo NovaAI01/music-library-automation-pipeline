@@ -22,6 +22,27 @@ distribution, ranking, and timing reports under:
 reports/validation_benchmark/
 ```
 
+For durable validation evidence, pass a run label:
+
+```bash
+python -m app.main benchmark-validation \
+  --source local_fixture \
+  --out reports \
+  --run-label local_fixture_smoke
+```
+
+Labeled runs write to an isolated directory:
+
+```text
+reports/runs/local_fixture/local_fixture_smoke/validation_benchmark/
+reports/runs/local_fixture/local_fixture_smoke/run_manifest.json
+```
+
+Use labeled run output for benchmark evidence that may be cited in committed
+docs. Ad hoc smoke tests can continue to use `--out reports` without a label,
+but those legacy paths are intentionally overwrite-friendly and should not be
+treated as preserved benchmark evidence.
+
 The goal is operational measurement: record volume, cohort distribution,
 severity mix, benchmark timing, and benchmark-level governance posture.
 
@@ -167,3 +188,23 @@ reports/validation_benchmark/governance_distribution.csv
 reports/validation_benchmark/top_failure_cohorts.csv
 reports/validation_benchmark/benchmark_timing.json
 ```
+
+Isolated validation runs can include the other major validation commands under
+the same run label:
+
+```bash
+python -m app.main convert-musicbrainz-dump --dump-dir ... --out reports --run-label musicbrainz_50k
+python -m app.main import-external-metadata --source musicbrainz --input ... --out reports --run-label musicbrainz_50k
+python -m app.main analyze-artist-credits --source musicbrainz --out reports --run-label musicbrainz_50k
+python -m app.main analyze-release-identity --source musicbrainz --out reports --run-label musicbrainz_50k
+python -m app.main benchmark-validation --source musicbrainz --out reports --run-label musicbrainz_50k
+```
+
+Those commands share:
+
+```text
+reports/runs/musicbrainz/musicbrainz_50k/
+```
+
+with command-specific subdirectories and a `run_manifest.json` recording the
+commands run, report paths, data root, and no-mutation boundaries.

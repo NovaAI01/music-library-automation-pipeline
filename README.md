@@ -577,6 +577,20 @@ ambiguous group names, and unresolved artist credits. This does not mutate
 source metadata, local files, tags, canonical graph behavior, or artist merge
 behavior.
 
+Major validation commands can be grouped into isolated report runs with
+`--run-label`:
+
+```bash
+python -m app.main analyze-artist-credits --source musicbrainz --out reports --run-label musicbrainz_50k
+python -m app.main analyze-release-identity --source musicbrainz --out reports --run-label musicbrainz_50k
+python -m app.main benchmark-validation --source musicbrainz --out reports --run-label musicbrainz_50k
+```
+
+Labeled output is written below
+`reports/runs/{source}/{run_label}/` with a `run_manifest.json`. Use those
+isolated paths for committed validation evidence; unlabeled smoke tests keep
+the historical overwrite-friendly report paths.
+
 Release-Aware Identity Analysis v1 investigates duplicate-looking external
 metadata rows without treating MusicBrainz release appearances as removable
 duplicates:

@@ -66,6 +66,7 @@ from app.review_decisions import (
     record_review_decision,
 )
 from app.review_report import generate_review_report
+from app.report_runs import resolve_report_out_dir, write_run_manifest
 from app.release_identity_analysis import analyze_release_identity
 from app.scanner import scan
 from app.validation_benchmark import benchmark_validation
@@ -360,6 +361,7 @@ def build_parser() -> argparse.ArgumentParser:
     external_metadata_parser.add_argument("--source", required=True)
     external_metadata_parser.add_argument("--input", required=True)
     external_metadata_parser.add_argument("--out", default="reports")
+    external_metadata_parser.add_argument("--run-label")
 
     validation_parser = subparsers.add_parser(
         "validate-external-metadata",
@@ -375,6 +377,7 @@ def build_parser() -> argparse.ArgumentParser:
     artist_credit_parser.add_argument("--source", required=True)
     artist_credit_parser.add_argument("--out", default="reports")
     artist_credit_parser.add_argument("--limit", type=int)
+    artist_credit_parser.add_argument("--run-label")
 
     benchmark_validation_parser = subparsers.add_parser(
         "benchmark-validation",
@@ -382,6 +385,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     benchmark_validation_parser.add_argument("--source", required=True)
     benchmark_validation_parser.add_argument("--out", default="reports")
+    benchmark_validation_parser.add_argument("--run-label")
 
     release_identity_parser = subparsers.add_parser(
         "analyze-release-identity",
@@ -390,6 +394,7 @@ def build_parser() -> argparse.ArgumentParser:
     release_identity_parser.add_argument("--source", required=True)
     release_identity_parser.add_argument("--out", default="reports")
     release_identity_parser.add_argument("--limit", type=int)
+    release_identity_parser.add_argument("--run-label")
 
     metadata_acquisition_parser = subparsers.add_parser(
         "plan-metadata-acquisition",
@@ -405,6 +410,8 @@ def build_parser() -> argparse.ArgumentParser:
     musicbrainz_converter_parser.add_argument("--dump-dir", required=True)
     musicbrainz_converter_parser.add_argument("--out", required=True)
     musicbrainz_converter_parser.add_argument("--limit", type=int)
+    musicbrainz_converter_parser.add_argument("--source", default="musicbrainz")
+    musicbrainz_converter_parser.add_argument("--run-label")
 
     internet_archive_parser = subparsers.add_parser(
         "fetch-internet-archive-metadata",
@@ -968,10 +975,22 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "import-external-metadata":
+        report_out_dir = resolve_report_out_dir(
+            args.out,
+            source_name=args.source,
+            run_label=args.run_label,
+        )
         result = import_external_metadata(
             source_name=args.source,
             input_path=args.input,
+            out_dir=report_out_dir,
+        )
+        write_run_manifest(
             out_dir=args.out,
+            source_name=args.source,
+            run_label=args.run_label,
+            command_name=args.command,
+            report_path=result.report_path,
         )
         print(f"report_path={result.report_path}")
         print(f"source_name={result.source_name}")
@@ -997,10 +1016,22 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "analyze-artist-credits":
+        report_out_dir = resolve_report_out_dir(
+            args.out,
+            source_name=args.source,
+            run_label=args.run_label,
+        )
         result = analyze_artist_credits(
             source_name=args.source,
-            out_dir=args.out,
+            out_dir=report_out_dir,
             limit=args.limit,
+        )
+        write_run_manifest(
+            out_dir=args.out,
+            source_name=args.source,
+            run_label=args.run_label,
+            command_name=args.command,
+            report_path=result.report_path,
         )
         print(f"report_path={result.report_path}")
         print(f"source_name={result.source_name}")
@@ -1013,9 +1044,21 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "benchmark-validation":
+        report_out_dir = resolve_report_out_dir(
+            args.out,
+            source_name=args.source,
+            run_label=args.run_label,
+        )
         result = benchmark_validation(
             source_name=args.source,
+            out_dir=report_out_dir,
+        )
+        write_run_manifest(
             out_dir=args.out,
+            source_name=args.source,
+            run_label=args.run_label,
+            command_name=args.command,
+            report_path=result.report_path,
         )
         print(f"report_path={result.report_path}")
         print(f"source_name={result.source_name}")
@@ -1029,10 +1072,22 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "analyze-release-identity":
+        report_out_dir = resolve_report_out_dir(
+            args.out,
+            source_name=args.source,
+            run_label=args.run_label,
+        )
         result = analyze_release_identity(
             source_name=args.source,
-            out_dir=args.out,
+            out_dir=report_out_dir,
             limit=args.limit,
+        )
+        write_run_manifest(
+            out_dir=args.out,
+            source_name=args.source,
+            run_label=args.run_label,
+            command_name=args.command,
+            report_path=result.report_path,
         )
         print(f"report_path={result.report_path}")
         print(f"source_name={result.source_name}")
@@ -1060,10 +1115,27 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "convert-musicbrainz-dump":
+        output_csv = Path(args.out)
+        reports_dir = Path("reports")
+        if args.run_label:
+            reports_dir = resolve_report_out_dir(
+                args.out,
+                source_name=args.source,
+                run_label=args.run_label,
+            )
+            output_csv = reports_dir / "musicbrainz_conversion" / "external_tracks.csv"
         result = convert_musicbrainz_dump(
             dump_dir=args.dump_dir,
-            output_csv=args.out,
+            output_csv=output_csv,
             limit=args.limit,
+            reports_dir=reports_dir,
+        )
+        write_run_manifest(
+            out_dir=args.out,
+            source_name=args.source,
+            run_label=args.run_label,
+            command_name=args.command,
+            report_path=result.report_path,
         )
         print(f"report_path={result.report_path}")
         print(f"input_tracks_seen={result.input_tracks_seen}")

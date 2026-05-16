@@ -56,6 +56,7 @@ appropriate, and preserve recovery information.
 - [Entity boundary classifier](docs/entity-boundaries.md)
 - [Entity roles](docs/entity-roles.md)
 - [External metadata ingestion](docs/external-metadata-ingestion.md)
+- [MusicBrainz dump conversion](docs/musicbrainz-conversion.md)
 - [Large-scale evidence validation](docs/large-scale-evidence-validation.md)
 - [Validation benchmarking](docs/validation-benchmarking.md)
 - [Sample outputs](docs/sample-outputs/)
@@ -223,6 +224,8 @@ Evidence is represented in generated report artifacts under:
 - Metadata-only external source ingestion from local CSV/JSONL fixtures for
   future validation reports, kept separate from the local library and canonical
   graph.
+- Metadata-only MusicBrainz dump conversion from local extracted tables into
+  the external metadata ingestion contract.
 - Read-only large-scale external metadata validation that groups evidence
   problems into cohorts before any reviewed canonical comparison work.
 
@@ -286,6 +289,7 @@ python -m app.main album-cohesion --out reports
 python -m app.main evidence-reliability --out reports
 python -m app.main canonical-graph --out reports
 python -m app.main plan-metadata-acquisition --source musicbrainz --out reports
+python -m app.main convert-musicbrainz-dump --dump-dir ... --out ... --limit 10000
 python -m app.main benchmark-validation --source local_fixture --out reports
 python -m app.main discover-albums ...
 python -m app.main duplicate-report ...

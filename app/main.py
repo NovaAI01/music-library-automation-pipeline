@@ -35,6 +35,7 @@ from app.metadata_acquisition_planner import plan_metadata_acquisition
 from app.metadata_plan import generate_metadata_plan
 from app.metadata_suggestion_ui import router as metadata_suggestion_ui_router
 from app.metadata_suggestions import generate_metadata_suggestions
+from app.musicbrainz_converter import convert_musicbrainz_dump
 from app.normalization_knowledge import (
     build_normalization_knowledge,
     router as normalization_knowledge_router,
@@ -372,6 +373,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     metadata_acquisition_parser.add_argument("--source", required=True)
     metadata_acquisition_parser.add_argument("--out", default="reports")
+
+    musicbrainz_converter_parser = subparsers.add_parser(
+        "convert-musicbrainz-dump",
+        help="Convert extracted local MusicBrainz dump tables to ExternalTrackRecord CSV.",
+    )
+    musicbrainz_converter_parser.add_argument("--dump-dir", required=True)
+    musicbrainz_converter_parser.add_argument("--out", required=True)
+    musicbrainz_converter_parser.add_argument("--limit", type=int)
 
     subparsers.add_parser(
         "capture-ui-screenshots",
@@ -969,6 +978,22 @@ def main(argv: list[str] | None = None) -> int:
         print(f"raw_dump_target={result.raw_dump_target}")
         print(f"cache_target={result.cache_target}")
         print(f"risk_level={result.risk_level}")
+        return 0
+
+    if args.command == "convert-musicbrainz-dump":
+        result = convert_musicbrainz_dump(
+            dump_dir=args.dump_dir,
+            output_csv=args.out,
+            limit=args.limit,
+        )
+        print(f"report_path={result.report_path}")
+        print(f"input_tracks_seen={result.input_tracks_seen}")
+        print(f"accepted_records={result.accepted_records}")
+        print(f"rejected_records={result.rejected_records}")
+        print(f"output_csv={result.output_csv}")
+        print(f"rejected_csv={result.rejected_csv}")
+        print(f"limit_applied={result.limit_applied}")
+        print(f"duration_seconds={result.duration_seconds}")
         return 0
 
     if args.command == "capture-ui-screenshots":

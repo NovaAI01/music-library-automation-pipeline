@@ -38,6 +38,19 @@ the benchmark replaces the raw `collaboration_string` aggregate with
 artist-credit cohorts that separate explained parser output from unresolved
 artist credits.
 
+If matching release identity analysis reports already exist under
+`reports/release_identity_analysis/`, the benchmark also reads:
+
+```text
+reports/release_identity_analysis/release_identity_summary.json
+reports/release_identity_analysis/identity_groups.csv
+```
+
+The release identity summary must match the benchmark source name. When it
+does, the benchmark replaces the raw `duplicate_external_record` aggregate with
+release-aware cohorts that separate legitimate release appearances from
+possible true duplicates and unresolved identity clusters.
+
 ## Why Scale Validation Matters
 
 Small fixtures prove that individual rules behave correctly. Larger evidence
@@ -56,6 +69,8 @@ This helps answer practical stabilization questions:
   generation take?
 - How many collaboration-like artist credits are parser-explained, and how
   many remain unresolved?
+- How many duplicate-looking records are legitimate release appearances, and
+  how many remain possible true duplicates or unresolved?
 
 ## Artist Credit Integration
 
@@ -80,6 +95,32 @@ severity because they are not safe canonical artist evidence.
 
 If no matching artist-credit analysis report exists, benchmark output preserves
 the legacy raw `collaboration_string` cohort.
+
+## Release Identity Integration
+
+Release-Aware Identity Analysis v1 feeds validation benchmarking only as
+reporting evidence. It does not mutate canonical graph behavior, auto-merge
+tracks, delete duplicates, change duplicate quarantine behavior, write tags, or
+change source metadata.
+
+When the release identity report is present, benchmark cohorts include:
+
+- `release_identity_legitimate_appearance`
+- `release_identity_possible_true_duplicate`
+- `release_identity_edition_or_reissue`
+- `release_identity_compilation_or_multi_release`
+- `release_identity_ambiguous`
+- `release_identity_unresolved_duplicate_like`
+
+Legitimate release appearances are low severity because MusicBrainz recording
+and release evidence explains the duplicate-looking rows. Edition/reissue and
+compilation/multi-release clusters remain medium severity because release
+context must be preserved before future remediation. Possible true duplicates,
+ambiguous groups, and unresolved duplicate-like records remain high severity.
+
+If no matching release identity analysis report exists, benchmark output
+preserves the legacy raw `duplicate_external_record` cohort. Duplicate-looking
+external records are not removable duplicates by default.
 
 ## No Mutation Boundary
 

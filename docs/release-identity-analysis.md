@@ -41,6 +41,13 @@ Release-aware identity analysis separates likely true duplicate metadata rows
 from legitimate recording appearances across releases before any future
 duplicate-remediation logic interprets the validation count.
 
+The validation benchmark can consume `release_identity_summary.json` and
+`identity_groups.csv` when they exist for the same source. In that mode,
+`benchmark-validation` treats duplicate-looking rows as release-aware evidence
+where possible, while keeping possible true duplicates, ambiguous identity
+groups, and unresolved duplicate-like records visible as separate benchmark
+cohorts.
+
 ## MusicBrainz Recording vs Release
 
 MusicBrainz distinguishes a recording from the releases that contain it. This
@@ -93,3 +100,10 @@ identity state.
 
 The output is intended to inform future duplicate review and remediation design
 without changing current product behavior.
+
+Benchmark integration is also reporting-only. It separates duplicate-like
+records into legitimate release appearances, edition/reissue clusters,
+compilation or multi-release appearances, possible true duplicates, ambiguous
+identity groups, and unresolved duplicate-like records. It does not auto-merge
+tracks, auto-delete rows, change duplicate quarantine, or promote release
+identity output into the canonical graph.

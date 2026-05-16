@@ -582,6 +582,14 @@ ambiguous identity groups. This is reporting-only and does not alter duplicate
 quarantine behavior, canonical graph state, local files, tags, or source
 metadata.
 
+When those reports exist for the same source, `benchmark-validation` consumes
+the release identity summary and identity groups as reporting evidence. Raw
+`duplicate_external_record` benchmark failures are separated into legitimate
+release appearances, edition/reissue clusters, compilation or multi-release
+appearances, possible true duplicates, ambiguous identity groups, and
+unresolved duplicate-like records. Duplicate-looking external metadata rows are
+not removable duplicates by default.
+
 Album metadata discovery is also review-only. The `discover-albums` command
 looks at existing tags, filenames, and local path evidence for tracks with
 missing or `Unknown Album` album values, then writes suggestions under

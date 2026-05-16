@@ -37,21 +37,26 @@ Initial validation benchmarking treated collaboration syntax as one raw
 `collaboration_string` cohort. Artist Credit Validation Integration v1 now
 feeds the parser output back into benchmark reporting when
 `reports/artist_credit_analysis/` exists for the same source, so explained
-credits are separated from unresolved artist-credit failures.
+credits are separated from unresolved artist-credit failures. Release Identity
+Validation Integration v1 also feeds release-aware identity analysis into the
+benchmark when `reports/release_identity_analysis/` exists for the same source,
+so duplicate-looking rows are separated into legitimate release appearances,
+possible true duplicates, edition/reissue clusters, compilation or
+multi-release appearances, and unresolved identity evidence.
 
 | Metric | Value |
 |---|---:|
 | Total records | 49,773 |
-| Total cohorts | 5,628 |
-| Total conflicts | 5,628 |
+| Total cohorts | 1,212 |
+| Total conflicts | 1,212 |
 | Safe merge candidates | 350 |
-| Blocked merges | 2,432 |
-| Deferred conflicts | 2,846 |
-| Duplicate external records | 12,065 |
+| Blocked merges | 851 |
+| Deferred conflicts | 11 |
+| Duplicate external records | 0 |
 | Source artifact candidates | 393 |
 | Collaboration string candidates | 0 |
 | Malformed records | 0 |
-| Benchmark duration | 1.73s |
+| Benchmark duration | 2.50s |
 
 ## Artist Credit Benchmark Integration
 
@@ -83,16 +88,16 @@ artist merge behavior.
 
 | Cohort | Count | % of dataset | Severity | Recommended action |
 |---|---:|---:|---|---|
+| release_identity_legitimate_appearance | 12,075 | 24.26% | low | Treat as release-aware duplicate evidence; do not remove or merge automatically. |
 | artist_credit_parsed_high_confidence | 4,690 | 9.42% | low | Treat as parser-explained artist credit evidence; do not merge automatically. |
 | artist_credit_parsed_medium_confidence | 2,256 | 4.53% | medium | Review parsed collaboration evidence before graph integration. |
 | artist_credit_collaboration | 2,009 | 4.04% | medium | Review as collaboration role evidence before graph integration. |
+| release_identity_compilation_or_multi_release | 1,355 | 2.72% | medium | Preserve compilation or multi-release context before duplicate interpretation. |
 | artist_credit_featured | 427 | 0.86% | medium | Review as featured-artist role evidence before graph integration. |
 | artist_credit_ambiguous_group | 412 | 0.83% | medium | Review as possible group-name ambiguity before splitting artists. |
 | source_artifact_candidate | 393 | 0.79% | high | Block from canonical promotion proposals until reviewed |
 | artist_credit_unresolved | 356 | 0.72% | high | Keep blocked from canonical artist promotion until parser or human review resolves it. |
 | remaster_version_noise | 350 | 0.70% | medium | Separate version descriptors from canonical titles |
-| possible_album_as_artist | 319 | 0.64% | high | Investigate album-title-as-artist misclassification |
-| album_title_punctuation_variant | 233 | 0.47% | medium | Review punctuation-insensitive album/title normalization |
 
 ## Interpretation
 
@@ -101,6 +106,12 @@ The pipeline successfully converted, ingested, and benchmarked a real 50k-record
 The dominant issue is no longer one raw collaboration-string bucket. Artist
 Credit Parsing v1 explains most collaboration-like strings and leaves a smaller
 unresolved artist-credit cohort visible for review.
+
+Release Identity Validation Integration v1 also removes the raw
+`duplicate_external_record` benchmark bucket when matching release identity
+analysis exists. The dominant duplicate-like evidence is now explained as
+legitimate release appearances, while possible true duplicate candidates remain
+visible as high-severity review evidence.
 
 Primary next engineering target:
 
@@ -157,3 +168,10 @@ MusicBrainz 50k release-aware identity analysis:
 | Ambiguous identity groups | 0 |
 | Duplicate-like records explained | 13,712 |
 | Duplicate-like records unresolved | 0 |
+
+When this report is present, `benchmark-validation` records
+`release_identity_analysis_used=true`, removes the raw
+`duplicate_external_record` aggregate from benchmark failure counts, and emits
+release identity cohorts for legitimate release appearances, edition/reissue
+clusters, compilation or multi-release appearances, possible true duplicates,
+ambiguous identity groups, and unresolved duplicate-like records.

@@ -45,6 +45,15 @@ def test_benchmark_report_generation(tmp_path):
     assert summary["artist_credit_high_confidence"] == 0
     assert summary["artist_credit_medium_confidence"] == 0
     assert summary["artist_credit_low_confidence"] == 0
+    assert summary["release_identity_analysis_used"] is False
+    assert summary["release_identity_total_groups"] == 0
+    assert summary["release_identity_legitimate_appearances"] == 0
+    assert summary["release_identity_possible_true_duplicates"] == 0
+    assert summary["release_identity_edition_or_reissue_clusters"] == 0
+    assert summary["release_identity_compilation_or_multi_release"] == 0
+    assert summary["release_identity_ambiguous_groups"] == 0
+    assert summary["release_identity_duplicate_records_explained"] == 0
+    assert summary["release_identity_duplicate_records_unresolved"] == 0
     assert summary["malformed_records"] == 1
     assert (report_dir / "cohort_distribution.csv").exists()
     assert (report_dir / "severity_distribution.csv").exists()
@@ -273,6 +282,166 @@ def test_artist_credit_cohort_ranking_is_deterministic(tmp_path):
     ]
 
 
+def test_release_identity_analysis_replaces_raw_duplicate_cohort(tmp_path):
+    _write_external_tracks(
+        tmp_path,
+        "local_fixture",
+        [
+            {"source_record_id": "dup", "artist": "Ride", "album": "Nowhere", "title": "Vapour Trail", "track_number": "1", "duration_seconds": "200"},
+            {"source_record_id": "dup", "artist": "Ride", "album": "Nowhere", "title": "Vapour Trail", "track_number": "1", "duration_seconds": "200"},
+            {"source_record_id": "rel-1", "artist": "Low", "album": "Album A", "title": "Song", "track_number": "1", "duration_seconds": "180"},
+            {"source_record_id": "rel-2", "artist": "Low", "album": "Album B", "title": "Song", "track_number": "1", "duration_seconds": "180"},
+            {"source_record_id": "ed-1", "artist": "Slowdive", "album": "Souvlaki", "title": "Alison", "track_number": "1", "duration_seconds": "190"},
+            {"source_record_id": "ed-2", "artist": "Slowdive", "album": "Souvlaki Deluxe Edition", "title": "Alison", "track_number": "1", "duration_seconds": "190"},
+        ],
+    )
+    _write_release_identity_analysis(
+        tmp_path,
+        "local_fixture",
+        [
+            _release_identity_group("gid:dup", "possible_true_duplicate", 2, "Ride", "Nowhere", "Vapour Trail", "200", 1, 1, 1),
+            _release_identity_group("gid:rel", "legitimate_release_appearance", 2, "Low", "Album A", "Song", "180", 2, 2, 2),
+            _release_identity_group("gid:ed", "edition_or_reissue_cluster", 2, "Slowdive", "Souvlaki", "Alison", "190", 2, 2, 2),
+        ],
+        summary_overrides={
+            "total_identity_groups": 3,
+            "legitimate_release_appearance_count": 1,
+            "possible_true_duplicate_count": 1,
+            "edition_or_reissue_cluster_count": 1,
+            "compilation_or_multi_release_appearance_count": 0,
+            "ambiguous_identity_group_count": 0,
+            "duplicate_external_records_explained": 6,
+            "duplicate_external_records_unresolved": 0,
+        },
+    )
+
+    benchmark_validation("local_fixture", out_dir=tmp_path / "reports", data_dir=tmp_path / "data")
+
+    report_dir = tmp_path / "reports" / "validation_benchmark"
+    summary = json.loads((report_dir / "benchmark_summary.json").read_text(encoding="utf-8"))
+    assert summary["release_identity_analysis_used"] is True
+    assert summary["release_identity_total_groups"] == 3
+    assert summary["release_identity_legitimate_appearances"] == 1
+    assert summary["release_identity_possible_true_duplicates"] == 1
+    assert summary["release_identity_edition_or_reissue_clusters"] == 1
+    assert summary["release_identity_duplicate_records_explained"] == 6
+    assert summary["release_identity_duplicate_records_unresolved"] == 0
+    assert summary["duplicate_external_records"] == 0
+
+    cohorts = {
+        row["cohort_type"]: row
+        for row in _read_csv(report_dir / "cohort_distribution.csv")
+    }
+    assert "duplicate_external_record" not in cohorts
+    assert cohorts["release_identity_legitimate_appearance"]["record_count"] == "2"
+    assert cohorts["release_identity_legitimate_appearance"]["highest_severity"] == "low"
+    assert cohorts["release_identity_possible_true_duplicate"]["record_count"] == "2"
+    assert cohorts["release_identity_possible_true_duplicate"]["highest_severity"] == "high"
+    assert cohorts["release_identity_edition_or_reissue"]["record_count"] == "2"
+    assert cohorts["release_identity_edition_or_reissue"]["highest_severity"] == "medium"
+
+
+def test_release_identity_compilation_and_ambiguous_cohorts(tmp_path):
+    _write_external_tracks(
+        tmp_path,
+        "local_fixture",
+        [
+            {"source_record_id": "comp-1", "artist": "Sparks", "album": "Sparks", "title": "Wonder Girl", "duration_seconds": "150"},
+            {"source_record_id": "comp-2", "artist": "Sparks", "album": "Best of Sparks", "title": "Wonder Girl", "duration_seconds": "150"},
+            {"source_record_id": "amb-1", "artist": "Tool", "album": "Album", "title": "Track", "duration_seconds": "100"},
+            {"source_record_id": "amb-2", "artist": "Tool", "album": "Album", "title": "Track", "duration_seconds": "110"},
+        ],
+    )
+    _write_release_identity_analysis(
+        tmp_path,
+        "local_fixture",
+        [
+            _release_identity_group("gid:comp", "compilation_or_multi_release_appearance", 2, "Sparks", "Sparks", "Wonder Girl", "150", 2, 2, 2),
+            _release_identity_group("weak:amb", "ambiguous_identity_cluster", 2, "Tool", "Album", "Track", "", 1, 0, 2),
+        ],
+        summary_overrides={
+            "total_identity_groups": 2,
+            "legitimate_release_appearance_count": 0,
+            "possible_true_duplicate_count": 0,
+            "edition_or_reissue_cluster_count": 0,
+            "compilation_or_multi_release_appearance_count": 1,
+            "ambiguous_identity_group_count": 1,
+            "duplicate_external_records_explained": 2,
+            "duplicate_external_records_unresolved": 2,
+        },
+    )
+
+    benchmark_validation("local_fixture", out_dir=tmp_path / "reports", data_dir=tmp_path / "data")
+
+    cohorts = {
+        row["cohort_type"]: row
+        for row in _read_csv(tmp_path / "reports" / "validation_benchmark" / "cohort_distribution.csv")
+    }
+    assert cohorts["release_identity_compilation_or_multi_release"]["record_count"] == "2"
+    assert cohorts["release_identity_compilation_or_multi_release"]["highest_severity"] == "medium"
+    assert cohorts["release_identity_ambiguous"]["record_count"] == "2"
+    assert cohorts["release_identity_ambiguous"]["highest_severity"] == "high"
+
+
+def test_release_identity_unresolved_duplicate_like_remainder(tmp_path):
+    _write_external_tracks(
+        tmp_path,
+        "local_fixture",
+        [
+            {"source_record_id": "1", "artist": "A", "album": "B", "title": "C", "duration_seconds": "1"},
+            {"source_record_id": "2", "artist": "A", "album": "B", "title": "C", "duration_seconds": "2"},
+        ],
+    )
+    _write_release_identity_analysis(
+        tmp_path,
+        "local_fixture",
+        [],
+        summary_overrides={
+            "total_identity_groups": 1,
+            "duplicate_external_records_explained": 0,
+            "duplicate_external_records_unresolved": 2,
+        },
+    )
+
+    benchmark_validation("local_fixture", out_dir=tmp_path / "reports", data_dir=tmp_path / "data")
+
+    cohorts = {
+        row["cohort_type"]: row
+        for row in _read_csv(tmp_path / "reports" / "validation_benchmark" / "cohort_distribution.csv")
+    }
+    assert cohorts["release_identity_unresolved_duplicate_like"]["record_count"] == "2"
+    assert cohorts["release_identity_unresolved_duplicate_like"]["highest_severity"] == "high"
+
+
+def test_release_identity_cohort_ranking_is_deterministic(tmp_path):
+    _write_external_tracks(
+        tmp_path,
+        "local_fixture",
+        [
+            {"source_record_id": "rel-1", "artist": "Low", "album": "Album A", "title": "Song", "duration_seconds": "180"},
+            {"source_record_id": "rel-2", "artist": "Low", "album": "Album B", "title": "Song", "duration_seconds": "180"},
+            {"source_record_id": "dup-1", "artist": "Ride", "album": "Nowhere", "title": "Track", "duration_seconds": "200"},
+            {"source_record_id": "dup-2", "artist": "Ride", "album": "Nowhere", "title": "Track", "duration_seconds": "200"},
+        ],
+    )
+    _write_release_identity_analysis(
+        tmp_path,
+        "local_fixture",
+        [
+            _release_identity_group("gid:rel", "legitimate_release_appearance", 2, "Low", "Album A", "Song", "180", 2, 2, 2),
+            _release_identity_group("gid:dup", "possible_true_duplicate", 2, "Ride", "Nowhere", "Track", "200", 1, 1, 2),
+        ],
+    )
+
+    benchmark_validation("local_fixture", out_dir=tmp_path / "reports", data_dir=tmp_path / "data")
+
+    rows = _read_csv(tmp_path / "reports" / "validation_benchmark" / "top_failure_cohorts.csv")
+    assert [row["cohort_type"] for row in rows[:2]] == [
+        "release_identity_possible_true_duplicate",
+        "release_identity_legitimate_appearance",
+    ]
+
+
 def test_empty_dataset_handling(tmp_path):
     result = benchmark_validation(
         "local_fixture",
@@ -313,6 +482,15 @@ def test_deterministic_output_structure(tmp_path):
         "deferred_conflicts",
         "duplicate_external_records",
         "malformed_records",
+        "release_identity_ambiguous_groups",
+        "release_identity_analysis_used",
+        "release_identity_compilation_or_multi_release",
+        "release_identity_duplicate_records_explained",
+        "release_identity_duplicate_records_unresolved",
+        "release_identity_edition_or_reissue_clusters",
+        "release_identity_legitimate_appearances",
+        "release_identity_possible_true_duplicates",
+        "release_identity_total_groups",
         "safe_merge_candidates",
         "source_artifact_candidates",
         "source_name",
@@ -373,6 +551,31 @@ def test_no_mutation_of_artist_credit_input_reports(tmp_path):
 
     assert source_path.read_bytes() == before_source
     assert parsed_path.read_bytes() == before_parsed
+    assert summary_path.read_bytes() == before_summary
+
+
+def test_no_mutation_of_release_identity_input_reports(tmp_path):
+    source_path = _write_external_tracks(
+        tmp_path,
+        "local_fixture",
+        [
+            {"source_record_id": "dup", "artist": "Ride", "album": "Nowhere", "title": "Vapour Trail"},
+            {"source_record_id": "dup", "artist": "Ride", "album": "Nowhere", "title": "Vapour Trail"},
+        ],
+    )
+    groups_path, summary_path = _write_release_identity_analysis(
+        tmp_path,
+        "local_fixture",
+        [_release_identity_group("gid:dup", "possible_true_duplicate", 2, "Ride", "Nowhere", "Vapour Trail", "200", 1, 1, 1)],
+    )
+    before_source = source_path.read_bytes()
+    before_groups = groups_path.read_bytes()
+    before_summary = summary_path.read_bytes()
+
+    benchmark_validation("local_fixture", out_dir=tmp_path / "reports", data_dir=tmp_path / "data")
+
+    assert source_path.read_bytes() == before_source
+    assert groups_path.read_bytes() == before_groups
     assert summary_path.read_bytes() == before_summary
 
 
@@ -522,6 +725,94 @@ def _artist_credit_row(
         "rationale": "test fixture",
         "source_title": "Song",
         "source_album": "Album",
+    }
+
+
+def _write_release_identity_analysis(
+    tmp_path,
+    source_name,
+    rows,
+    summary_overrides=None,
+):
+    report_dir = tmp_path / "reports" / "release_identity_analysis"
+    report_dir.mkdir(parents=True, exist_ok=True)
+    groups_path = report_dir / "identity_groups.csv"
+    fieldnames = [
+        "identity_key",
+        "classification",
+        "record_count",
+        "artist",
+        "title",
+        "duration_seconds",
+        "distinct_album_count",
+        "distinct_release_count",
+        "distinct_source_record_count",
+        "confidence_tier",
+        "rationale",
+    ]
+    with groups_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in rows:
+            complete = {field: "" for field in fieldnames}
+            complete.update(row)
+            writer.writerow(complete)
+
+    summary = {
+        "source_name": source_name,
+        "total_records": sum(int(row.get("record_count", 0)) for row in rows),
+        "total_identity_groups": len(rows),
+        "single_record_identity_count": sum(1 for row in rows if row.get("classification") == "single_record_identity"),
+        "legitimate_release_appearance_count": sum(1 for row in rows if row.get("classification") == "legitimate_release_appearance"),
+        "possible_true_duplicate_count": sum(1 for row in rows if row.get("classification") == "possible_true_duplicate"),
+        "edition_or_reissue_cluster_count": sum(1 for row in rows if row.get("classification") == "edition_or_reissue_cluster"),
+        "compilation_or_multi_release_appearance_count": sum(1 for row in rows if row.get("classification") == "compilation_or_multi_release_appearance"),
+        "ambiguous_identity_group_count": sum(1 for row in rows if row.get("classification") == "ambiguous_identity_cluster"),
+        "duplicate_external_records_explained": sum(
+            int(row.get("record_count", 0))
+            for row in rows
+            if row.get("classification") != "ambiguous_identity_cluster"
+        ),
+        "duplicate_external_records_unresolved": sum(
+            int(row.get("record_count", 0))
+            for row in rows
+            if row.get("classification") == "ambiguous_identity_cluster"
+        ),
+        "output_files": {
+            "identity_groups": str(groups_path),
+        },
+    }
+    if summary_overrides:
+        summary.update(summary_overrides)
+    summary_path = report_dir / "release_identity_summary.json"
+    summary_path.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return groups_path, summary_path
+
+
+def _release_identity_group(
+    identity_key,
+    classification,
+    record_count,
+    artist,
+    album,
+    title,
+    duration_seconds,
+    distinct_album_count,
+    distinct_release_count,
+    distinct_source_record_count,
+):
+    return {
+        "identity_key": identity_key,
+        "classification": classification,
+        "record_count": str(record_count),
+        "artist": artist,
+        "title": title,
+        "duration_seconds": duration_seconds,
+        "distinct_album_count": str(distinct_album_count),
+        "distinct_release_count": str(distinct_release_count),
+        "distinct_source_record_count": str(distinct_source_record_count),
+        "confidence_tier": "high",
+        "rationale": f"{classification} fixture from {album}",
     }
 
 

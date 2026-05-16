@@ -30,6 +30,9 @@ TIMING_FILENAME = "benchmark_timing.json"
 ARTIST_CREDIT_REPORT_DIRNAME = "artist_credit_analysis"
 ARTIST_CREDIT_SUMMARY_FILENAME = "artist_credit_summary.json"
 ARTIST_CREDIT_PARSED_FILENAME = "parsed_artist_credits.csv"
+RELEASE_IDENTITY_REPORT_DIRNAME = "release_identity_analysis"
+RELEASE_IDENTITY_SUMMARY_FILENAME = "release_identity_summary.json"
+RELEASE_IDENTITY_GROUPS_FILENAME = "identity_groups.csv"
 
 GOVERNANCE_STATUSES = (
     "safe_to_merge_candidate",
@@ -86,6 +89,20 @@ class ArtistCreditBenchmarkAnalysis:
 
 
 @dataclass(frozen=True)
+class ReleaseIdentityBenchmarkAnalysis:
+    used: bool
+    total_groups: int = 0
+    legitimate_appearances: int = 0
+    possible_true_duplicates: int = 0
+    edition_or_reissue_clusters: int = 0
+    compilation_or_multi_release: int = 0
+    ambiguous_groups: int = 0
+    duplicate_records_explained: int = 0
+    duplicate_records_unresolved: int = 0
+    cohorts: tuple[ValidationCohort, ...] = ()
+
+
+@dataclass(frozen=True)
 class ValidationBenchmarkResult:
     report_path: str
     source_name: str
@@ -105,6 +122,15 @@ class ValidationBenchmarkResult:
     artist_credit_high_confidence: int
     artist_credit_medium_confidence: int
     artist_credit_low_confidence: int
+    release_identity_analysis_used: bool
+    release_identity_total_groups: int
+    release_identity_legitimate_appearances: int
+    release_identity_possible_true_duplicates: int
+    release_identity_edition_or_reissue_clusters: int
+    release_identity_compilation_or_multi_release: int
+    release_identity_ambiguous_groups: int
+    release_identity_duplicate_records_explained: int
+    release_identity_duplicate_records_unresolved: int
     benchmark_duration_seconds: float
 
     def to_summary(self) -> dict[str, Any]:
@@ -121,6 +147,15 @@ class ValidationBenchmarkResult:
             "deferred_conflicts": self.deferred_conflicts,
             "duplicate_external_records": self.duplicate_external_records,
             "malformed_records": self.malformed_records,
+            "release_identity_ambiguous_groups": self.release_identity_ambiguous_groups,
+            "release_identity_analysis_used": self.release_identity_analysis_used,
+            "release_identity_compilation_or_multi_release": self.release_identity_compilation_or_multi_release,
+            "release_identity_duplicate_records_explained": self.release_identity_duplicate_records_explained,
+            "release_identity_duplicate_records_unresolved": self.release_identity_duplicate_records_unresolved,
+            "release_identity_edition_or_reissue_clusters": self.release_identity_edition_or_reissue_clusters,
+            "release_identity_legitimate_appearances": self.release_identity_legitimate_appearances,
+            "release_identity_possible_true_duplicates": self.release_identity_possible_true_duplicates,
+            "release_identity_total_groups": self.release_identity_total_groups,
             "safe_merge_candidates": self.safe_merge_candidates,
             "source_artifact_candidates": self.source_artifact_candidates,
             "source_name": self.source_name,
@@ -152,6 +187,9 @@ def benchmark_validation(
     artist_credit_analysis = _load_artist_credit_analysis(source_name, out_dir)
     if artist_credit_analysis.used:
         cohorts = _with_artist_credit_cohorts(cohorts, artist_credit_analysis)
+    release_identity_analysis = _load_release_identity_analysis(source_name, out_dir)
+    if release_identity_analysis.used:
+        cohorts = _with_release_identity_cohorts(cohorts, release_identity_analysis)
     cohort_analysis_seconds = _elapsed(phase_start)
 
     phase_start = perf_counter()
@@ -214,6 +252,15 @@ def benchmark_validation(
         artist_credit_high_confidence=artist_credit_analysis.high_confidence,
         artist_credit_medium_confidence=artist_credit_analysis.medium_confidence,
         artist_credit_low_confidence=artist_credit_analysis.low_confidence,
+        release_identity_analysis_used=release_identity_analysis.used,
+        release_identity_total_groups=release_identity_analysis.total_groups,
+        release_identity_legitimate_appearances=release_identity_analysis.legitimate_appearances,
+        release_identity_possible_true_duplicates=release_identity_analysis.possible_true_duplicates,
+        release_identity_edition_or_reissue_clusters=release_identity_analysis.edition_or_reissue_clusters,
+        release_identity_compilation_or_multi_release=release_identity_analysis.compilation_or_multi_release,
+        release_identity_ambiguous_groups=release_identity_analysis.ambiguous_groups,
+        release_identity_duplicate_records_explained=release_identity_analysis.duplicate_records_explained,
+        release_identity_duplicate_records_unresolved=release_identity_analysis.duplicate_records_unresolved,
         **benchmark_counts,
     )
     _write_json(report_dir / SUMMARY_FILENAME, result.to_summary())
@@ -452,6 +499,141 @@ def _json_list(value: str) -> list[str]:
     if not isinstance(parsed, list):
         return []
     return [str(item) for item in parsed]
+
+
+def _load_release_identity_analysis(
+    source_name: str,
+    out_dir: Path,
+) -> ReleaseIdentityBenchmarkAnalysis:
+    report_dir = out_dir / RELEASE_IDENTITY_REPORT_DIRNAME
+    summary_path = report_dir / RELEASE_IDENTITY_SUMMARY_FILENAME
+    groups_path = report_dir / RELEASE_IDENTITY_GROUPS_FILENAME
+    if not summary_path.exists() or not groups_path.exists():
+        return ReleaseIdentityBenchmarkAnalysis(used=False)
+
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    if summary.get("source_name") != source_name:
+        return ReleaseIdentityBenchmarkAnalysis(used=False)
+
+    with groups_path.open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(handle))
+
+    return ReleaseIdentityBenchmarkAnalysis(
+        used=True,
+        total_groups=_summary_int(summary, "total_identity_groups"),
+        legitimate_appearances=_summary_int(summary, "legitimate_release_appearance_count"),
+        possible_true_duplicates=_summary_int(summary, "possible_true_duplicate_count"),
+        edition_or_reissue_clusters=_summary_int(summary, "edition_or_reissue_cluster_count"),
+        compilation_or_multi_release=_summary_int(summary, "compilation_or_multi_release_appearance_count"),
+        ambiguous_groups=_summary_int(summary, "ambiguous_identity_group_count"),
+        duplicate_records_explained=_summary_int(summary, "duplicate_external_records_explained"),
+        duplicate_records_unresolved=_summary_int(summary, "duplicate_external_records_unresolved"),
+        cohorts=tuple(_release_identity_cohorts(rows, summary)),
+    )
+
+
+def _with_release_identity_cohorts(
+    cohorts: Iterable[ValidationCohort],
+    release_identity_analysis: ReleaseIdentityBenchmarkAnalysis,
+) -> list[ValidationCohort]:
+    return [
+        cohort
+        for cohort in cohorts
+        if cohort.cohort_type != "duplicate_external_record"
+    ] + list(release_identity_analysis.cohorts)
+
+
+def _release_identity_cohorts(
+    rows: list[dict[str, str]],
+    summary: dict[str, Any],
+) -> list[ValidationCohort]:
+    counts: Counter[tuple[str, str, str]] = Counter()
+    for row in rows:
+        classification = row.get("classification", "")
+        record_count = _row_int(row, "record_count")
+        if record_count <= 1:
+            continue
+        cohort_type = _release_identity_cohort_type(classification)
+        if not cohort_type:
+            continue
+        counts[(cohort_type, "all", _release_identity_severity(cohort_type))] += record_count
+
+    unresolved_count = _summary_int(summary, "duplicate_external_records_unresolved")
+    ambiguous_count = sum(
+        count
+        for (cohort_type, _cohort_key, _severity), count in counts.items()
+        if cohort_type == "release_identity_ambiguous"
+    )
+    unresolved_remainder = max(0, unresolved_count - ambiguous_count)
+    if unresolved_remainder:
+        counts[("release_identity_unresolved_duplicate_like", "all", "high")] += unresolved_remainder
+
+    return [
+        ValidationCohort(
+            cohort_key=f"{cohort_type}:{cohort_key}",
+            cohort_type=cohort_type,
+            record_count=count,
+            severity=severity,
+            recommended_action=_release_identity_recommended_action(cohort_type),
+            rationale=_release_identity_rationale(cohort_type),
+        )
+        for (cohort_type, cohort_key, severity), count in sorted(counts.items())
+        if count
+    ]
+
+
+def _release_identity_cohort_type(classification: str) -> str:
+    mapping = {
+        "legitimate_release_appearance": "release_identity_legitimate_appearance",
+        "possible_true_duplicate": "release_identity_possible_true_duplicate",
+        "edition_or_reissue_cluster": "release_identity_edition_or_reissue",
+        "compilation_or_multi_release_appearance": "release_identity_compilation_or_multi_release",
+        "ambiguous_identity_cluster": "release_identity_ambiguous",
+    }
+    return mapping.get(classification, "")
+
+
+def _release_identity_severity(cohort_type: str) -> str:
+    if cohort_type == "release_identity_legitimate_appearance":
+        return "low"
+    if cohort_type in {
+        "release_identity_edition_or_reissue",
+        "release_identity_compilation_or_multi_release",
+    }:
+        return "medium"
+    return "high"
+
+
+def _release_identity_recommended_action(cohort_type: str) -> str:
+    actions = {
+        "release_identity_legitimate_appearance": "Treat as release-aware duplicate evidence; do not remove or merge automatically.",
+        "release_identity_possible_true_duplicate": "Review as possible true duplicate metadata before any remediation.",
+        "release_identity_edition_or_reissue": "Preserve edition or reissue context before duplicate interpretation.",
+        "release_identity_compilation_or_multi_release": "Preserve compilation or multi-release context before duplicate interpretation.",
+        "release_identity_ambiguous": "Keep blocked from duplicate remediation until identity ambiguity is resolved.",
+        "release_identity_unresolved_duplicate_like": "Keep unresolved duplicate-like evidence visible for manual review.",
+    }
+    return actions[cohort_type]
+
+
+def _release_identity_rationale(cohort_type: str) -> str:
+    rationales = {
+        "release_identity_legitimate_appearance": "Release identity analysis explained duplicate-like rows as the same recording across releases.",
+        "release_identity_possible_true_duplicate": "Release identity analysis found duplicate-like rows without clear different release evidence.",
+        "release_identity_edition_or_reissue": "Release identity analysis found edition, remaster, deluxe, or reissue appearances.",
+        "release_identity_compilation_or_multi_release": "Release identity analysis found compilation, collection, soundtrack, or many-release appearances.",
+        "release_identity_ambiguous": "Release identity analysis found weak or conflicting identity evidence.",
+        "release_identity_unresolved_duplicate_like": "Duplicate-like records remain unresolved after release identity analysis.",
+    }
+    return rationales[cohort_type]
+
+
+def _row_int(row: dict[str, Any], key: str) -> int:
+    value = row.get(key, 0)
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
 
 
 def _read_external_records(input_csv: Path) -> list[ExternalValidationRecord]:

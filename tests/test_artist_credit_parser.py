@@ -83,13 +83,69 @@ def test_vs_collaboration():
     assert parsed.collaborating_artists == ("Beta",)
 
 
+def test_true_collaboration_markers_remain_collaborations():
+    cases = [
+        ("Nine Inch Nails feat. Guest", "feat_artist", "featured_artists"),
+        ("Artist ft. Guest", "ft_artist", "featured_artists"),
+        ("Artist featuring Guest", "featuring_artist", "featured_artists"),
+        ("Artist with Guest", "with_artist", "collaborating_artists"),
+        ("Artist vs Guest", "versus_artist", "collaborating_artists"),
+        ("Artist x Guest", "x_collaboration", "collaborating_artists"),
+    ]
+
+    for raw_artist, pattern, artist_field in cases:
+        parsed = parse_artist_credit(_record("1", raw_artist))
+        assert parsed.credit_pattern == pattern
+        assert parsed.primary_artist in {"Nine Inch Nails", "Artist"}
+        assert getattr(parsed, artist_field) == ("Guest",)
+
+
 def test_ambiguous_string_preserved():
     parsed = parse_artist_credit(_record("1", "Earth, Wind & Fire"))
 
-    assert parsed.credit_pattern == "unknown_or_ambiguous"
-    assert parsed.primary_artist == ""
-    assert parsed.confidence_tier == "low"
-    assert "ambiguous_credit" in parsed.parser_flags
+    assert parsed.credit_pattern == "solo_artist"
+    assert parsed.primary_artist == "Earth, Wind & Fire"
+    assert parsed.collaborating_artists == ()
+    assert parsed.confidence_tier == "medium"
+    assert "protected_group_name" in parsed.parser_flags
+    assert "ambiguous_separator" in parsed.parser_flags
+
+
+def test_protected_group_names_are_not_split():
+    cases = [
+        "Emerson, Lake & Palmer",
+        "Jimmy Dorsey & His Orchestra",
+        "Les Brown & His Band of Renown",
+        "Siouxsie and the Banshees",
+        "Commander Cody and His Lost Planet Airmen",
+        "Martin & Company",
+        "Bob Marley and the Wailers",
+        "Tom Petty and the Heartbreakers",
+        "Nick Cave and the Bad Seeds",
+    ]
+
+    for raw_artist in cases:
+        parsed = parse_artist_credit(_record("1", raw_artist))
+        assert parsed.credit_pattern == "solo_artist"
+        assert parsed.primary_artist == raw_artist
+        assert parsed.featured_artists == ()
+        assert parsed.collaborating_artists == ()
+        assert "protected_group_name" in parsed.parser_flags
+
+
+def test_protected_group_name_strong_suffix_confidence():
+    parsed = parse_artist_credit(_record("1", "Jimmy Dorsey & His Orchestra"))
+
+    assert parsed.confidence_tier == "high"
+    assert parsed.confidence_score == 0.88
+
+
+def test_separator_only_group_boundary_is_medium_confidence():
+    parsed = parse_artist_credit(_record("1", "Emerson, Lake & Palmer"))
+
+    assert parsed.confidence_tier == "medium"
+    assert "possible_group_name" in parsed.parser_flags
+    assert "ambiguous_separator" in parsed.parser_flags
 
 
 def test_source_artifact_rejected_low_confidence():

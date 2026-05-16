@@ -57,6 +57,20 @@ VERSUS_MARKER_RE = re.compile(r"\s+(?:vs\.?|versus)(?=\s)", re.I)
 X_MARKER_RE = re.compile(r"\s+x\s+", re.I)
 AMPERSAND_RE = re.compile(r"\s+(?:&|and)\s+", re.I)
 COMMA_RE = re.compile(r"\s*,\s*")
+PROTECTED_GROUP_SUFFIX_RE = re.compile(
+    r"\s+(?:&|and)\s+"
+    r"(?:"
+    r"(?:his|her|their)\s+"
+    r"(?:(?:[\w'.-]+\s+){0,5}(?:band|choir|ensemble|orchestra)|"
+    r"(?:band|choir|ensemble|orchestra)(?:\s+[\w'.-]+){0,5})|"
+    r"the\s+(?:[\w'.-]+\s+){0,5}"
+    r"(?:attractions|bad\s+seeds|band|banshees|choir|ensemble|flecktones|"
+    r"heartbreakers|highlanders|metrosquad|orchestra|roadburners|wailers)|"
+    r"his\s+lost\s+planet\s+airmen|"
+    r"(?:company|family|friends)"
+    r")\s*$",
+    re.I,
+)
 SOURCE_ARTIFACT_RE = re.compile(
     r"\b(?:youtube|soundcloud|bandcamp|archive|uploader|uploads?|channel|topic|"
     r"vevo|auto-generated|provided to youtube|official channel|records?|"
@@ -80,11 +94,13 @@ COLLECTIVE_SUFFIXES = {
     "family",
     "friends",
     "gang",
+    "heartbreakers",
     "orchestra",
     "quartet",
     "quintet",
     "sons",
     "trio",
+    "wailers",
 }
 
 CREDIT_PATTERNS = (
@@ -307,6 +323,10 @@ def parse_artist_credit(record: ArtistCreditInputRecord) -> ParsedArtistCredit:
                 rationale="Explicit feature marker separates a primary artist from featured artists.",
             )
 
+    protected_group = _protected_group_name(record, raw_artist)
+    if protected_group:
+        return protected_group
+
     marker_specs = (
         (WITH_MARKER_RE, "with_artist", 0.72, "with marker separates collaborators"),
         (VERSUS_MARKER_RE, "versus_artist", 0.70, "versus marker separates collaborators"),
@@ -317,13 +337,25 @@ def parse_artist_credit(record: ArtistCreditInputRecord) -> ParsedArtistCredit:
         parts = _split_on_regex(raw_artist, marker_re)
         if len(parts) > 1:
             if _looks_like_collective(raw_artist, parts) or not _clean_names(parts):
-                return _ambiguous(record, "artist credit may be a collective or band name")
+                return _ambiguous(
+                    record,
+                    "artist credit may be a collective or band name",
+                    flags=("possible_group_name", "ambiguous_separator"),
+                    score=0.35,
+                    tier="low",
+                )
             return _collaboration(record, parts, pattern, score, rationale)
 
     comma_parts = [part.strip() for part in COMMA_RE.split(raw_artist) if part.strip()]
     if len(comma_parts) > 1:
         if _looks_like_collective(raw_artist, comma_parts) or not _clean_names(comma_parts):
-            return _ambiguous(record, "comma-separated artist credit is ambiguous")
+            return _ambiguous(
+                record,
+                "comma-separated artist credit may be a group name or multi-artist credit",
+                flags=("possible_group_name", "ambiguous_separator"),
+                score=0.45,
+                tier="medium",
+            )
         if len(comma_parts) > 2:
             return _collaboration(
                 record,
@@ -379,16 +411,22 @@ def _collaboration(
     )
 
 
-def _ambiguous(record: ArtistCreditInputRecord, rationale: str) -> ParsedArtistCredit:
+def _ambiguous(
+    record: ArtistCreditInputRecord,
+    rationale: str,
+    flags: tuple[str, ...] = (),
+    score: float = 0.25,
+    tier: str = "low",
+) -> ParsedArtistCredit:
     return _parsed(
         record,
         primary_artist="",
         featured_artists=(),
         collaborating_artists=(),
         credit_pattern="unknown_or_ambiguous",
-        confidence_score=0.25,
-        confidence_tier="low",
-        parser_flags=("ambiguous_credit",),
+        confidence_score=score,
+        confidence_tier=tier,
+        parser_flags=("ambiguous_credit",) + flags,
         rationale=rationale,
     )
 
@@ -439,6 +477,37 @@ def _split_on_regex(value: str, pattern: re.Pattern[str]) -> list[str]:
     return [part.strip() for part in pattern.split(value) if part.strip()]
 
 
+def _protected_group_name(
+    record: ArtistCreditInputRecord,
+    raw_artist: str,
+) -> ParsedArtistCredit | None:
+    if PROTECTED_GROUP_SUFFIX_RE.search(raw_artist):
+        return _parsed(
+            record,
+            primary_artist=raw_artist,
+            featured_artists=(),
+            collaborating_artists=(),
+            credit_pattern="solo_artist",
+            confidence_score=0.88,
+            confidence_tier="high",
+            parser_flags=("protected_group_name",),
+            rationale="Protected group-name suffix detected; artist credit preserved as a single group name.",
+        )
+    if _has_comma_and_ampersand_group_boundary(raw_artist):
+        return _parsed(
+            record,
+            primary_artist=raw_artist,
+            featured_artists=(),
+            collaborating_artists=(),
+            credit_pattern="solo_artist",
+            confidence_score=0.55,
+            confidence_tier="medium",
+            parser_flags=("protected_group_name", "possible_group_name", "ambiguous_separator"),
+            rationale="Comma plus ampersand boundary can be a canonical group name; preserved without collaborator splitting.",
+        )
+    return None
+
+
 def _quality_flags(raw_artist: str, title: str, album: str) -> tuple[str, ...]:
     flags: list[str] = []
     combined = " ".join(part for part in (raw_artist, title, album) if part)
@@ -465,6 +534,15 @@ def _looks_like_collective(raw_artist: str, parts: list[str]) -> bool:
     if any(part.startswith("the ") and part.split()[-1] in COLLECTIVE_SUFFIXES for part in lowered):
         return True
     return False
+
+
+def _has_comma_and_ampersand_group_boundary(raw_artist: str) -> bool:
+    if "," not in raw_artist:
+        return False
+    if not ("&" in raw_artist or " and " in raw_artist.casefold()):
+        return False
+    parts = [part.strip() for part in COMMA_RE.split(raw_artist) if part.strip()]
+    return len(parts) >= 2 and all(_is_clean_name(part) for part in parts)
 
 
 def _clean_names(parts: Iterable[str]) -> bool:

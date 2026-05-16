@@ -75,6 +75,20 @@ evidence for future canonical graph integration. It does not change canonical
 entities, create aliases, merge artists, mutate local music data, or write
 metadata tags in v1.
 
+## Artist Credit Parser Calibration v1
+
+The 50k artist-credit analysis showed false collaboration risk around
+canonical group names that contain collaboration-like separators. Examples
+include orchestra, band, company, and named group suffixes such as `Jimmy
+Dorsey & His Orchestra`, `Siouxsie and the Banshees`, `Martin & Company`, and
+`Nick Cave and the Bad Seeds`.
+
+Calibration v1 keeps explicit `feat`, `ft`, `featuring`, `with`, `vs`, and `x`
+collaboration parsing, but protects deterministic group-name boundaries before
+generic `&`, comma, or `and` splitting. Protected rows are analysis evidence
+only; this does not change canonical graph behavior, create aliases, merge
+artists, mutate local files, or write metadata tags.
+
 The second major issue is release-aware duplicate identity. The `duplicate_external_records` count likely reflects multiple releases, editions, countries, and reissues rather than simple duplicate tracks.
 
 Do not treat those as removable duplicates without release-aware identity logic.

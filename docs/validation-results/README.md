@@ -3,6 +3,7 @@
 - [Cross-source validation summary](cross-source-validation-summary.md)
 - [MusicBrainz 50k validation result](musicbrainz-50k-validation.md)
 - [MusicBrainz 50k consolidated result](musicbrainz-50k-consolidated-result.md)
+- [Jamendo 10k metadata validation result](jamendo-10k-validation.md)
 - [Jamendo 1k metadata validation result](jamendo-1k-validation.md)
 - [Jamendo 100 metadata validation smoke](jamendo-100-validation.md)
 
@@ -156,4 +157,73 @@ Jamendo 1k shows a much cleaner release-identity distribution than MusicBrainz:
 release appearances, possible true duplicates, or ambiguous identity groups in
 the sample. The observed Jamendo issues are mainly artist, title, and album
 classification plus small artist-credit ambiguity. This remains 1k validation
-only; the next scale gate is Jamendo 10k.
+only and is superseded by the Jamendo 10k result as the strongest current
+Jamendo validation evidence.
+
+## Jamendo 10k Metadata Validation
+
+Jamendo 10k is the strongest current Jamendo metadata-only validation result.
+It validates a second live metadata source at useful scale while preserving the
+same no-audio and no-canonical-mutation boundaries as earlier Jamendo runs.
+
+Boundary guarantees:
+
+| Manifest field | Value |
+|---|---|
+| `metadata_only` | `true` |
+| `audio_download_allowed` | `false` |
+| `local_library_mutated` | `false` |
+| `canonical_graph_mutated` | `false` |
+| `client_id_source` | `environment` |
+
+Verified 10k metrics:
+
+| Stage | Metric | Value |
+|---|---|---:|
+| Acquisition | `source` | Jamendo |
+| Acquisition | `requested_limit` | 10,000 |
+| Acquisition | `fetched_records` | 10,000 |
+| Acquisition | `accepted_records` | 10,000 |
+| Acquisition | `rejected_records` | 0 |
+| Acquisition | `duration_seconds` | 1332.084767 |
+| Ingestion | `input_records` | 10,000 |
+| Ingestion | `accepted_records` | 10,000 |
+| Ingestion | `rejected_records` | 0 |
+| Ingestion | `generated_id_count` | 0 |
+| Ingestion | `missing_artist_count` | 0 |
+| Ingestion | `missing_album_count` | 0 |
+| Ingestion | `missing_title_count` | 0 |
+| Artist Credit Analysis | `parsed_records` | 9,878 |
+| Artist Credit Analysis | `solo_artist_count` | 9,751 |
+| Artist Credit Analysis | `collaboration_count` | 127 |
+| Artist Credit Analysis | `unresolved_count` | 122 |
+| Release Identity Analysis | `total_identity_groups` | 9,945 |
+| Release Identity Analysis | `single_record_identity_count` | 9,898 |
+| Release Identity Analysis | `possible_true_duplicate_count` | 3 |
+| Release Identity Analysis | `ambiguous_identity_group_count` | 44 |
+| Release Identity Analysis | `duplicate_external_records_explained` | 6 |
+| Release Identity Analysis | `duplicate_external_records_unresolved` | 96 |
+| Integrated Benchmark | `total_records` | 10,000 |
+| Integrated Benchmark | `total_cohorts` | 205 |
+| Integrated Benchmark | `total_conflicts` | 205 |
+| Integrated Benchmark | `safe_merge_candidates` | 107 |
+| Integrated Benchmark | `blocked_merges` | 92 |
+| Integrated Benchmark | `deferred_conflicts` | 6 |
+| Integrated Benchmark | `duplicate_external_records` | 0 |
+| Integrated Benchmark | `source_artifact_candidates` | 21 |
+| Integrated Benchmark | `benchmark_duration_seconds` | 0.2595 |
+
+The raw payload redaction check passed for `audiodownload`,
+`prod-1.storage.jamendo.com`, `format=mp3`, `mp31`, `mp32`, and
+`download/track`.
+
+Jamendo 10k is cleaner than MusicBrainz for release identity in the currently
+validated evidence. Its main remaining issues are possible
+album/title-as-artist classification, artist-credit uncertainty, and small
+release-identity ambiguity. This does not prove all Jamendo metadata or all
+source families; Discogs, Internet Archive, and YouTube metadata remain
+unvalidated.
+
+The acquisition summary is currently written to `reports/jamendo_metadata/` and
+may be overwritten by future fetches. Downstream validation outputs are isolated
+under `reports/runs/jamendo/jamendo_10k/`.

@@ -3,7 +3,7 @@
 ## Executive Summary
 
 The platform is now validated against one public fixture workflow, one large
-canonical metadata source, and one live catalog API source.
+canonical metadata source, and one live catalog API source at useful scale.
 
 The validated evidence is metadata-only. It proves that the external metadata
 contract, artist-credit analysis, release-identity analysis, and integrated
@@ -20,8 +20,9 @@ blocked or deferred.
 |---|---:|---|---|---|---|
 | Public fixture | 65 input records | Clean-clone reproducible local CSV fixture | Verified reviewer workflow | 60 accepted, 5 rejected, 29 benchmark cohorts, 9 safe merge candidates, 8 blocked merges, 12 deferred conflicts | Fictional fixture proves reproducibility and reviewer path, not real-world distribution coverage |
 | MusicBrainz | 50,000 tracks seen | Local MusicBrainz dump conversion | Verified large canonical metadata source | 49,773 accepted after conversion, 227 rejected, 49,773 imported, 49,407 artist credits parsed, 13,712 duplicate-like records explained by release identity analysis, 1,212 benchmark cohorts/conflicts | Validates a large MusicBrainz sample, not every MusicBrainz row or all external catalogs |
-| Jamendo 100 | 100 fetched records | Live Jamendo metadata API | Verified smoke for live catalog API path | 100 accepted, 0 rejected, benchmark completed, media/audio URLs redacted from raw payload JSON | Smoke-scale only; superseded by Jamendo 1k as the stronger Jamendo evidence gate |
-| Jamendo 1k | 1,000 fetched records | Live Jamendo metadata API | Verified 1k live catalog API validation | 1,000 accepted, 0 rejected, 983 artist credits parsed, 1,000 single-record release identity groups, 15 benchmark cohorts/conflicts, 2 safe merge candidates, 9 blocked merges, 4 deferred conflicts | 1k validation only; next Jamendo scale gate is 10k |
+| Jamendo 100 | 100 fetched records | Live Jamendo metadata API | Verified smoke for live catalog API path | 100 accepted, 0 rejected, benchmark completed, media/audio URLs redacted from raw payload JSON | Smoke-scale only; superseded by Jamendo 1k and Jamendo 10k as stronger Jamendo evidence gates |
+| Jamendo 1k | 1,000 fetched records | Live Jamendo metadata API | Verified 1k live catalog API validation | 1,000 accepted, 0 rejected, 983 artist credits parsed, 1,000 single-record release identity groups, 15 benchmark cohorts/conflicts, 2 safe merge candidates, 9 blocked merges, 4 deferred conflicts | 1k validation only; superseded by Jamendo 10k as the strongest current Jamendo evidence gate |
+| Jamendo 10k | 10,000 fetched records | Live Jamendo metadata API | Verified 10k live catalog API validation | 10,000 accepted, 0 rejected, 9,878 artist credits parsed, 9,945 release identity groups, 205 benchmark cohorts/conflicts, 107 safe merge candidates, 92 blocked merges, 6 deferred conflicts | Validates Jamendo at useful scale, not all Jamendo metadata or all live catalog APIs |
 | Internet Archive | Not validated live | Metadata-only adapter exists | Blocked | Adapter and tests exist | Earlier live attempt failed on TLS; requires retry from an alternate network |
 | Discogs | Not validated | Metadata acquisition planner exists | Blocked | Planner identifies dump-based metadata-only path | Earlier dump discovery failed; requires known dump URL before converter validation |
 | YouTube metadata | Not validated | Metadata-only planning only | Intentionally deferred | High-risk source is modeled in planning and boundary classifiers | Deferred due product-identity risk; requires explicit identity-risk review first |
@@ -36,11 +37,14 @@ cohorts rather than a raw duplicate bucket. MusicBrainz also exercises
 artist-credit complexity: 49,407 of 49,773 records were parsed, including
 collaboration, featured-artist, ambiguous, and unresolved credit evidence.
 
-Jamendo is cleaner in the validated samples. The Jamendo 1k run produced 1,000
-release identity groups for 1,000 records, with 1,000 single-record identities,
-0 possible true duplicate groups, and 0 ambiguous identity groups. Its remaining
-benchmark evidence is concentrated in artist, title, album classification, and
-small artist-credit ambiguity rather than release duplication.
+Jamendo is cleaner in the validated samples. The Jamendo 10k run produced
+9,945 release identity groups for 10,000 records, with 9,898 single-record
+identities, 3 possible true duplicate groups, 44 ambiguous identity groups,
+6 duplicate external records explained, and 96 duplicate external records
+unresolved. Its remaining benchmark evidence is concentrated in possible
+album/title-as-artist classification, artist-credit uncertainty, and small
+release-identity ambiguity rather than the larger release-appearance pattern
+seen in MusicBrainz.
 
 The public fixture is the clean-clone reviewer proof. It validates that a public
 checkout can run the metadata-only workflow and produce accepted/rejected
@@ -61,8 +65,8 @@ real-world metadata distribution.
 Verified manifest boundaries include `metadata_only=true`,
 `audio_downloaded=false`, `local_library_mutated=false`, and
 `canonical_graph_mutated=false` for the public fixture and MusicBrainz runs.
-Jamendo validation also records `metadata_only=true` and
-`audio_download_allowed=false`.
+Jamendo validation also records `metadata_only=true`,
+`audio_download_allowed=false`, and `client_id_source=environment`.
 
 ## What This Proves
 
@@ -76,6 +80,8 @@ Jamendo validation also records `metadata_only=true` and
   cohorts for both complex canonical metadata and cleaner catalog API metadata.
 - Duplicate-like external records can be interpreted with release identity
   context before any merge or remediation claim is made.
+- Jamendo 10k validates a second live metadata source at useful scale, with
+  10,000 fetched records, 10,000 accepted records, and 0 rejected records.
 
 ## What This Does Not Prove
 
@@ -83,6 +89,8 @@ Jamendo validation also records `metadata_only=true` and
 - There is no Discogs converter validation proof yet.
 - There is no Internet Archive live validation proof yet.
 - There is no YouTube metadata validation proof yet.
+- The Jamendo 10k result does not prove all Jamendo metadata or all live catalog
+  API distributions.
 - There is no broad commercial user validation yet.
 - There is no acoustic fingerprinting, waveform matching, or audio identity
   claim.
@@ -91,8 +99,7 @@ Jamendo validation also records `metadata_only=true` and
 
 ## Next Evidence Gates
 
-1. Jamendo 10k metadata-only validation.
-2. Discogs known dump URL plus 1k/10k converter validation.
-3. Internet Archive retry from an alternate network.
-4. Optional YouTube metadata-only validation after product-identity risk review.
-5. Local audio fixture only if legally safe synthetic files are used.
+1. Discogs known dump URL plus 1k/10k converter validation.
+2. Internet Archive retry from an alternate network.
+3. Optional YouTube metadata-only validation after product-identity risk review.
+4. Local audio fixture only if legally safe synthetic files are used.

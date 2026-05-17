@@ -213,6 +213,10 @@ Verified 10k metrics:
 | Integrated Benchmark | `source_artifact_candidates` | 21 |
 | Integrated Benchmark | `benchmark_duration_seconds` | 0.2595 |
 
+`duplicate_external_records=0` is the integrated benchmark bucket after
+release-identity analysis, not a claim that all duplicate-like Jamendo evidence
+is solved.
+
 The raw payload redaction check passed for `audiodownload`,
 `prod-1.storage.jamendo.com`, `format=mp3`, `mp31`, `mp32`, and
 `download/track`.

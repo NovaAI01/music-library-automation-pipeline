@@ -87,8 +87,12 @@ appropriate, and preserve recovery information.
 - Jamendo 100 metadata-only smoke validated with redacted media URLs.
 - [Jamendo 10k metadata-only validation](docs/validation-results/jamendo-10k-validation.md)
   completed for a second live metadata source: 10,000 fetched, 10,000 accepted,
-  0 rejected, 0 duplicate external records, and 205 integrated benchmark
-  conflicts.
+  0 rejected, and 205 integrated benchmark conflicts. Its integrated benchmark
+  reports `duplicate_external_records=0` after release-identity analysis, while
+  the Jamendo 10k evidence still records `possible_true_duplicate_count=3`,
+  `ambiguous_identity_group_count=44`, and
+  `duplicate_external_records_unresolved=96`; this is isolated review evidence,
+  not a claim that all duplicate-like Jamendo evidence is solved.
 
 ## Setup
 
@@ -237,7 +241,7 @@ Local music library app UI
 
 Repository-safe evidence includes:
 
-- 585 passing tests
+- 594 passing tests
 - MusicBrainz 50k validation summary committed under
   [docs/validation-results/](docs/validation-results/)
 - Sanitized sample outputs committed under

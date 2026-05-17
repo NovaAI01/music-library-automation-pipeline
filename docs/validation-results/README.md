@@ -1,5 +1,6 @@
 # Validation Results
 
+- [Cross-source validation summary](cross-source-validation-summary.md)
 - [MusicBrainz 50k validation result](musicbrainz-50k-validation.md)
 - [MusicBrainz 50k consolidated result](musicbrainz-50k-consolidated-result.md)
 - [Jamendo 1k metadata validation result](jamendo-1k-validation.md)

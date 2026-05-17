@@ -67,6 +67,7 @@ appropriate, and preserve recovery information.
 
 ## Validation Evidence
 
+- [Cross-source validation summary](docs/validation-results/cross-source-validation-summary.md)
 - [MusicBrainz 50k consolidated result](docs/validation-results/musicbrainz-50k-consolidated-result.md)
 - Reproducible public fixture: reviewers can run a metadata-only fixture
   workflow from [docs/public-fixture-validation.md](docs/public-fixture-validation.md).

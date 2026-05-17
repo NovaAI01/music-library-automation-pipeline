@@ -84,6 +84,10 @@ appropriate, and preserve recovery information.
 - Release identity analysis explained 13,712 duplicate-looking external records; integrated benchmark `duplicate_external_records=0`.
 - Integrated benchmark reports 1,212 cohorts and 1,212 conflicts after artist-credit and release-identity analysis.
 - Jamendo 100 metadata-only smoke validated with redacted media URLs.
+- [Jamendo 1k metadata-only validation](docs/validation-results/jamendo-1k-validation.md)
+  completed for a second live metadata source: 1,000 fetched, 1,000 accepted,
+  0 rejected, 0 duplicate external records, and 15 integrated benchmark
+  conflicts.
 
 ## Setup
 

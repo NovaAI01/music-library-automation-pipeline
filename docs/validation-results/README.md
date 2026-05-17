@@ -2,6 +2,7 @@
 
 - [MusicBrainz 50k validation result](musicbrainz-50k-validation.md)
 - [MusicBrainz 50k consolidated result](musicbrainz-50k-consolidated-result.md)
+- [Jamendo 1k metadata validation result](jamendo-1k-validation.md)
 - [Jamendo 100 metadata validation smoke](jamendo-100-validation.md)
 
 The public repository commits summarized validation result documents here. Full
@@ -93,4 +94,65 @@ Verified smoke metrics:
 
 The raw payload redaction check passed for media, audio, and download URL
 fields. This result confirms the Jamendo live metadata path at smoke scale only;
-the next scale gate is Jamendo 1k, then Jamendo 10k if stable.
+the later Jamendo 1k result records the next completed scale gate.
+
+## Jamendo 1k Metadata Validation
+
+Jamendo 1k is the first successful 1,000-record metadata-only validation for
+Jamendo as the second live metadata source. It validates the same reporting path
+as the Jamendo 100 smoke at a larger scale: acquisition, ingestion,
+artist-credit analysis, release-identity analysis, and integrated benchmark
+reporting.
+
+Boundary guarantees:
+
+| Manifest field | Value |
+|---|---|
+| `metadata_only` | `true` |
+| `audio_downloaded` | `false` |
+| `audio_download_allowed` | `false` |
+| `local_library_mutated` | `false` |
+| `canonical_graph_mutated` | `false` |
+| `client_id_source` | `environment` |
+
+Verified 1k metrics:
+
+| Stage | Metric | Value |
+|---|---|---:|
+| Acquisition | `source` | Jamendo |
+| Acquisition | `limit` | 1,000 |
+| Acquisition | `fetched_records` | 1,000 |
+| Acquisition | `accepted_records` | 1,000 |
+| Acquisition | `rejected_records` | 0 |
+| Acquisition | `duration_seconds` | 135.572386 |
+| Ingestion | `input_records` | 1,000 |
+| Ingestion | `accepted_records` | 1,000 |
+| Ingestion | `rejected_records` | 0 |
+| Ingestion | `missing_artist_count` | 0 |
+| Ingestion | `missing_album_count` | 0 |
+| Ingestion | `missing_title_count` | 0 |
+| Artist Credit Analysis | `parsed_records` | 983 |
+| Artist Credit Analysis | `solo_artist_count` | 962 |
+| Artist Credit Analysis | `collaboration_count` | 21 |
+| Artist Credit Analysis | `unresolved_count` | 17 |
+| Release Identity Analysis | `total_identity_groups` | 1,000 |
+| Release Identity Analysis | `single_record_identity_count` | 1,000 |
+| Release Identity Analysis | `possible_true_duplicate_count` | 0 |
+| Integrated Benchmark | `total_records` | 1,000 |
+| Integrated Benchmark | `total_cohorts` | 15 |
+| Integrated Benchmark | `total_conflicts` | 15 |
+| Integrated Benchmark | `safe_merge_candidates` | 2 |
+| Integrated Benchmark | `blocked_merges` | 9 |
+| Integrated Benchmark | `deferred_conflicts` | 4 |
+| Integrated Benchmark | `duplicate_external_records` | 0 |
+| Integrated Benchmark | `source_artifact_candidates` | 0 |
+
+The raw payload redaction check passed for `audiodownload`,
+`prod-1.storage.jamendo.com`, `format=mp3`, `mp31`, and `mp32`.
+
+Jamendo 1k shows a much cleaner release-identity distribution than MusicBrainz:
+1,000 records produced 1,000 single-record identity groups, with no legitimate
+release appearances, possible true duplicates, or ambiguous identity groups in
+the sample. The observed Jamendo issues are mainly artist, title, and album
+classification plus small artist-credit ambiguity. This remains 1k validation
+only; the next scale gate is Jamendo 10k.

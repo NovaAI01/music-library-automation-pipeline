@@ -23,6 +23,18 @@ DEFAULT_TIMEOUT_SECONDS = 30.0
 MISSING_CLIENT_ID_MESSAGE = (
     "JAMENDO_CLIENT_ID is required for live Jamendo metadata acquisition"
 )
+MEDIA_PAYLOAD_KEYS = frozenset(
+    {
+        "audio",
+        "audiodownload",
+        "audiodownload_allowed",
+        "proaudio",
+        "audio_download",
+        "download",
+        "waveform",
+        "stream",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -178,7 +190,7 @@ def build_tracks_url(client_id: str, offset: int, limit: int) -> str:
 
 
 def map_jamendo_record(payload: dict[str, Any]) -> tuple[dict[str, str], str | None]:
-    raw_payload_json = _compact_json(payload)
+    raw_payload_json = _compact_json(_sanitize_raw_payload(payload))
     track_id = _clean_string(payload.get("id"))
     title = _first_present(payload.get("name"), payload.get("title"))
     artist = _clean_string(payload.get("artist_name"))
@@ -333,6 +345,18 @@ def _clean_string(value: Any) -> str:
     if value is None:
         return ""
     return str(value).strip()
+
+
+def _sanitize_raw_payload(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            key: _sanitize_raw_payload(nested)
+            for key, nested in value.items()
+            if key not in MEDIA_PAYLOAD_KEYS
+        }
+    if isinstance(value, list):
+        return [_sanitize_raw_payload(item) for item in value]
+    return value
 
 
 def _compact_json(value: Any) -> str:

@@ -113,6 +113,51 @@ def test_metadata_only_boundary_and_no_audio_download(tmp_path):
     assert result.audio_download_allowed is False
 
 
+def test_raw_payload_redacts_jamendo_media_urls_and_keeps_source_url():
+    row, rejection = map_jamendo_record(
+        {
+            "id": "100",
+            "name": "Fixture Title",
+            "artist_name": "Fixture Artist",
+            "album_name": "Fixture Album",
+            "audio": "https://prod-1.storage.jamendo.com/?trackid=100&format=mp31",
+            "audiodownload": (
+                "https://prod-1.storage.jamendo.com/download/track/100/mp32"
+            ),
+            "audiodownload_allowed": True,
+            "proaudio": "https://prod-1.storage.jamendo.com/pro/100",
+            "audio_download": "https://prod-1.storage.jamendo.com/audio_download/100",
+            "download": "https://prod-1.storage.jamendo.com/download/100",
+            "waveform": "https://prod-1.storage.jamendo.com/waveform/100",
+            "stream": "https://prod-1.storage.jamendo.com/stream/100",
+            "album_image": "https://usercontent.jamendo.com?type=album",
+            "image": "https://usercontent.jamendo.com?type=track",
+            "shareurl": "https://www.jamendo.com/track/100/fixture-title",
+            "shorturl": "https://jamen.do/t/100",
+        }
+    )
+
+    raw_payload = json.loads(row["raw_payload_json"])
+    raw_payload_text = row["raw_payload_json"]
+
+    assert rejection is None
+    assert "audio" not in raw_payload
+    assert "audiodownload" not in raw_payload
+    assert "audiodownload_allowed" not in raw_payload
+    assert "proaudio" not in raw_payload
+    assert "audio_download" not in raw_payload
+    assert "download" not in raw_payload
+    assert "waveform" not in raw_payload
+    assert "stream" not in raw_payload
+    assert "prod-1.storage.jamendo.com" not in raw_payload_text
+    assert "format=mp3" not in raw_payload_text
+    assert "mp31" not in raw_payload_text
+    assert "mp32" not in raw_payload_text
+    assert raw_payload["shareurl"] == "https://www.jamendo.com/track/100/fixture-title"
+    assert raw_payload["shorturl"] == "https://jamen.do/t/100"
+    assert row["source_url"] == "https://www.jamendo.com/track/100/fixture-title"
+
+
 def test_record_mapping():
     row, rejection = map_jamendo_record(
         {

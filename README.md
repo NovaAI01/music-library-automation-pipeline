@@ -367,7 +367,8 @@ Internet Archive acquisition is available as a metadata-only validation input:
 it fetches search metadata records only, never media files. See
 [docs/internet-archive-metadata.md](docs/internet-archive-metadata.md).
 Jamendo acquisition is also metadata-only: it fetches catalog JSON records for
-external validation and never downloads or streams audio. See
+external validation, prints one progress line per fetched page during live
+acquisition, and never downloads or streams audio. See
 [docs/jamendo-metadata.md](docs/jamendo-metadata.md).
 
 Example report commands:

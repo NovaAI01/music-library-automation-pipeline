@@ -18,7 +18,9 @@ from app.jamendo_metadata import (
 from app.main import main
 
 
-def test_missing_client_id_fails_cleanly_without_partial_output(tmp_path, monkeypatch):
+def test_missing_client_id_fails_cleanly_without_partial_output(
+    tmp_path, monkeypatch, capsys
+):
     monkeypatch.delenv("JAMENDO_CLIENT_ID", raising=False)
 
     with pytest.raises(JamendoCredentialError, match=MISSING_CLIENT_ID_MESSAGE):
@@ -31,6 +33,11 @@ def test_missing_client_id_fails_cleanly_without_partial_output(tmp_path, monkey
 
     assert not (tmp_path / "data" / "external_metadata" / "jamendo").exists()
     assert not (tmp_path / "reports" / "jamendo_metadata").exists()
+    output = capsys.readouterr()
+    assert "fetching_jamendo_metadata" not in output.out
+    assert "fetching_jamendo_metadata" not in output.err
+    assert "jamendo_progress" not in output.out
+    assert "jamendo_progress" not in output.err
 
 
 def test_client_id_from_argument(monkeypatch):
@@ -58,7 +65,7 @@ def test_query_page_url_construction():
     assert params["order"] == ["id_asc"]
 
 
-def test_pagination_and_limit_behavior(tmp_path):
+def test_pagination_and_limit_behavior(tmp_path, capsys):
     calls = []
     pages = [
         [_track("1"), _track("2")],
@@ -85,6 +92,41 @@ def test_pagination_and_limit_behavior(tmp_path):
     assert parse_qs(urlparse(calls[0][0]).query)["limit"] == ["2"]
     assert parse_qs(urlparse(calls[1][0]).query)["offset"] == ["2"]
     assert calls[0][1] == 9
+    assert capsys.readouterr().err.splitlines() == [
+        "fetching_jamendo_metadata requested_limit=3 page_size=2",
+        "jamendo_progress fetched=2 accepted=2 rejected=0 requested=3",
+        "jamendo_progress fetched=3 accepted=3 rejected=0 requested=3",
+    ]
+
+
+def test_progress_reports_multipage_accepted_and_rejected_counts(tmp_path, capsys):
+    pages = [
+        [_track("1"), {"id": "rejected"}],
+        [_track("3"), {"name": "missing id"}],
+    ]
+    calls = []
+
+    def fake_fetch(url, _timeout):
+        calls.append(url)
+        return {"results": pages[len(calls) - 1]}
+
+    result = fetch_jamendo_metadata(
+        limit=4,
+        page_size=2,
+        out_dir=tmp_path / "reports",
+        data_dir=tmp_path / "data",
+        client_id="client-123",
+        fetch_json=fake_fetch,
+    )
+
+    assert result.fetched_records == 4
+    assert result.accepted_records == 2
+    assert result.rejected_records == 2
+    assert capsys.readouterr().err.splitlines() == [
+        "fetching_jamendo_metadata requested_limit=4 page_size=2",
+        "jamendo_progress fetched=2 accepted=1 rejected=1 requested=4",
+        "jamendo_progress fetched=4 accepted=2 rejected=2 requested=4",
+    ]
 
 
 def test_metadata_only_boundary_and_no_audio_download(tmp_path):

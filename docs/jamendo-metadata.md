@@ -55,6 +55,14 @@ reports/jamendo_metadata/rejected_records.csv
 reports/jamendo_metadata/sample_records.csv
 ```
 
+During live paginated fetches, the command prints one progress line per fetched
+page before the final summary:
+
+```text
+fetching_jamendo_metadata requested_limit=1000 page_size=100
+jamendo_progress fetched=100 accepted=100 rejected=0 requested=1000
+```
+
 The summary always records:
 
 ```json

@@ -5,12 +5,13 @@ from __future__ import annotations
 import csv
 import json
 import os
+import sys
 import time
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, TextIO
 
 from app.data_paths import source_metadata_dir
 from app.musicbrainz_converter import OUTPUT_FIELDS, REJECTED_FIELDS
@@ -80,6 +81,7 @@ def fetch_jamendo_metadata(
     dry_run: bool = False,
     data_dir: str | Path | None = None,
     fetch_json: Callable[[str, float], dict[str, Any]] | None = None,
+    progress_stream: TextIO | None = None,
 ) -> JamendoAcquisitionResult:
     """Fetch Jamendo track metadata and write normalized importer inputs."""
 
@@ -109,26 +111,40 @@ def fetch_jamendo_metadata(
     rejected: list[dict[str, str]] = []
 
     if not dry_run:
+        progress_handle = progress_stream or sys.stderr
+        print(
+            f"fetching_jamendo_metadata requested_limit={limit} page_size={page_size}",
+            file=progress_handle,
+        )
         fetcher = fetch_json or _fetch_json
-        for payload in _iter_track_records(
+        for page in _iter_track_record_pages(
             client_id=resolved_client_id,
             limit=limit,
             page_size=page_size,
             timeout=timeout,
             fetch_json=fetcher,
         ):
-            fetched_records += 1
-            row, rejection_reason = map_jamendo_record(payload)
-            if rejection_reason:
-                rejected.append(
-                    {
-                        "source_record_id": row["source_record_id"],
-                        "rejection_reason": rejection_reason,
-                        "raw_payload_json": row["raw_payload_json"],
-                    }
-                )
-            else:
-                accepted.append(row)
+            for payload in page:
+                fetched_records += 1
+                row, rejection_reason = map_jamendo_record(payload)
+                if rejection_reason:
+                    rejected.append(
+                        {
+                            "source_record_id": row["source_record_id"],
+                            "rejection_reason": rejection_reason,
+                            "raw_payload_json": row["raw_payload_json"],
+                        }
+                    )
+                else:
+                    accepted.append(row)
+            print(
+                "jamendo_progress "
+                f"fetched={fetched_records} "
+                f"accepted={len(accepted)} "
+                f"rejected={len(rejected)} "
+                f"requested={limit}",
+                file=progress_handle,
+            )
 
     output_dir.mkdir(parents=True, exist_ok=True)
     report_dir.mkdir(parents=True, exist_ok=True)
@@ -222,6 +238,23 @@ def _iter_track_records(
     timeout: float,
     fetch_json: Callable[[str, float], dict[str, Any]],
 ):
+    for page in _iter_track_record_pages(
+        client_id=client_id,
+        limit=limit,
+        page_size=page_size,
+        timeout=timeout,
+        fetch_json=fetch_json,
+    ):
+        yield from page
+
+
+def _iter_track_record_pages(
+    client_id: str,
+    limit: int,
+    page_size: int,
+    timeout: float,
+    fetch_json: Callable[[str, float], dict[str, Any]],
+):
     offset = 0
     remaining = limit
     while remaining > 0:
@@ -231,12 +264,10 @@ def _iter_track_records(
         records = _extract_results(payload)
         if not records:
             break
-        for record in records[:remaining]:
-            yield record
-            remaining -= 1
-            if remaining == 0:
-                break
-        if len(records) < rows:
+        page = records[:remaining]
+        yield page
+        remaining -= len(page)
+        if remaining == 0 or len(records) < rows:
             break
         offset += rows
 

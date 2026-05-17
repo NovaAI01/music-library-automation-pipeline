@@ -94,6 +94,12 @@ appropriate, and preserve recovery information.
   `duplicate_external_records_unresolved=96`; this is isolated review evidence,
   not a claim that all duplicate-like Jamendo evidence is solved.
 
+## Portfolio Notes
+
+- [Project brief](docs/portfolio/project-brief.md)
+- [Interview brief](docs/portfolio/interview-brief.md)
+- [CV bullets](docs/portfolio/cv-bullets.md)
+
 ## Setup
 
 Create a virtual environment and install the Python dependencies:

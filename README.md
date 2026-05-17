@@ -187,6 +187,11 @@ Portfolio review:
 - [Interview brief](docs/portfolio/interview-brief.md)
 - [CV bullets](docs/portfolio/cv-bullets.md)
 
+Commercial notes:
+
+- [Catalog audit offer](docs/commercial/catalog-audit-offer.md)
+- [Outreach messages](docs/commercial/outreach-messages.md)
+
 ## Repository structure
 
 ```text

@@ -13,3 +13,4 @@ demo/
 # local review decision seed files
 review_decisions_seed.csv
 .venv/
+.config/

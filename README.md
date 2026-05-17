@@ -117,11 +117,13 @@ Run the test suite:
 python -m pytest -q
 ```
 
-Example metadata-only validation command:
+Run the public fixture workflow:
 
-```bash
-python -m app.main benchmark-validation --source local_fixture --out reports
-```
+For the complete clean-clone validation path, run the metadata-only public
+fixture workflow in
+[docs/public-fixture-validation.md](docs/public-fixture-validation.md). It uses
+fictional CSV metadata and lists the four-command import, artist-credit,
+release-identity, and benchmark sequence.
 
 Generated reports and local data are ignored by git. Large metadata dumps and
 working data should live outside the repository by setting
@@ -373,8 +375,9 @@ Large external metadata storage is configurable with
 planning is report-only in v1: it targets external raw dump, metadata, and cache
 directories, but it does not live-fetch data or download audio. See
 [docs/metadata-acquisition-planning.md](docs/metadata-acquisition-planning.md).
-Internet Archive acquisition is available as a metadata-only validation input:
-it fetches search metadata records only, never media files. See
+Internet Archive adapter support exists, but live validation is not yet public
+evidence. The acquisition command fetches search metadata records only, never
+media files. See
 [docs/internet-archive-metadata.md](docs/internet-archive-metadata.md).
 Jamendo acquisition is also metadata-only: it fetches catalog JSON records for
 external validation, prints one progress line per fetched page during live
@@ -866,7 +869,7 @@ python -m pytest -q
 Current result:
 
 ```text
-585 passed
+594 passed
 ```
 
 ## 13. Repository Structure

@@ -3,11 +3,11 @@
 ## What it is
 
 Music Library Intelligence Platform is a local-first metadata intelligence
-system for understanding, normalizing, and safely reviewing user-owned /
+system for understanding, normalizing, and safely reviewing user-owned or
 legally sourced music libraries.
 
 The platform organizes evidence around Artists -> Albums -> Tracks without
-cloud accounts, AI/LLM enrichment, media/audio acquisition, or destructive
+cloud accounts, AI/LLM enrichment, audio/media acquisition, or destructive
 automation. It observes local files, records an evidence ledger, normalizes
 metadata evidence, detects duplicate-like records, scores confidence, proposes
 review-only remediation plans, keeps audit logs, and routes uncertain decisions
@@ -112,10 +112,7 @@ working data should live outside the repository by setting
 ## Public fixture workflow
 
 The public fixture is the reviewer-friendly validation path:
-
-```text
-docs/public-fixture-validation.md
-```
+[docs/public-fixture-validation.md](docs/public-fixture-validation.md).
 
 It runs four metadata-only commands against
 `examples/fixture_library/external_metadata_fixture.csv`:

@@ -2,6 +2,7 @@
 
 - [MusicBrainz 50k validation result](musicbrainz-50k-validation.md)
 - [MusicBrainz 50k consolidated result](musicbrainz-50k-consolidated-result.md)
+- [Jamendo 100 metadata validation smoke](jamendo-100-validation.md)
 
 The public repository commits summarized validation result documents here. Full
 generated run artifacts are local report outputs under ignored `reports/`
@@ -58,3 +59,38 @@ Current isolated run metrics:
 | Integrated Benchmark | `collaboration_string_candidates` | 0 |
 | Integrated Benchmark | `duplicate_external_records` | 0 |
 | Integrated Benchmark | `benchmark_duration_seconds` | 2.45 |
+
+## Jamendo 100 Metadata Smoke
+
+Jamendo 100 is the first successful metadata-only validation smoke for the
+Jamendo metadata API as a second live metadata source. It is intentionally not
+equal in scope to the MusicBrainz 50k validation result.
+
+Boundary guarantees:
+
+| Manifest field | Value |
+|---|---|
+| `metadata_only` | `true` |
+| `audio_downloaded` | `false` |
+| `local_library_mutated` | `false` |
+| `canonical_graph_mutated` | `false` |
+
+Verified smoke metrics:
+
+| Stage | Metric | Value |
+|---|---|---:|
+| Acquisition | `fetched_records` | 100 |
+| Acquisition | `accepted_records` | 100 |
+| Acquisition | `rejected_records` | 0 |
+| Import | `input_records` | 100 |
+| Import | `accepted_records` | 100 |
+| Import | `rejected_records` | 0 |
+| Artist Credit Analysis | `parsed_records` | 100 |
+| Artist Credit Analysis | `unresolved_count` | 0 |
+| Release Identity Analysis | `total_identity_groups` | 100 |
+| Integrated Benchmark | `total_records` | 100 |
+| Integrated Benchmark | `total_conflicts` | 1 |
+
+The raw payload redaction check passed for media, audio, and download URL
+fields. This result confirms the Jamendo live metadata path at smoke scale only;
+the next scale gate is Jamendo 1k, then Jamendo 10k if stable.

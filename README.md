@@ -83,6 +83,7 @@ appropriate, and preserve recovery information.
 - 49,773 ingested records; 0 rejected records; 0 missing artist, album, or title fields.
 - Release identity analysis explained 13,712 duplicate-looking external records; integrated benchmark `duplicate_external_records=0`.
 - Integrated benchmark reports 1,212 cohorts and 1,212 conflicts after artist-credit and release-identity analysis.
+- Jamendo 100 metadata-only smoke validated with redacted media URLs.
 
 ## Setup
 

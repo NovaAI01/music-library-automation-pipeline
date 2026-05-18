@@ -1,10 +1,11 @@
 import csv
 import json
+import socket
 import subprocess
 from pathlib import Path
 
 from app.external_metadata import INPUT_FIELDS, import_external_metadata
-from app.main import main
+from app.main import build_parser, main
 
 
 FIXTURE_DIR = Path(__file__).resolve().parents[1] / "examples" / "fixture_library"
@@ -77,6 +78,17 @@ def test_public_fixture_validation_docs_reference_valid_commands():
     assert "API credentials" in doc
 
 
+def test_cli_parser_includes_run_public_fixture_validation():
+    parser = build_parser()
+    subparser_action = next(
+        action
+        for action in parser._actions
+        if getattr(action, "dest", None) == "command"
+    )
+
+    assert "run-public-fixture-validation" in subparser_action.choices
+
+
 def test_no_audio_or_media_files_exist_under_public_fixture():
     forbidden_suffixes = {
         ".aac",
@@ -119,6 +131,79 @@ def test_generated_public_fixture_run_path_is_ignored_or_not_tracked():
     )
 
     assert tracked.returncode != 0 or ignored.returncode == 0
+
+
+def test_run_public_fixture_validation_command_with_temp_outputs(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    monkeypatch.chdir(FIXTURE_DIR.parents[1])
+    monkeypatch.setenv("MUSIC_INTELLIGENCE_DATA_ROOT", str(tmp_path / "data"))
+    monkeypatch.delenv("JAMENDO_CLIENT_ID", raising=False)
+
+    def blocked_network_call(*_args, **_kwargs):
+        raise AssertionError("public fixture validation must not use network access")
+
+    monkeypatch.setattr(socket, "socket", blocked_network_call)
+    monkeypatch.setattr(socket, "create_connection", blocked_network_call)
+
+    out_dir = tmp_path / "reports"
+    assert main(["run-public-fixture-validation", "--out", str(out_dir)]) == 0
+
+    run_root = out_dir / "runs" / "local_fixture" / "public_fixture"
+    manifest_path = run_root / "run_manifest.json"
+    ingestion_summary_path = (
+        run_root / "external_metadata_ingestion" / "ingestion_summary.json"
+    )
+    artist_credit_summary_path = (
+        run_root / "artist_credit_analysis" / "artist_credit_summary.json"
+    )
+    release_identity_summary_path = (
+        run_root / "release_identity_analysis" / "release_identity_summary.json"
+    )
+    benchmark_summary_path = (
+        run_root / "validation_benchmark" / "benchmark_summary.json"
+    )
+
+    assert manifest_path.exists()
+    assert ingestion_summary_path.exists()
+    assert artist_credit_summary_path.exists()
+    assert release_identity_summary_path.exists()
+    assert benchmark_summary_path.exists()
+
+    output = capsys.readouterr().out
+    assert "step=1/4 command=import-external-metadata" in output
+    assert "step=4/4 command=benchmark-validation" in output
+    assert output.rstrip().endswith(f"{run_root.as_posix()}/")
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    ingestion = json.loads(ingestion_summary_path.read_text(encoding="utf-8"))
+    artist_credit = json.loads(artist_credit_summary_path.read_text(encoding="utf-8"))
+    release_identity = json.loads(
+        release_identity_summary_path.read_text(encoding="utf-8")
+    )
+    benchmark = json.loads(benchmark_summary_path.read_text(encoding="utf-8"))
+
+    assert manifest["commands_run"] == [
+        "import-external-metadata",
+        "analyze-artist-credits",
+        "analyze-release-identity",
+        "benchmark-validation",
+    ]
+    assert manifest["metadata_only"] is True
+    assert manifest["audio_downloaded"] is False
+    assert manifest["local_library_mutated"] is False
+    assert manifest["canonical_graph_mutated"] is False
+    assert ingestion["accepted_records"] > 0
+    assert ingestion["rejected_records"] > 0
+    assert artist_credit["parsed_records"] > 0
+    assert release_identity["total_identity_groups"] > 0
+    assert benchmark["artist_credit_analysis_used"] is True
+    assert benchmark["release_identity_analysis_used"] is True
+    assert benchmark["safe_merge_candidates"] > 0
+    assert benchmark["blocked_merges"] > 0
+    assert benchmark["deferred_conflicts"] > 0
 
 
 def test_public_fixture_command_sequence_with_temp_outputs(tmp_path, monkeypatch):

@@ -8,6 +8,54 @@ workflow has actually run.
 Operational command usage, troubleshooting, and cleanup guidance are documented
 in the [operational runbook](operational-runbook.md).
 
+## `python -m app.main run-public-fixture-validation`
+
+Status in this Codex session: covered by focused pytest run.
+
+What it checks:
+
+- the public fictional CSV fixture can be imported as external metadata
+- artist-credit analysis runs against the imported `local_fixture` records
+- release-identity analysis runs against the same metadata-only records
+- validation benchmarking uses the artist-credit and release-identity outputs
+- the labeled run writes reports under
+  `reports/runs/local_fixture/public_fixture/`
+
+Why it passes / expected pass signal:
+
+- command exits with status 0
+- output ends with `reports/runs/local_fixture/public_fixture/` for the default
+  report root
+- the run manifest, ingestion summary, artist-credit summary, release-identity
+  summary, and benchmark summary exist
+- the manifest records `metadata_only=true`, `audio_downloaded=false`,
+  `local_library_mutated=false`, and `canonical_graph_mutated=false`
+
+What it proves:
+
+- a clean metadata-only public fixture workflow can run end to end without
+  external credentials or network access
+- accepted and rejected rows, artist-credit cohorts, release-aware identity
+  cohorts, and benchmark governance buckets are produced from public fixture
+  metadata
+- the workflow preserves the documented no-audio, no-private-library,
+  no-local-media-mutation, and no-canonical-graph-mutation boundaries
+
+What it does not prove:
+
+- real-world source distribution coverage
+- correctness for a private music library
+- that any canonical merge, delete, tag write, or remediation action is safe
+- live external service behavior
+- Docker or GitHub Actions behavior
+
+Boundary notes:
+
+- the command calls the same local metadata-only functions as the documented
+  four-command public fixture path
+- it does not download audio, read private library paths, mutate media files, or
+  mutate canonical graph state
+
 ## `python -m pytest --collect-only -q`
 
 Status in this Codex session: run.
@@ -22,13 +70,13 @@ What it checks:
 Why it passes / expected pass signal:
 
 - command exits with status 0
-- output ends with `595 tests collected`
+- output ends with `597 tests collected`
 - nodeids are saved to `/tmp/music_pytest_nodeids.txt` for inspection
 
 What it proves:
 
 - the current test suite is discoverable
-- the 595 count is a collection count derived from pytest nodeids
+- the 597 count is a collection count derived from pytest nodeids
 
 What it does not prove:
 
@@ -57,7 +105,7 @@ What it checks:
 Why it passes / expected pass signal:
 
 - command exits with status 0
-- terminal reports all collected tests passing, currently expected as 595 tests
+- terminal reports all collected tests passing, currently expected as 597 tests
 
 What it proves:
 

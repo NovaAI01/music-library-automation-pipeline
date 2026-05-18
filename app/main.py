@@ -81,6 +81,10 @@ app.include_router(manual_review_ui_router)
 app.include_router(metadata_suggestion_ui_router)
 app.include_router(normalization_knowledge_router)
 
+PUBLIC_FIXTURE_SOURCE = "local_fixture"
+PUBLIC_FIXTURE_RUN_LABEL = "public_fixture"
+PUBLIC_FIXTURE_INPUT = Path("examples/fixture_library/external_metadata_fixture.csv")
+
 
 @app.get("/health")
 def health() -> dict[str, str]:
@@ -370,6 +374,12 @@ def build_parser() -> argparse.ArgumentParser:
     external_metadata_parser.add_argument("--input", required=True)
     external_metadata_parser.add_argument("--out", default="reports")
     external_metadata_parser.add_argument("--run-label")
+
+    public_fixture_validation_parser = subparsers.add_parser(
+        "run-public-fixture-validation",
+        help="Run the metadata-only public fixture validation workflow.",
+    )
+    public_fixture_validation_parser.add_argument("--out", default="reports")
 
     validation_parser = subparsers.add_parser(
         "validate-external-metadata",
@@ -1010,6 +1020,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"output_jsonl={result.output_jsonl}")
         return 0
 
+    if args.command == "run-public-fixture-validation":
+        run_root = run_public_fixture_validation(args.out)
+        print(_display_dir(run_root))
+        return 0
+
     if args.command == "validate-external-metadata":
         result = validate_external_metadata(
             source_name=args.source,
@@ -1242,6 +1257,93 @@ def main(argv: list[str] | None = None) -> int:
 
     parser.error(f"unknown command: {args.command}")
     return 2
+
+
+def run_public_fixture_validation(out_dir: str | Path = "reports") -> Path:
+    """Run the documented metadata-only public fixture workflow end to end."""
+
+    run_root = resolve_report_out_dir(
+        out_dir,
+        source_name=PUBLIC_FIXTURE_SOURCE,
+        run_label=PUBLIC_FIXTURE_RUN_LABEL,
+    )
+
+    print("step=1/4 command=import-external-metadata")
+    ingestion = import_external_metadata(
+        source_name=PUBLIC_FIXTURE_SOURCE,
+        input_path=PUBLIC_FIXTURE_INPUT,
+        out_dir=run_root,
+    )
+    write_run_manifest(
+        out_dir=out_dir,
+        source_name=PUBLIC_FIXTURE_SOURCE,
+        run_label=PUBLIC_FIXTURE_RUN_LABEL,
+        command_name="import-external-metadata",
+        report_path=ingestion.report_path,
+    )
+    print(f"report_path={ingestion.report_path}")
+    print(f"input_records={ingestion.input_records}")
+    print(f"accepted_records={ingestion.accepted_records}")
+    print(f"rejected_records={ingestion.rejected_records}")
+
+    print("step=2/4 command=analyze-artist-credits")
+    artist_credit = analyze_artist_credits(
+        source_name=PUBLIC_FIXTURE_SOURCE,
+        out_dir=run_root,
+    )
+    write_run_manifest(
+        out_dir=out_dir,
+        source_name=PUBLIC_FIXTURE_SOURCE,
+        run_label=PUBLIC_FIXTURE_RUN_LABEL,
+        command_name="analyze-artist-credits",
+        report_path=artist_credit.report_path,
+    )
+    print(f"report_path={artist_credit.report_path}")
+    print(f"parsed_records={artist_credit.parsed_records}")
+    print(f"unresolved_count={artist_credit.unresolved_count}")
+
+    print("step=3/4 command=analyze-release-identity")
+    release_identity = analyze_release_identity(
+        source_name=PUBLIC_FIXTURE_SOURCE,
+        out_dir=run_root,
+    )
+    write_run_manifest(
+        out_dir=out_dir,
+        source_name=PUBLIC_FIXTURE_SOURCE,
+        run_label=PUBLIC_FIXTURE_RUN_LABEL,
+        command_name="analyze-release-identity",
+        report_path=release_identity.report_path,
+    )
+    print(f"report_path={release_identity.report_path}")
+    print(f"total_identity_groups={release_identity.total_identity_groups}")
+    print(
+        "possible_true_duplicate_count="
+        f"{release_identity.possible_true_duplicate_count}"
+    )
+
+    print("step=4/4 command=benchmark-validation")
+    benchmark = benchmark_validation(
+        source_name=PUBLIC_FIXTURE_SOURCE,
+        out_dir=run_root,
+    )
+    write_run_manifest(
+        out_dir=out_dir,
+        source_name=PUBLIC_FIXTURE_SOURCE,
+        run_label=PUBLIC_FIXTURE_RUN_LABEL,
+        command_name="benchmark-validation",
+        report_path=benchmark.report_path,
+    )
+    print(f"report_path={benchmark.report_path}")
+    print(f"total_records={benchmark.total_records}")
+    print(f"safe_merge_candidates={benchmark.safe_merge_candidates}")
+    print(f"blocked_merges={benchmark.blocked_merges}")
+    print(f"deferred_conflicts={benchmark.deferred_conflicts}")
+
+    return run_root
+
+
+def _display_dir(path: Path) -> str:
+    return f"{path.as_posix().rstrip('/')}/"
 
 
 if __name__ == "__main__":

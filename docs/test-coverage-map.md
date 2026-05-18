@@ -9,7 +9,7 @@ Collection command used for this map:
 python -m pytest --collect-only -q > /tmp/music_pytest_nodeids.txt
 ```
 
-Collected count: 595 tests.
+Collected count: 597 tests.
 
 This is a collection count and a regression coverage map. It is not a claim of
 exhaustive correctness for every catalog, private library layout, metadata

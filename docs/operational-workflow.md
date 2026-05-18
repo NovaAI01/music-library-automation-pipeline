@@ -7,7 +7,7 @@ reviewed before file-moving operations are executed.
 
 Repository-safe evidence includes:
 
-- 595 passing tests, summarized in the
+- 597 passing tests, summarized in the
   [test coverage map](test-coverage-map.md)
 - validation pass boundaries summarized in the
   [validation evidence ledger](validation-evidence-ledger.md)
@@ -179,7 +179,7 @@ metadata audit, metadata planning, and UI helpers.
 
 Inputs: the repository test suite.
 
-Outputs: pytest results. Current evidence records 595 passing tests; see the
+Outputs: pytest results. Current evidence records 597 passing tests; see the
 [test coverage map](test-coverage-map.md) for a practical coverage summary and
 the [validation evidence ledger](validation-evidence-ledger.md) for pass/fail
 evidence boundaries.

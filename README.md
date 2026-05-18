@@ -98,6 +98,21 @@ Run the focused project test suite in your terminal:
 python -m pytest -q
 ```
 
+Build and run the local Docker runtime:
+
+```bash
+docker build -t music-library-intelligence:local .
+docker run --rm -p 8000:8000 music-library-intelligence:local
+```
+
+Or use Docker Compose:
+
+```bash
+docker compose up --build
+```
+
+The container runs the existing FastAPI app with Uvicorn on port `8000` and binds local `reports/` and `data/` directories when using Compose. No secrets, external services, audio downloads, or media mutation are required.
+
 Run the public validation path from
 [docs/public-fixture-validation.md](docs/public-fixture-validation.md). It is a
 metadata-only fixture workflow: no audio, no private data, no external API

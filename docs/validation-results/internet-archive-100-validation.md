@@ -21,6 +21,10 @@ This resolves the previous "blocked pending live retry" status at smoke scale
 only. It does not prove broad Internet Archive behavior beyond this 100-record
 sample and query.
 
+Supersession note: this remains historical smoke evidence, but it has been
+superseded by the Internet Archive 1k metadata-only validation as stronger
+evidence for the same query and boundary guarantees.
+
 ## Command Sequence
 
 Acquisition:

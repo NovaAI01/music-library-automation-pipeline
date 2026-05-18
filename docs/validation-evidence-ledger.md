@@ -93,8 +93,9 @@ Boundary notes:
 
 ## Internet Archive 100 live metadata validation
 
-Status in this Codex session: documented from user-terminal evidence produced
-outside CI. The live command was not run in Codex.
+Status in this Codex session: superseded by Internet Archive 1k as stronger
+evidence. This historical smoke evidence was documented from user-terminal
+evidence produced outside CI. The live command was not run in Codex.
 
 What it checks:
 
@@ -134,6 +135,69 @@ What it does not prove:
 - that CI runs Internet Archive live validation
 - all Internet Archive metadata distributions work
 - larger Internet Archive paging stability
+- stronger artist completeness for other Internet Archive queries
+- any canonical merge, tag write, audio download, or local library remediation
+  is safe
+
+Boundary notes:
+
+- acquisition was metadata-only with `audio_download_allowed=false`
+- no audio was downloaded
+- the local library was not mutated
+- the canonical graph was not mutated
+- manual evidence was produced outside CI and should not be described as a CI
+  validation gate
+
+## Internet Archive 1k live metadata validation
+
+Status in this Codex session: documented from user-terminal evidence produced
+outside CI. The live command was not run in Codex, and CI does not run
+Internet Archive live validation.
+
+What it checks:
+
+- Internet Archive metadata-only acquisition for `collection:opensource_audio`
+  at 1,000-record smoke/early scale
+- import of the acquired `internet_archive` CSV as external metadata
+- artist-credit analysis against the imported records
+- release-identity analysis against the same metadata-only records
+- integrated benchmark reporting under run label `internet_archive_1k`
+
+Why it passes / expected pass signal:
+
+- acquisition reports `fetched_records=1000`, `accepted_records=1000`, and
+  `rejected_records=0`
+- import reports `input_records=1000`, `accepted_records=1000`, and
+  `rejected_records=0`
+- artist-credit analysis reports `parsed_records=228` and
+  `unresolved_count=772`
+- release-identity analysis reports `total_identity_groups=906`,
+  `possible_true_duplicate_count=89`, and
+  `duplicate_external_records_unresolved=6`
+- benchmark reports `total_records=1000`, `total_cohorts=23`,
+  `total_conflicts=23`, `safe_merge_candidates=1`, `blocked_merges=15`,
+  `deferred_conflicts=7`, and `source_artifact_candidates=5`
+- artist-credit and release-identity analysis are both used by the benchmark
+- manifest boundaries record `metadata_only=true`, `audio_downloaded=false`,
+  `local_library_mutated=false`, and `canonical_graph_mutated=false`
+
+What it proves:
+
+- the Internet Archive live metadata path can fetch and normalize a
+  1,000-record sample without rejects for the selected query
+- the Internet Archive sample can run through import, artist-credit analysis,
+  release-identity analysis, and benchmark reporting
+- the benchmark exposes weak artist completeness and fault evidence, including
+  763 missing artists, 772 unresolved artist credits, 89 possible true
+  duplicate groups, and 5 source artifact candidates
+- the selected query broadens real source coverage while preserving
+  metadata-only and no-mutation boundaries
+
+What it does not prove:
+
+- that CI runs Internet Archive live validation
+- all Internet Archive metadata distributions work
+- broader Internet Archive behavior beyond this 1,000-record sample and query
 - stronger artist completeness for other Internet Archive queries
 - any canonical merge, tag write, audio download, or local library remediation
   is safe

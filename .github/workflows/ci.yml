@@ -22,3 +22,6 @@ jobs:
 
       - name: Run tests
         run: python -m pytest -q
+
+      - name: Run container smoke test
+        run: ./scripts/smoke_container.sh

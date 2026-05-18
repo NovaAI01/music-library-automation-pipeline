@@ -150,7 +150,13 @@ Status in this Codex session: manual verification required before commit.
 What it checks:
 
 - the configured GitHub Actions workflow for pull requests
-- repository tests or checks included in that workflow
+- dependency installation
+- pytest suite execution with `python -m pytest -q`
+- Docker image build through `scripts/smoke_container.sh`
+- container boot
+- Docker health status
+- `/health` response
+- temporary container cleanup
 
 Why it passes / expected pass signal:
 
@@ -158,19 +164,17 @@ Why it passes / expected pass signal:
 
 What it proves:
 
-- the pull request passes the checks currently configured in CI
+- the pull request passes dependency installation, the pytest suite, and the
+  container smoke checks currently configured in CI
 
 What it does not prove:
 
-- Docker build or smoke script behavior unless those commands are explicitly
-  present in the workflow
 - local private-library workflows
 - live source validation
 
 Boundary notes:
 
-- this ledger does not claim CI verifies Docker or
-  `scripts/smoke_container.sh`
+- CI verifies the container runtime only through `scripts/smoke_container.sh`
 - GitHub Actions was not queried or run in this Codex session
 
 ## GitHub Actions CI on `master` push
@@ -180,7 +184,13 @@ Status in this Codex session: manual verification required before commit.
 What it checks:
 
 - the configured GitHub Actions workflow when changes reach `master`
-- repository tests or checks included in that workflow
+- dependency installation
+- pytest suite execution with `python -m pytest -q`
+- Docker image build through `scripts/smoke_container.sh`
+- container boot
+- Docker health status
+- `/health` response
+- temporary container cleanup
 
 Why it passes / expected pass signal:
 
@@ -188,13 +198,11 @@ Why it passes / expected pass signal:
 
 What it proves:
 
-- the default branch passes the checks currently configured in CI after merge or
-  push
+- the default branch passes dependency installation, the pytest suite, and the
+  container smoke checks currently configured in CI after merge or push
 
 What it does not prove:
 
-- Docker build or smoke script behavior unless those commands are explicitly
-  present in the workflow
 - private library remediation correctness
 - live external API behavior
 

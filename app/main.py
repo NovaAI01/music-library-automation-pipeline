@@ -82,6 +82,14 @@ app.include_router(metadata_suggestion_ui_router)
 app.include_router(normalization_knowledge_router)
 
 
+@app.get("/health")
+def health() -> dict[str, str]:
+    return {
+        "status": "ok",
+        "service": "music-library-intelligence-platform",
+    }
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python -m app.main",

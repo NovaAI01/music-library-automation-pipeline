@@ -103,9 +103,12 @@ Pytest coverage is collected from both `tests/` and
 [test coverage map](docs/test-coverage-map.md) for what the current collected
 suite covers.
 
-GitHub Actions CI installs dependencies, runs `python -m pytest -q`, and then
-runs `./scripts/smoke_container.sh` to verify the local container image build,
-container boot, Docker health status, `/health` response, and cleanup.
+GitHub Actions CI verifies dependency installation, the pytest suite with
+`python -m pytest -q`, the public fixture validation command with
+`python -m app.main run-public-fixture-validation`, and the container smoke
+script with `./scripts/smoke_container.sh`. The smoke script verifies the local
+container image build, container boot, Docker health status, `/health` response,
+and cleanup.
 
 Build and run the local Docker runtime:
 

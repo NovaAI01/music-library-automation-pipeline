@@ -203,6 +203,12 @@ What it checks:
 - the configured GitHub Actions workflow for pull requests
 - dependency installation
 - pytest suite execution with `python -m pytest -q`
+- public fixture validation with
+  `python -m app.main run-public-fixture-validation`
+- generated public fixture reports under
+  `reports/runs/local_fixture/public_fixture/`
+- the public fixture manifest records metadata-only/no-audio/no-local-mutation/
+  no-canonical-graph-mutation boundaries
 - Docker image build through `scripts/smoke_container.sh`
 - container boot
 - Docker health status
@@ -215,16 +221,25 @@ Why it passes / expected pass signal:
 
 What it proves:
 
-- the pull request passes dependency installation, the pytest suite, and the
-  container smoke checks currently configured in CI
+- the pull request passes dependency installation, the pytest suite, the
+  public fixture validation command, and the container smoke checks currently
+  configured in CI
+- the public fixture reports can be generated in GitHub Actions from local
+  metadata-only fixture data
 
 What it does not prove:
 
 - local private-library workflows
+- private library validation
+- validation of all external metadata sources
 - live source validation
+- live external service availability
 
 Boundary notes:
 
+- the public fixture validation step is metadata-only and local
+- CI does not download audio, mutate local media, perform unattended
+  remediation, or mutate the canonical graph
 - CI verifies the container runtime only through `scripts/smoke_container.sh`
 - GitHub Actions was not queried or run in this Codex session
 
@@ -237,6 +252,12 @@ What it checks:
 - the configured GitHub Actions workflow when changes reach `master`
 - dependency installation
 - pytest suite execution with `python -m pytest -q`
+- public fixture validation with
+  `python -m app.main run-public-fixture-validation`
+- generated public fixture reports under
+  `reports/runs/local_fixture/public_fixture/`
+- the public fixture manifest records metadata-only/no-audio/no-local-mutation/
+  no-canonical-graph-mutation boundaries
 - Docker image build through `scripts/smoke_container.sh`
 - container boot
 - Docker health status
@@ -249,16 +270,25 @@ Why it passes / expected pass signal:
 
 What it proves:
 
-- the default branch passes dependency installation, the pytest suite, and the
-  container smoke checks currently configured in CI after merge or push
+- the default branch passes dependency installation, the pytest suite, the
+  public fixture validation command, and the container smoke checks currently
+  configured in CI after merge or push
+- the public fixture reports can be generated in GitHub Actions from local
+  metadata-only fixture data
 
 What it does not prove:
 
+- private library validation
 - private library remediation correctness
+- validation of all external metadata sources
 - live external API behavior
+- live external service availability
 
 Boundary notes:
 
 - this is post-merge/push evidence, not a substitute for local focused
   verification before commit
+- the public fixture validation step is metadata-only and local
+- CI does not download audio, mutate local media, perform unattended
+  remediation, or mutate the canonical graph
 - this Codex session did not run or inspect a GitHub Actions execution

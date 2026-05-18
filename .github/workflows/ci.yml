@@ -23,5 +23,8 @@ jobs:
       - name: Run tests
         run: python -m pytest -q
 
+      - name: Run public fixture validation
+        run: python -m app.main run-public-fixture-validation
+
       - name: Run container smoke test
         run: ./scripts/smoke_container.sh

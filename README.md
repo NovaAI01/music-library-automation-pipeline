@@ -130,6 +130,9 @@ The smoke script builds the image, starts a temporary container, waits for Docke
 
 The container runs the existing FastAPI app with Uvicorn on port `8000` and binds local `reports/` and `data/` directories when using Compose. No secrets, external services, audio downloads, or media mutation are required.
 
+For operational troubleshooting, runtime verification, CI checks, and cleanup
+commands, see the [operational runbook](docs/operational-runbook.md).
+
 Run the public validation path from
 [docs/public-fixture-validation.md](docs/public-fixture-validation.md). It is a
 metadata-only fixture workflow: no audio, no private data, no external API
@@ -190,6 +193,7 @@ Core workflow:
 - [Public fixture validation](docs/public-fixture-validation.md)
 - [Test coverage map](docs/test-coverage-map.md)
 - [Validation evidence ledger](docs/validation-evidence-ledger.md)
+- [Operational runbook](docs/operational-runbook.md)
 
 Analysis and governance:
 

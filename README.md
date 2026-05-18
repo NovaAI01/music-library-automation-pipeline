@@ -111,6 +111,14 @@ Or use Docker Compose:
 docker compose up --build
 ```
 
+Run the container smoke test:
+
+```bash
+./scripts/smoke_container.sh
+```
+
+The smoke script builds the image, starts a temporary container, waits for Docker health to become `healthy`, verifies `/health`, prints evidence, and removes the container on exit. To avoid a local port conflict, override the host port with `PORT=8001 ./scripts/smoke_container.sh`.
+
 The container runs the existing FastAPI app with Uvicorn on port `8000` and binds local `reports/` and `data/` directories when using Compose. No secrets, external services, audio downloads, or media mutation are required.
 
 Run the public validation path from

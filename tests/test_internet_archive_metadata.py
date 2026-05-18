@@ -111,6 +111,89 @@ def test_record_mapping():
     assert row["source_url"] == "https://archive.org/details/fixture-id"
 
 
+def test_creator_maps_to_artist():
+    row, rejection = map_internet_archive_record(
+        {
+            "identifier": "creator-artist",
+            "title": "Creator Artist Title",
+            "creator": ["Beta", "Alpha"],
+        }
+    )
+
+    assert rejection is None
+    assert row["artist"] == "Alpha; Beta"
+
+
+def test_missing_creator_leaves_artist_blank():
+    row, rejection = map_internet_archive_record(
+        {
+            "identifier": "missing-creator",
+            "title": "Missing Creator Title",
+            "collection": "opensource_audio",
+            "subject": "Field recording",
+        }
+    )
+
+    assert rejection is None
+    assert row["artist"] == ""
+
+
+def test_collection_does_not_populate_artist():
+    row, rejection = map_internet_archive_record(
+        {
+            "identifier": "collection-not-artist",
+            "title": "Collection Evidence",
+            "collection": "not_an_artist_collection",
+        }
+    )
+
+    assert rejection is None
+    assert row["artist"] == ""
+    assert row["album"] == "not_an_artist_collection"
+
+
+def test_subject_does_not_populate_artist():
+    row, rejection = map_internet_archive_record(
+        {
+            "identifier": "subject-not-artist",
+            "title": "Subject Evidence",
+            "subject": ["Example Artist", "Live Music"],
+        }
+    )
+
+    assert rejection is None
+    assert row["artist"] == ""
+    assert row["genre"] == "Example Artist; Live Music"
+
+
+def test_title_like_strings_do_not_parse_artist():
+    row, rejection = map_internet_archive_record(
+        {
+            "identifier": "title-not-artist",
+            "title": "Example Artist - Example Track",
+        }
+    )
+
+    assert rejection is None
+    assert row["artist"] == ""
+    assert row["title"] == "Example Artist - Example Track"
+
+
+def test_uploader_like_fields_do_not_populate_artist():
+    payload = {
+        "identifier": "uploader-not-artist",
+        "title": "Uploader Evidence",
+        "uploader": "Example Uploader",
+        "uploader_email": "uploader@example.invalid",
+        "contributor": "Example Contributor",
+    }
+    row, rejection = map_internet_archive_record(payload)
+
+    assert rejection is None
+    assert row["artist"] == ""
+    assert json.loads(row["raw_payload_json"]) == payload
+
+
 def test_malformed_optional_fields_are_blank():
     row, rejection = map_internet_archive_record(
         {

@@ -1,13 +1,16 @@
 # Operational Workflow
 
-This document describes the operational lifecycle used by the Media Library
-Automation Pipeline. The workflow is deterministic and human-in-the-loop: each
-stage produces evidence, reports, plans, or ledger records that can be reviewed
-before file-moving operations are executed.
+This document describes the operational lifecycle used by the Music Library
+Intelligence Platform. The workflow is deterministic and human-in-the-loop:
+each stage produces evidence, reports, plans, or ledger records that can be
+reviewed before file-moving operations are executed.
 
 Repository-safe evidence includes:
 
-- 585 passing tests
+- 595 passing tests, summarized in the
+  [test coverage map](test-coverage-map.md)
+- validation pass boundaries summarized in the
+  [validation evidence ledger](validation-evidence-ledger.md)
 - MusicBrainz 50k validation summaries
 - sanitized sample outputs
 - golden regression fixtures
@@ -176,7 +179,10 @@ metadata audit, metadata planning, and UI helpers.
 
 Inputs: the repository test suite.
 
-Outputs: pytest results. Current evidence records 585 passing tests.
+Outputs: pytest results. Current evidence records 595 passing tests; see the
+[test coverage map](test-coverage-map.md) for a practical coverage summary and
+the [validation evidence ledger](validation-evidence-ledger.md) for pass/fail
+evidence boundaries.
 
 Safety boundary: tests exercise behavior without requiring operators to mutate
 the production library.

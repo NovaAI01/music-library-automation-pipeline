@@ -72,7 +72,7 @@ reasoning before any local file operation is approved.
 | Public fixture: 65 rows | A clean clone can run the metadata-only fixture workflow with fictional CSV records, accepted/rejected rows, artist-credit analysis, release-identity analysis, benchmark cohorts, and manifest boundaries. See [docs/public-fixture-validation.md](docs/public-fixture-validation.md). | It does not prove real-world source distribution coverage or local library remediation quality. |
 | MusicBrainz 50k | A large canonical metadata sample can be converted and ingested as metadata-only evidence: 50,000 rows seen, 49,773 accepted after conversion, 0 ingestion rejects, and duplicate-like records explained through release identity analysis. See [MusicBrainz 50k result](docs/validation-results/musicbrainz-50k-consolidated-result.md). | It does not prove all MusicBrainz rows are correct, that all duplicates are solved, or that any merge/delete action is safe. |
 | Jamendo 10k | A second live catalog metadata source can run through acquisition, ingestion, artist-credit analysis, release-identity analysis, and benchmarking with 10,000 fetched and 10,000 accepted records. See [Jamendo 10k result](docs/validation-results/jamendo-10k-validation.md). | It does not prove all Jamendo metadata, all catalog APIs, Discogs, Internet Archive live validation, or YouTube metadata behavior. |
-| 594 tests | The deterministic pipeline has focused regression coverage across scanning, identity, classification, planning, reporting, duplicate review, quarantine, restore, metadata audit/planning, validation, and UI behavior. | It does not replace source-specific validation, full end-to-end review on a private library, or a fresh full-suite run by the reviewer. |
+| 595 tests | The deterministic pipeline has focused regression coverage across scanning, identity, classification, planning, reporting, duplicate review, quarantine, restore, metadata audit/planning, validation, portfolio demo tooling, and UI behavior. See the [test coverage map](docs/test-coverage-map.md) and [validation evidence ledger](docs/validation-evidence-ledger.md). | It does not replace source-specific validation, full end-to-end review on a private library, exhaustive correctness proof, or a fresh full-suite run by the reviewer. |
 
 Validation boundaries documented in the public evidence include
 `metadata_only=true`, `audio_downloaded=false`,
@@ -92,11 +92,16 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-Run the focused project test suite in your terminal:
+Run focused pytest coverage from the repository root:
 
 ```bash
 python -m pytest -q
 ```
+
+Pytest coverage is collected from both `tests/` and
+`tools/portfolio_demo/tests/`; see the
+[test coverage map](docs/test-coverage-map.md) for what the current collected
+suite covers.
 
 Build and run the local Docker runtime:
 
@@ -179,6 +184,8 @@ Core workflow:
 - [External metadata ingestion](docs/external-metadata-ingestion.md)
 - [Validation benchmarking](docs/validation-benchmarking.md)
 - [Public fixture validation](docs/public-fixture-validation.md)
+- [Test coverage map](docs/test-coverage-map.md)
+- [Validation evidence ledger](docs/validation-evidence-ledger.md)
 
 Analysis and governance:
 
@@ -220,6 +227,7 @@ Commercial notes:
 ```text
 app/
   main.py                 CLI entry point and local UI app
+  templates/              Jinja2 templates for the local review UI
   scanner.py              Local media observation
   identity_engine.py      Deterministic identity resolution
   external_metadata.py    Metadata-only external ingestion contract
@@ -234,7 +242,7 @@ app/
   library_app_ui.py       Local review UI routes
 
 tests/
-  test_*.py               Focused pytest coverage for pipeline behavior
+  test_*.py               Focused pytest coverage for core pipeline behavior
 
 docs/
   validation-results/     Committed summarized validation evidence
@@ -243,6 +251,17 @@ docs/
 
 examples/
   fixture_library/        Public metadata-only validation fixture
+
+tools/
+  portfolio_demo/         Portfolio demo generator, screenshots, and tests
+
+.github/workflows/        GitHub Actions workflow definitions
+Dockerfile                Local FastAPI runtime image
+docker-compose.yml        Local Compose runtime with reports/data mounts
+scripts/smoke_container.sh
+                          Local Docker health and /health smoke check
+requirements.txt          Python runtime and test dependencies
+pytest.ini                Pytest configuration and collection settings
 ```
 
 Ignored runtime outputs include generated `reports/`, local data roots, demo

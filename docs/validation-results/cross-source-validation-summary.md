@@ -3,16 +3,17 @@
 ## Executive Summary
 
 The platform is now validated against one public fixture workflow, one large
-canonical metadata source, and one live catalog API source at useful scale.
+canonical metadata source, one live catalog API source at useful scale, and one
+Internet Archive live metadata source at smoke scale.
 
 The validated evidence is metadata-only. It proves that the external metadata
 contract, artist-credit analysis, release-identity analysis, and integrated
 benchmark reporting can run across more than one source distribution without
 downloading audio, mutating a local library, or mutating the canonical graph.
 
-This summary consolidates existing evidence only. It does not add source
-coverage, claim full generalization, or prove behavior for sources that remain
-blocked or deferred.
+This summary consolidates existing evidence only. It does not claim full
+generalization or prove behavior for sources and scale gates that remain blocked
+or deferred.
 
 ## Source Coverage Matrix
 
@@ -23,7 +24,7 @@ blocked or deferred.
 | Jamendo 100 | 100 fetched records | Live Jamendo metadata API | Verified smoke for live catalog API path | 100 accepted, 0 rejected, benchmark completed, media/audio URLs redacted from raw payload JSON | Smoke-scale only; superseded by Jamendo 1k and Jamendo 10k as stronger Jamendo evidence gates |
 | Jamendo 1k | 1,000 fetched records | Live Jamendo metadata API | Verified 1k live catalog API validation | 1,000 accepted, 0 rejected, 983 artist credits parsed, 1,000 single-record release identity groups, 15 benchmark cohorts/conflicts, 2 safe merge candidates, 9 blocked merges, 4 deferred conflicts | 1k validation only; superseded by Jamendo 10k as the strongest current Jamendo evidence gate |
 | Jamendo 10k | 10,000 fetched records | Live Jamendo metadata API | Verified 10k live catalog API validation | 10,000 accepted, 0 rejected, 9,878 artist credits parsed, 9,945 release identity groups, 205 benchmark cohorts/conflicts, 107 safe merge candidates, 92 blocked merges, 6 deferred conflicts | Validates Jamendo at useful scale, not all Jamendo metadata or all live catalog APIs |
-| Internet Archive | Not validated live | Metadata-only adapter exists | Blocked | Adapter and tests exist | Earlier live attempt failed on TLS; requires retry from an alternate network |
+| Internet Archive | 100 fetched records | Live Internet Archive metadata search | Validated smoke-scale | 100 accepted, 0 rejected, 11 artist credits parsed, 89 unresolved artist credits, 100 release identity groups, 5 benchmark cohorts/conflicts | Smoke-scale only; high missing artist and unresolved artist-credit rate for `collection:opensource_audio`; does not generalize beyond this 100-record sample |
 | Discogs | Not validated | Metadata acquisition planner exists | Blocked | Planner identifies dump-based metadata-only path | Earlier dump discovery failed; requires known dump URL before converter validation |
 | YouTube metadata | Not validated | Metadata-only planning only | Intentionally deferred | High-risk source is modeled in planning and boundary classifiers | Deferred due product-identity risk; requires explicit identity-risk review first |
 
@@ -52,6 +53,13 @@ records, merge candidates, blocked merges, deferred conflicts, artist-credit
 analysis, release-identity analysis, and benchmark output. It does not prove a
 real-world metadata distribution.
 
+Internet Archive 100 broadens real source coverage with a metadata-only live
+search sample. The run fetched 100 records, accepted 100, rejected 0, and
+completed import, artist-credit analysis, release-identity analysis, and
+benchmarking. It also shows the selected query has weak artist completeness:
+87 records were missing artist evidence and 89 artist credits remained
+unresolved.
+
 ## Boundary Guarantees
 
 - External validation is metadata-only.
@@ -67,6 +75,9 @@ Verified manifest boundaries include `metadata_only=true`,
 `canonical_graph_mutated=false` for the public fixture and MusicBrainz runs.
 Jamendo validation also records `metadata_only=true`,
 `audio_download_allowed=false`, and `client_id_source=environment`.
+Internet Archive 100 records `metadata_only=true`,
+`audio_download_allowed=false`, `audio_downloaded=false`,
+`local_library_mutated=false`, and `canonical_graph_mutated=false`.
 
 ## What This Proves
 
@@ -82,12 +93,16 @@ Jamendo validation also records `metadata_only=true`,
   context before any merge or remediation claim is made.
 - Jamendo 10k validates a second live metadata source at useful scale, with
   10,000 fetched records, 10,000 accepted records, and 0 rejected records.
+- Internet Archive 100 validates the live metadata acquisition path at smoke
+  scale, with 100 fetched records, 100 accepted records, and 0 rejected records.
 
 ## What This Does Not Prove
 
 - Not all planned sources have been validated.
 - There is no Discogs converter validation proof yet.
-- There is no Internet Archive live validation proof yet.
+- Internet Archive evidence is smoke-scale only and does not prove larger
+  Internet Archive paging stability or broader Internet Archive metadata
+  distributions.
 - There is no YouTube metadata validation proof yet.
 - The Jamendo 10k result does not prove all Jamendo metadata or all live catalog
   API distributions.
@@ -100,6 +115,6 @@ Jamendo validation also records `metadata_only=true`,
 ## Next Evidence Gates
 
 1. Discogs known dump URL plus 1k/10k converter validation.
-2. Internet Archive retry from an alternate network.
+2. Internet Archive 1k/10k metadata-only validation after the smoke result.
 3. Optional YouTube metadata-only validation after product-identity risk review.
 4. Local audio fixture only if legally safe synthetic files are used.

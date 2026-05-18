@@ -50,6 +50,30 @@ The summary always records:
 }
 ```
 
+## Artist Mapping Guardrails
+
+The current Internet Archive mapping treats `creator` as the only approved
+source-level artist field. When `creator` is present, list-valued creator
+metadata is normalized into the importer `artist` field. When `creator` is
+missing, `artist` remains blank even if other metadata fields are present.
+
+The following fields are intentionally not used as artist fallbacks:
+
+- `collection`: source grouping or category evidence. It may help describe the
+  archive location or album-like grouping, but it is not artist identity.
+- `subject`: tag, topic, or genre-like evidence. It may describe content, but
+  it is too broad to promote into artist identity.
+- `title`: display title evidence only. Title-like strings such as
+  `Artist - Track` are not parsed into source-level artist mapping.
+- uploader-like fields such as `uploader`, `uploader_email`, or contributor
+  metadata: source-account or submission evidence. These fields must not
+  populate artist unless a future evidence review separately approves that
+  behavior.
+
+These guardrails preserve the metadata-only boundary. They do not authorize
+audio downloads, local file mutation, local database mutation, canonical graph
+mutation, or speculative enrichment from weak Internet Archive fields.
+
 ## Import
 
 Use the existing external metadata importer after acquisition:

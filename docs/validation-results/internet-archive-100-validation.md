@@ -135,6 +135,19 @@ The Internet Archive sample broadens real source coverage but has weak artist
 completeness for this query. The 100 fetched records were all accepted, but 87
 records were missing artist evidence and 89 artist credits remained unresolved.
 
+## Mapping Audit Note
+
+The missing artist count is mostly true absence of `creator` in this 100-record
+sample, not an ignored safe structured artist field. `creator` is already
+mapped to artist when present. Rows without `creator` did not expose another
+approved source-level artist field: `collection` is source/category evidence,
+`subject` is tag/topic evidence, title parsing is not source-level artist
+mapping, and uploader-like fields are not approved artist identity evidence.
+
+No fallback artist mapping was added because using those weaker fields would
+pollute identity evidence and make missing artist metrics look better without
+making the records safer.
+
 ## What This Proves
 
 - The Internet Archive metadata-only acquisition path can fetch and normalize a

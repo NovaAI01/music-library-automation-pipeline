@@ -223,6 +223,7 @@ Portfolio review:
 
 - [Project brief](docs/portfolio/project-brief.md)
 - [Interview brief](docs/portfolio/interview-brief.md)
+- [Operations proof brief](docs/portfolio/operations-proof-brief.md)
 - [CV bullets](docs/portfolio/cv-bullets.md)
 
 Commercial notes:

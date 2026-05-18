@@ -5,6 +5,9 @@ looks like, and what remains manual. It separates collection evidence from
 execution evidence and does not claim CI, Docker, or smoke coverage unless that
 workflow has actually run.
 
+Operational command usage, troubleshooting, and cleanup guidance are documented
+in the [operational runbook](operational-runbook.md).
+
 ## `python -m pytest --collect-only -q`
 
 Status in this Codex session: run.

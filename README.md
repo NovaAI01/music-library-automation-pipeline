@@ -61,7 +61,7 @@ reasoning before any local file operation is approved.
 - It does not claim that every source is validated or that all metadata
   distributions generalize from the current evidence.
 - It does not validate Discogs yet.
-- It does not treat Internet Archive live validation as public evidence yet.
+- It has only smoke-scale Internet Archive live metadata validation.
 - It intentionally defers YouTube metadata validation until product-identity risk
   is reviewed.
 
@@ -71,7 +71,8 @@ reasoning before any local file operation is approved.
 |---|---|---|
 | Public fixture: 65 rows | A clean clone can run the metadata-only fixture workflow with fictional CSV records, accepted/rejected rows, artist-credit analysis, release-identity analysis, benchmark cohorts, and manifest boundaries. See [docs/public-fixture-validation.md](docs/public-fixture-validation.md). | It does not prove real-world source distribution coverage or local library remediation quality. |
 | MusicBrainz 50k | A large canonical metadata sample can be converted and ingested as metadata-only evidence: 50,000 rows seen, 49,773 accepted after conversion, 0 ingestion rejects, and duplicate-like records explained through release identity analysis. See [MusicBrainz 50k result](docs/validation-results/musicbrainz-50k-consolidated-result.md). | It does not prove all MusicBrainz rows are correct, that all duplicates are solved, or that any merge/delete action is safe. |
-| Jamendo 10k | A second live catalog metadata source can run through acquisition, ingestion, artist-credit analysis, release-identity analysis, and benchmarking with 10,000 fetched and 10,000 accepted records. See [Jamendo 10k result](docs/validation-results/jamendo-10k-validation.md). | It does not prove all Jamendo metadata, all catalog APIs, Discogs, Internet Archive live validation, or YouTube metadata behavior. |
+| Jamendo 10k | A second live catalog metadata source can run through acquisition, ingestion, artist-credit analysis, release-identity analysis, and benchmarking with 10,000 fetched and 10,000 accepted records. See [Jamendo 10k result](docs/validation-results/jamendo-10k-validation.md). | It does not prove all Jamendo metadata, all catalog APIs, Discogs, Internet Archive beyond smoke scale, or YouTube metadata behavior. |
+| Internet Archive 100 | A live Internet Archive metadata search can run through acquisition, ingestion, artist-credit analysis, release-identity analysis, and benchmarking with 100 fetched, 100 accepted, and 0 rejected records. See [Internet Archive 100 result](docs/validation-results/internet-archive-100-validation.md). | It does not prove broader Internet Archive distributions; this query showed high missing artist and unresolved artist-credit rates. |
 | 597 tests | The deterministic pipeline has focused regression coverage across scanning, identity, classification, planning, reporting, duplicate review, quarantine, restore, metadata audit/planning, validation, portfolio demo tooling, and UI behavior. See the [test coverage map](docs/test-coverage-map.md) and [validation evidence ledger](docs/validation-evidence-ledger.md). | It does not replace source-specific validation, full end-to-end review on a private library, exhaustive correctness proof, or a fresh full-suite run by the reviewer. |
 
 Validation boundaries documented in the public evidence include
@@ -235,6 +236,7 @@ Source and validation evidence:
 - [Jamendo metadata](docs/jamendo-metadata.md)
 - [Jamendo 10k result](docs/validation-results/jamendo-10k-validation.md)
 - [Internet Archive metadata](docs/internet-archive-metadata.md)
+- [Internet Archive 100 result](docs/validation-results/internet-archive-100-validation.md)
 - [Large-scale evidence validation](docs/large-scale-evidence-validation.md)
 - [Validation results directory](docs/validation-results/)
 - [Sample outputs](docs/sample-outputs/)

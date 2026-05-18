@@ -91,6 +91,62 @@ Boundary notes:
 - no audio downloads, local media mutation, or canonical graph mutation are
   expected from collection-only
 
+## Internet Archive 100 live metadata validation
+
+Status in this Codex session: documented from user-terminal evidence produced
+outside CI. The live command was not run in Codex.
+
+What it checks:
+
+- Internet Archive metadata-only acquisition for `collection:opensource_audio`
+  at 100-record smoke scale
+- import of the acquired `internet_archive` CSV as external metadata
+- artist-credit analysis against the imported records
+- release-identity analysis against the same metadata-only records
+- integrated benchmark reporting under run label `internet_archive_100`
+
+Why it passes / expected pass signal:
+
+- acquisition reports `fetched_records=100`, `accepted_records=100`, and
+  `rejected_records=0`
+- import reports `input_records=100`, `accepted_records=100`, and
+  `rejected_records=0`
+- benchmark reports `total_records=100`, `total_cohorts=5`,
+  `total_conflicts=5`, `safe_merge_candidates=0`, `blocked_merges=3`, and
+  `deferred_conflicts=2`
+- artist-credit and release-identity analysis are both used by the benchmark
+- manifest boundaries record `metadata_only=true`, `audio_downloaded=false`,
+  `local_library_mutated=false`, and `canonical_graph_mutated=false`
+
+What it proves:
+
+- the previous Internet Archive live retry blocker is resolved at smoke scale
+- a live Internet Archive metadata search can produce 100 accepted
+  metadata-only records without rejects
+- the Internet Archive sample can run through import, artist-credit analysis,
+  release-identity analysis, and benchmark reporting
+- the selected query broadens real source coverage while exposing weak artist
+  completeness: 87 records missing artist evidence and 89 unresolved artist
+  credits
+
+What it does not prove:
+
+- that CI runs Internet Archive live validation
+- all Internet Archive metadata distributions work
+- larger Internet Archive paging stability
+- stronger artist completeness for other Internet Archive queries
+- any canonical merge, tag write, audio download, or local library remediation
+  is safe
+
+Boundary notes:
+
+- acquisition was metadata-only with `audio_download_allowed=false`
+- no audio was downloaded
+- the local library was not mutated
+- the canonical graph was not mutated
+- manual evidence was produced outside CI and should not be described as a CI
+  validation gate
+
 ## `python -m pytest -q`
 
 Status in this Codex session: manual verification required before commit.

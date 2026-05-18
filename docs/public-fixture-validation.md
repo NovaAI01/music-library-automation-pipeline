@@ -20,9 +20,30 @@ appearances, possible true duplicates, collaboration strings, featured artists,
 ambiguous group names, remaster/version/edit noise, source/uploader artifacts,
 and malformed rows that are rejected during import.
 
-## Commands
+## One-command path
 
 Run from the repository root:
+
+```bash
+python -m app.main run-public-fixture-validation
+```
+
+The command runs the same metadata-only workflow end to end and prints the final
+output directory:
+
+```text
+reports/runs/local_fixture/public_fixture/
+```
+
+To write reports somewhere else while preserving the same run layout:
+
+```bash
+python -m app.main run-public-fixture-validation --out /tmp/public-fixture-reports
+```
+
+## Manual four-command path
+
+The equivalent manual path is:
 
 ```bash
 python -m app.main import-external-metadata \

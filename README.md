@@ -72,7 +72,7 @@ reasoning before any local file operation is approved.
 | Public fixture: 65 rows | A clean clone can run the metadata-only fixture workflow with fictional CSV records, accepted/rejected rows, artist-credit analysis, release-identity analysis, benchmark cohorts, and manifest boundaries. See [docs/public-fixture-validation.md](docs/public-fixture-validation.md). | It does not prove real-world source distribution coverage or local library remediation quality. |
 | MusicBrainz 50k | A large canonical metadata sample can be converted and ingested as metadata-only evidence: 50,000 rows seen, 49,773 accepted after conversion, 0 ingestion rejects, and duplicate-like records explained through release identity analysis. See [MusicBrainz 50k result](docs/validation-results/musicbrainz-50k-consolidated-result.md). | It does not prove all MusicBrainz rows are correct, that all duplicates are solved, or that any merge/delete action is safe. |
 | Jamendo 10k | A second live catalog metadata source can run through acquisition, ingestion, artist-credit analysis, release-identity analysis, and benchmarking with 10,000 fetched and 10,000 accepted records. See [Jamendo 10k result](docs/validation-results/jamendo-10k-validation.md). | It does not prove all Jamendo metadata, all catalog APIs, Discogs, Internet Archive live validation, or YouTube metadata behavior. |
-| 595 tests | The deterministic pipeline has focused regression coverage across scanning, identity, classification, planning, reporting, duplicate review, quarantine, restore, metadata audit/planning, validation, portfolio demo tooling, and UI behavior. See the [test coverage map](docs/test-coverage-map.md) and [validation evidence ledger](docs/validation-evidence-ledger.md). | It does not replace source-specific validation, full end-to-end review on a private library, exhaustive correctness proof, or a fresh full-suite run by the reviewer. |
+| 597 tests | The deterministic pipeline has focused regression coverage across scanning, identity, classification, planning, reporting, duplicate review, quarantine, restore, metadata audit/planning, validation, portfolio demo tooling, and UI behavior. See the [test coverage map](docs/test-coverage-map.md) and [validation evidence ledger](docs/validation-evidence-ledger.md). | It does not replace source-specific validation, full end-to-end review on a private library, exhaustive correctness proof, or a fresh full-suite run by the reviewer. |
 
 Validation boundaries documented in the public evidence include
 `metadata_only=true`, `audio_downloaded=false`,
@@ -133,7 +133,13 @@ The container runs the existing FastAPI app with Uvicorn on port `8000` and bind
 For operational troubleshooting, runtime verification, CI checks, and cleanup
 commands, see the [operational runbook](docs/operational-runbook.md).
 
-Run the public validation path from
+Run the public validation path from the repository root:
+
+```bash
+python -m app.main run-public-fixture-validation
+```
+
+Details are in
 [docs/public-fixture-validation.md](docs/public-fixture-validation.md). It is a
 metadata-only fixture workflow: no audio, no private data, no external API
 credentials, no media downloads, no local library mutation, and no canonical
@@ -149,13 +155,24 @@ working data should live outside the repository by setting
 The public fixture is the reviewer-friendly validation path:
 [docs/public-fixture-validation.md](docs/public-fixture-validation.md).
 
-It runs four metadata-only commands against
+Run it with one command:
+
+```bash
+python -m app.main run-public-fixture-validation
+```
+
+It runs four metadata-only steps against
 `examples/fixture_library/external_metadata_fixture.csv`:
 
 - import external metadata
 - analyze artist credits
 - analyze release identity
 - benchmark validation
+
+The command writes the run under
+`reports/runs/local_fixture/public_fixture/`. The same workflow can also be run
+manually as four commands, as documented in
+[docs/public-fixture-validation.md](docs/public-fixture-validation.md).
 
 Expected evidence includes accepted and rejected import rows, artist-credit
 analysis usage, release-identity analysis usage, safe merge candidates, deferred

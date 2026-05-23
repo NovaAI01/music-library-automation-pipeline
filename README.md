@@ -50,6 +50,8 @@ reasoning before any local file operation is approved.
   reliability, and conflict evidence.
 - Benchmarks validation runs across public fixtures and metadata-only source
   samples.
+- Summarizes source quality across existing validation run outputs without
+  mutating source reports.
 
 ## What it does not do
 
@@ -73,7 +75,7 @@ reasoning before any local file operation is approved.
 | MusicBrainz 50k | A large canonical metadata sample can be converted and ingested as metadata-only evidence: 50,000 rows seen, 49,773 accepted after conversion, 0 ingestion rejects, and duplicate-like records explained through release identity analysis. See [MusicBrainz 50k result](docs/validation-results/musicbrainz-50k-consolidated-result.md). | It does not prove all MusicBrainz rows are correct, that all duplicates are solved, or that any merge/delete action is safe. |
 | Jamendo 10k | A second live catalog metadata source can run through acquisition, ingestion, artist-credit analysis, release-identity analysis, and benchmarking with 10,000 fetched and 10,000 accepted records. See [Jamendo 10k result](docs/validation-results/jamendo-10k-validation.md). | It does not prove all Jamendo metadata, all catalog APIs, Discogs, broader Internet Archive distributions, or YouTube metadata behavior. |
 | Internet Archive 1k | A live Internet Archive metadata search can run through acquisition, ingestion, artist-credit analysis, release-identity analysis, and benchmarking with 1,000 fetched, 1,000 accepted, and 0 rejected records. See [Internet Archive 1k result](docs/validation-results/internet-archive-1k-validation.md). | It does not prove broader Internet Archive distributions; this query showed weak artist completeness, with 763 missing artists and 772 unresolved artist credits. |
-| 603 tests | The deterministic pipeline has focused regression coverage across scanning, identity, classification, planning, reporting, duplicate review, quarantine, restore, metadata audit/planning, validation, portfolio demo tooling, and UI behavior. See the [test coverage map](docs/test-coverage-map.md) and [validation evidence ledger](docs/validation-evidence-ledger.md). | It does not replace source-specific validation, full end-to-end review on a private library, exhaustive correctness proof, or a fresh full-suite run by the reviewer. |
+| 607 tests | The deterministic pipeline has focused regression coverage across scanning, identity, classification, planning, reporting, duplicate review, quarantine, restore, metadata audit/planning, validation, portfolio demo tooling, and UI behavior. See the [test coverage map](docs/test-coverage-map.md) and [validation evidence ledger](docs/validation-evidence-ledger.md). | It does not replace source-specific validation, full end-to-end review on a private library, exhaustive correctness proof, or a fresh full-suite run by the reviewer. |
 
 Validation boundaries documented in the public evidence include
 `metadata_only=true`, `audio_downloaded=false`,
@@ -182,6 +184,18 @@ Expected evidence includes accepted and rejected import rows, artist-credit
 analysis usage, release-identity analysis usage, safe merge candidates, deferred
 duplicate/version/collaboration cohorts, blocked unresolved/source-artifact
 cohorts, and a manifest with metadata-only safety boundaries.
+
+Build a source quality comparison from existing validation run outputs:
+
+```bash
+python -m app.main source-quality-report
+```
+
+The command reads available run summaries under `reports/runs/<source>/<run_label>/`
+and writes `reports/source_quality/source_quality_summary.json` plus
+`reports/source_quality/source_quality_by_source.csv`. It tolerates missing
+optional summary files and does not mutate source reports, local media, or the
+canonical graph.
 
 ## Architecture summary
 

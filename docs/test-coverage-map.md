@@ -9,7 +9,7 @@ Collection command used for this map:
 python -m pytest --collect-only -q > /tmp/music_pytest_nodeids.txt
 ```
 
-Collected count: 603 tests.
+Collected count: 607 tests.
 
 This is a collection count and a regression coverage map. It is not a claim of
 exhaustive correctness for every catalog, private library layout, metadata
@@ -36,6 +36,7 @@ unless a test explicitly verifies URL construction or a mocked fetch path.
 - metadata audit, planning, suggestions, review decisions, and knowledge
 - metadata-only external ingestion and validation
 - artist-credit and release-identity analysis
+- source quality comparison reports from existing validation runs
 - canonical graph, confidence, boundaries, roles, and governance
 - UI/report views and runtime health endpoint
 - public fixture workflow boundaries
@@ -95,6 +96,7 @@ unless a test explicitly verifies URL construction or a mocked fetch path.
 | `tests/test_review_decisions.py` | 11 | Decision recording/updating, CSV import matching, skipped unmatched rows, report summaries, helper summaries, CLI commands, summary counts, and media non-mutation. | Ledger rows, imported counts, summaries, helper outputs, CLI text, and unchanged audio bytes match fixtures. | Review decisions are auditable and ledger-only. | It does not apply approved decisions. |
 | `tests/test_review_report.py` | 9 | Placement summary, review/blocked/conflict CSVs, counts, stable headers, safe overwrite, review report ledger row, and CLI. | Generated report files and database rows match placement fixtures and stale files are removed on regeneration. | Review report generation is deterministic for tested placement states. | It does not perform placement or remediation. |
 | `tests/test_scanner.py` | 4 | Hidden-file exclusion, supported audio suffixes, stable SHA-256, failed probe handling, filename observation persistence. | Scan counts, observed rows, hash value, failed probe row, and parsed filename fields match expectations. | Scanner captures local file evidence and tolerates probe failures. | It does not validate real ffprobe behavior for every media type. |
+| `tests/test_source_quality_report.py` | 4 | Multi-source validation run summary reading, JSON/CSV output, missing optional summary handling, manifest boundary fields, read-only source report behavior, and CLI registration. | Synthetic run directories under temp reports produce expected rows, aggregate totals, boundary fields, and unchanged source report hashes. | Source quality reporting can compare existing validation evidence without mutating source reports. | It does not generate or validate the underlying source runs. |
 | `tests/test_validation_benchmark.py` | 17 | Benchmark summaries/timing/governance/cohort ranking, artist-credit integration, release-identity integration, empty/deterministic outputs, non-mutation of source and input reports, and CLI. | Summary fields, distribution CSVs, cohort replacement logic, ordering, unchanged inputs, and CLI output match fixtures. | Benchmarking reports validation cohorts and uses upstream analysis when present. | It does not prove source-specific quality beyond fixture data. |
 
 ## Portfolio Demo Test Files

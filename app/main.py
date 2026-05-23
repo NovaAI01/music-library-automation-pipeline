@@ -69,6 +69,7 @@ from app.review_report import generate_review_report
 from app.report_runs import resolve_report_out_dir, write_run_manifest
 from app.release_identity_analysis import analyze_release_identity
 from app.scanner import scan
+from app.source_quality_report import generate_source_quality_report
 from app.validation_benchmark import benchmark_validation
 from tools.portfolio_demo.demo_generator import generate_demo
 from tools.portfolio_demo.ui_screenshot_capture import capture_ui_screenshots
@@ -380,6 +381,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run the metadata-only public fixture validation workflow.",
     )
     public_fixture_validation_parser.add_argument("--out", default="reports")
+
+    source_quality_parser = subparsers.add_parser(
+        "source-quality-report",
+        help="Summarize source quality across available validation report runs.",
+    )
+    source_quality_parser.add_argument("--out", default="reports")
 
     validation_parser = subparsers.add_parser(
         "validate-external-metadata",
@@ -1023,6 +1030,15 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "run-public-fixture-validation":
         run_root = run_public_fixture_validation(args.out)
         print(_display_dir(run_root))
+        return 0
+
+    if args.command == "source-quality-report":
+        result = generate_source_quality_report(out_dir=args.out)
+        print(f"report_path={result.report_path}")
+        print(f"source_run_count={result.source_run_count}")
+        print(f"sources={','.join(result.sources)}")
+        print(f"output_json={result.output_json}")
+        print(f"output_csv={result.output_csv}")
         return 0
 
     if args.command == "validate-external-metadata":

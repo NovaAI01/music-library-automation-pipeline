@@ -7,7 +7,7 @@ reviewed before file-moving operations are executed.
 
 Repository-safe evidence includes:
 
-- 603 collected tests, summarized in the
+- 607 collected tests, summarized in the
   [test coverage map](test-coverage-map.md)
 - validation pass boundaries summarized in the
   [validation evidence ledger](validation-evidence-ledger.md)
@@ -164,7 +164,10 @@ records.
 Outputs: JSON and CSV report artifacts plus read-only UI routes such as
 `/reports`, `/reports/artists`, `/reports/genres`, `/reports/quarantine`,
 `/reports/file-health`, `/reports/duplicates`, `/review`, and
-`/review/quarantine`.
+`/review/quarantine`. Validation source quality comparison writes
+`reports/source_quality/source_quality_summary.json` and
+`reports/source_quality/source_quality_by_source.csv` from existing
+`reports/runs/<source>/<run_label>/` evidence.
 
 Safety boundary: report generation and UI views are read-only.
 
@@ -179,7 +182,7 @@ metadata audit, metadata planning, and UI helpers.
 
 Inputs: the repository test suite.
 
-Outputs: pytest results. Current collection evidence records 603 tests; see the
+Outputs: pytest results. Current collection evidence records 607 tests; see the
 [test coverage map](test-coverage-map.md) for a practical coverage summary and
 the [validation evidence ledger](validation-evidence-ledger.md) for pass/fail
 evidence boundaries.

@@ -4,7 +4,8 @@
 
 The platform is now validated against one public fixture workflow, one large
 canonical metadata source, one live catalog API source at useful scale, and one
-Internet Archive live metadata source at smoke/early scale.
+Internet Archive live metadata source at 10,000-record scale for a selected
+metadata query.
 
 The validated evidence is metadata-only. It proves that the external metadata
 contract, artist-credit analysis, release-identity analysis, and integrated
@@ -24,7 +25,7 @@ or deferred.
 | Jamendo 100 | 100 fetched records | Live Jamendo metadata API | Verified smoke for live catalog API path | 100 accepted, 0 rejected, benchmark completed, media/audio URLs redacted from raw payload JSON | Smoke-scale only; superseded by Jamendo 1k and Jamendo 10k as stronger Jamendo evidence gates |
 | Jamendo 1k | 1,000 fetched records | Live Jamendo metadata API | Verified 1k live catalog API validation | 1,000 accepted, 0 rejected, 983 artist credits parsed, 1,000 single-record release identity groups, 15 benchmark cohorts/conflicts, 2 safe merge candidates, 9 blocked merges, 4 deferred conflicts | 1k validation only; superseded by Jamendo 10k as the strongest current Jamendo evidence gate |
 | Jamendo 10k | 10,000 fetched records | Live Jamendo metadata API | Verified 10k live catalog API validation | 10,000 accepted, 0 rejected, 9,878 artist credits parsed, 9,945 release identity groups, 205 benchmark cohorts/conflicts, 107 safe merge candidates, 92 blocked merges, 6 deferred conflicts | Validates Jamendo at useful scale, not all Jamendo metadata or all live catalog APIs |
-| Internet Archive | 1,000 fetched records | Live Internet Archive metadata search | Validated smoke/early-scale | 1,000 accepted, 0 rejected, 228 artist credits parsed, 772 unresolved artist credits, 763 missing artists, 906 release identity groups, 89 possible true duplicate groups, 5 source artifact candidates, 23 benchmark cohorts/conflicts | Early-scale only; high missing artist and unresolved artist-credit rate for `collection:opensource_audio`; does not generalize beyond this 1,000-record sample |
+| Internet Archive | 10,000 fetched records | Live Internet Archive metadata search | Validated 10k live metadata sample | 10,000 accepted, 0 rejected, 1,925 artist credits parsed, 8,075 unresolved artist credits, 8,008 missing artists, 7,429 release identity groups, 1,977 possible true duplicate groups, 38 source artifact candidates, 134 benchmark cohorts/conflicts | High missing artist and unresolved artist-credit rate for `collection:opensource_audio`; does not generalize beyond this 10,000-record sample |
 | Discogs | Not validated | Metadata acquisition planner exists | Blocked | Planner identifies dump-based metadata-only path | Earlier dump discovery failed; requires known dump URL before converter validation |
 | YouTube metadata | Not validated | Metadata-only planning only | Intentionally deferred | High-risk source is modeled in planning and boundary classifiers | Deferred due product-identity risk; requires explicit identity-risk review first |
 
@@ -53,15 +54,16 @@ records, merge candidates, blocked merges, deferred conflicts, artist-credit
 analysis, release-identity analysis, and benchmark output. It does not prove a
 real-world metadata distribution.
 
-Internet Archive 1k broadens real source coverage with a larger metadata-only
-live search sample. The run fetched 1,000 records, accepted 1,000, rejected 0,
-and completed import, artist-credit analysis, release-identity analysis, and
-benchmarking. It also confirms the selected query has weak artist completeness:
-763 records were missing artist evidence and 772 artist credits remained
-unresolved. Release-identity analysis found 89 possible true duplicate groups,
-and benchmarking surfaced 5 source artifact candidates. These findings are
-limited to the validated `collection:opensource_audio` sample and should not be
-treated as broader Internet Archive distribution claims.
+Internet Archive 10k broadens real source coverage with a larger metadata-only
+live search sample. The run fetched 10,000 records, accepted 10,000, rejected 0,
+and completed import, artist-credit analysis, release-identity analysis,
+benchmarking, and source-quality report inclusion. It also confirms the
+selected query has weak artist completeness: 8,008 records were missing artist
+evidence and 8,075 artist credits remained unresolved. Release-identity
+analysis found 1,977 possible true duplicate groups, and benchmarking surfaced
+38 source artifact candidates. These findings are limited to the validated
+`collection:opensource_audio` sample and should not be treated as broader
+Internet Archive distribution claims.
 
 ## Boundary Guarantees
 
@@ -78,7 +80,7 @@ Verified manifest boundaries include `metadata_only=true`,
 `canonical_graph_mutated=false` for the public fixture and MusicBrainz runs.
 Jamendo validation also records `metadata_only=true`,
 `audio_download_allowed=false`, and `client_id_source=environment`.
-Internet Archive 1k records `metadata_only=true`,
+Internet Archive 10k records `metadata_only=true`,
 `audio_download_allowed=false`, `audio_downloaded=false`,
 `local_library_mutated=false`, and `canonical_graph_mutated=false`.
 
@@ -96,16 +98,17 @@ Internet Archive 1k records `metadata_only=true`,
   context before any merge or remediation claim is made.
 - Jamendo 10k validates a second live metadata source at useful scale, with
   10,000 fetched records, 10,000 accepted records, and 0 rejected records.
-- Internet Archive 1k validates the live metadata acquisition path at
-  smoke/early scale, with 1,000 fetched records, 1,000 accepted records, and 0
+- Internet Archive 10k validates the live metadata acquisition path for the
+  selected query, with 10,000 fetched records, 10,000 accepted records, and 0
   rejected records.
 
 ## What This Does Not Prove
 
 - Not all planned sources have been validated.
 - There is no Discogs converter validation proof yet.
-- Internet Archive evidence is early-scale only and does not prove broader
-  Internet Archive metadata distributions.
+- Internet Archive evidence is limited to the validated
+  `collection:opensource_audio` sample and does not prove broader Internet
+  Archive metadata distributions.
 - There is no YouTube metadata validation proof yet.
 - The Jamendo 10k result does not prove all Jamendo metadata or all live catalog
   API distributions.
@@ -118,6 +121,5 @@ Internet Archive 1k records `metadata_only=true`,
 ## Next Evidence Gates
 
 1. Discogs known dump URL plus 1k/10k converter validation.
-2. Internet Archive 10k metadata-only validation after the 1k result.
-3. Optional YouTube metadata-only validation after product-identity risk review.
-4. Local audio fixture only if legally safe synthetic files are used.
+2. Optional YouTube metadata-only validation after product-identity risk review.
+3. Local audio fixture only if legally safe synthetic files are used.

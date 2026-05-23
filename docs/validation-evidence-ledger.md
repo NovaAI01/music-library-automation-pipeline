@@ -70,13 +70,13 @@ What it checks:
 Why it passes / expected pass signal:
 
 - command exits with status 0
-- output ends with `603 tests collected`
+- output ends with `607 tests collected`
 - nodeids are saved to `/tmp/music_pytest_nodeids.txt` for inspection
 
 What it proves:
 
 - the current test suite is discoverable
-- the 603 count is a collection count derived from pytest nodeids
+- the 607 count is a collection count derived from pytest nodeids
 
 What it does not prove:
 
@@ -90,6 +90,52 @@ Boundary notes:
 - collection-only imports tests but does not execute test bodies
 - no audio downloads, local media mutation, or canonical graph mutation are
   expected from collection-only
+
+## `python -m app.main source-quality-report`
+
+Status in this Codex session: covered by focused pytest run with synthetic
+temporary report inputs.
+
+What it checks:
+
+- existing labeled validation run directories can be discovered under
+  `reports/runs/<source>/<run_label>/`
+- available ingestion, artist-credit, release-identity, benchmark, and manifest
+  summary files are read into one source quality comparison
+- missing optional summary files do not crash report generation
+- source quality JSON and CSV outputs are written under `reports/source_quality/`
+- manifest boundary fields are preserved in the per-source CSV rows
+
+Why it passes / expected pass signal:
+
+- command exits with status 0
+- `reports/source_quality/source_quality_summary.json` exists
+- `reports/source_quality/source_quality_by_source.csv` exists
+- summary JSON records source run count, included sources, aggregate totals, and
+  the output CSV path
+- CSV contains one row per discovered source/run label
+
+What it proves:
+
+- existing validation evidence can be compared across available sources without
+  rerunning source acquisition or validation
+- missing optional source reports are tolerated as zero/blank fields rather than
+  fatal errors
+- source report inputs are treated as read-only
+
+What it does not prove:
+
+- the underlying source validations are correct or complete
+- live source availability
+- source quality for runs that have not been generated
+- any canonical merge, tag write, audio download, or local library remediation
+  is safe
+
+Boundary notes:
+
+- the command reads generated report summary JSON files only
+- it does not read audio/media files
+- it does not mutate source reports, local library files, or the canonical graph
 
 ## Internet Archive 100 live metadata validation
 
@@ -225,7 +271,7 @@ What it checks:
 Why it passes / expected pass signal:
 
 - command exits with status 0
-- terminal reports all collected tests passing, currently expected as 603 tests
+- terminal reports all collected tests passing, currently expected as 607 tests
 
 What it proves:
 

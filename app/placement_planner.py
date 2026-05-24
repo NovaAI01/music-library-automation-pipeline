@@ -168,12 +168,20 @@ def create_placement_plan(
     planned_relative_path = None
     planned_subgenre = subgenre or "_Unsorted" if primary_genre else None
     album_inference = infer_album(
-        album_tag=tag_album or probable_album,
+        album_tag=tag_album,
         parent_folder=parent_folder,
         filename=filename,
         title=probable_title,
         artist=probable_artist,
     )
+    if album_inference.requires_review and probable_album:
+        album_inference = infer_album(
+            album_tag=None,
+            parent_folder=probable_album,
+            filename=filename,
+            title=probable_title,
+            artist=probable_artist,
+        )
     if status in {"planned", "needs_review"}:
         planned_relative_path = build_planned_relative_path(
             primary_genre=primary_genre or "_Unknown",

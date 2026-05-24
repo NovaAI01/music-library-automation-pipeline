@@ -2,6 +2,8 @@ import csv
 import json
 import os
 
+import pytest
+
 from app.album_organization import (
     UNKNOWN_ALBUM,
     generate_album_organization_plan,
@@ -18,6 +20,60 @@ def test_album_inference_from_tag_is_high_confidence():
     assert result.confidence == "high"
     assert result.reason == "album_tag_present"
     assert result.requires_review is False
+
+
+def test_album_inference_uses_immediate_album_folder_not_uploader_path():
+    result = infer_album(
+        parent_folder="Uploader Channel/Artist Name - Album Name [Full Album]",
+        artist="Artist Name",
+        title="Track Name",
+    )
+
+    assert result.album == "Album Name"
+    assert result.confidence == "medium"
+    assert result.reason == "album_like_parent_folder"
+    assert "Uploader Channel" not in result.album
+
+
+@pytest.mark.parametrize(
+    "parent_folder",
+    [
+        "Some Channel/Artist Name – Album Name (Full Album Stream)",
+        "Some Channel/Artist Name — Album Name [FULL ALBUM STREAM]",
+        "Some Channel/Artist Name | Album Name [Full album]",
+        "Some Channel/Artist Name ｜ Album Name FULL ALBUM",
+    ],
+)
+def test_album_inference_strips_artist_prefix_and_full_album_decorations(
+    parent_folder,
+):
+    result = infer_album(
+        parent_folder=parent_folder,
+        artist="Artist Name",
+        title="Track Name",
+    )
+
+    assert result.album == "Album Name"
+
+
+def test_album_inference_without_artist_uses_album_folder_only():
+    result = infer_album(
+        parent_folder="Uploader/Album Name",
+        artist=None,
+        title="Track Name",
+    )
+
+    assert result.album == "Album Name"
+
+
+def test_album_inference_preserves_clean_album_folder_under_resolved_artist():
+    result = infer_album(
+        parent_folder="Uploader Channel/Album Name Deluxe",
+        artist="Artist Name",
+        title="Track Name",
+    )
+
+    assert result.album == "Album Name Deluxe"
 
 
 def test_album_inference_fallback_requires_review():

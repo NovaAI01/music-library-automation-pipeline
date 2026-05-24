@@ -32,6 +32,11 @@ PLAN_HEADERS: tuple[str, ...] = (
     "reason",
     "requires_review",
 )
+ALBUM_ARTIST_SEPARATOR = re.compile(r"\s*[-–—|｜]\s*")
+FULL_ALBUM_DECORATION = re.compile(
+    r"\s*(?:(?:\[|\()\s*full album(?: stream)?\s*(?:\]|\))|full album(?: stream)?)\s*$",
+    re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True)
@@ -73,7 +78,7 @@ def infer_album(
             requires_review=False,
         )
 
-    parent_candidate = _clean_album(parent_folder)
+    parent_candidate = _album_from_parent_folder(parent_folder, artist=artist)
     if parent_candidate and _is_album_like_parent(
         parent_candidate,
         artist=artist,
@@ -320,6 +325,50 @@ def _clean_album(value: str | None) -> str | None:
     if cleaned.casefold() in {"unknown", "unknown album", "n/a", "na", "none"}:
         return None
     return sanitize_path_component(cleaned)
+
+
+def _album_from_parent_folder(value: str | None, *, artist: str | None) -> str | None:
+    candidate = _immediate_parent_folder(value)
+    candidate = _strip_full_album_decoration(candidate)
+    candidate = _strip_artist_album_prefix(candidate, artist=artist)
+    candidate = _strip_full_album_decoration(candidate)
+    return _clean_album(candidate)
+
+
+def _immediate_parent_folder(value: str | None) -> str | None:
+    cleaned = _clean_text(value)
+    if not cleaned:
+        return None
+    parts = [part.strip() for part in re.split(r"[\\/]", cleaned) if part.strip()]
+    return parts[-1] if parts else None
+
+
+def _strip_artist_album_prefix(value: str | None, *, artist: str | None) -> str | None:
+    if not value or not artist:
+        return value
+    for match in ALBUM_ARTIST_SEPARATOR.finditer(value):
+        prefix = value[: match.start()].strip()
+        suffix = value[match.end() :].strip()
+        if suffix and _same_album_identity(prefix, artist):
+            return suffix
+    return value
+
+
+def _strip_full_album_decoration(value: str | None) -> str | None:
+    if not value:
+        return value
+    cleaned = value.strip()
+    while True:
+        next_cleaned = FULL_ALBUM_DECORATION.sub("", cleaned).strip()
+        if next_cleaned == cleaned:
+            return cleaned
+        cleaned = next_cleaned
+
+
+def _same_album_identity(left: str, right: str) -> bool:
+    return re.sub(r"[^a-z0-9]+", "", left.casefold()) == re.sub(
+        r"[^a-z0-9]+", "", right.casefold()
+    )
 
 
 def _clean_text(value: str | None) -> str | None:

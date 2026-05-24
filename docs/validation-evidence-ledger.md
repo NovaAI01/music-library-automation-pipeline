@@ -70,13 +70,12 @@ What it checks:
 Why it passes / expected pass signal:
 
 - command exits with status 0
-- output ends with `622 tests collected`
-- nodeids are saved to `/tmp/music_pytest_nodeids.txt` for inspection
+- output ends with `632 tests collected`
 
 What it proves:
 
 - the current test suite is discoverable
-- the 622 count is a collection count derived from pytest nodeids
+- the 632 count is a collection count derived from pytest nodeids
 
 What it does not prove:
 
@@ -340,7 +339,7 @@ What it checks:
 Why it passes / expected pass signal:
 
 - command exits with status 0
-- terminal reports all collected tests passing, currently expected as 622 tests
+- terminal reports all collected tests passing, currently expected as 632 tests
 
 What it proves:
 

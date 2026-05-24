@@ -684,6 +684,40 @@ def test_numbered_chapter_album_folder_is_not_invented_as_artist():
     assert result.identity_status == "partial"
 
 
+def test_numbered_chapter_album_folder_strips_uploader_and_artist_prefix():
+    observation = parse_filename("01 Track Name.flac")
+
+    result = resolve_identity(
+        tag_artist="Artist Name",
+        tag_title="Track Name",
+        filename_artist=observation.possible_artist,
+        filename_title=observation.possible_title,
+        filename_track_number=observation.possible_track_number,
+        parent_folder="Uploader Channel/Artist Name - Album Name [Full Album]",
+    )
+
+    assert result.probable_artist == "Artist Name"
+    assert result.probable_title == "Track Name"
+    assert result.probable_album == "Album Name"
+    assert "Uploader Channel" not in result.probable_album
+
+
+def test_numbered_chapter_album_folder_does_not_invent_artist():
+    observation = parse_filename("01 Track Name.flac")
+
+    result = resolve_identity(
+        filename_artist=observation.possible_artist,
+        filename_title=observation.possible_title,
+        filename_track_number=observation.possible_track_number,
+        parent_folder="Uploader/Album Name",
+    )
+
+    assert result.probable_artist is None
+    assert result.probable_title == "Track Name"
+    assert result.probable_album == "Album Name"
+    assert result.identity_status == "partial"
+
+
 def test_parent_folder_treated_as_weak_evidence():
     result = resolve_identity(parent_folder="Deftones")
 

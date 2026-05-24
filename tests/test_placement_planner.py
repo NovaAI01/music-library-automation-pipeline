@@ -117,6 +117,34 @@ def test_planned_relative_path_is_never_absolute():
     assert not path.startswith("/")
 
 
+def test_placement_uses_clean_album_folder_for_planned_path():
+    plan = create_placement_plan(
+        observed_file_id=1,
+        scan_run_id=1,
+        source_path="/downloads/Uploader Channel/Artist Name - Album Name [Full Album]/01 Track Name.ext",
+        extension=".ext",
+        identity_status="identified",
+        identity_confidence=0.95,
+        probable_artist="Artist Name",
+        probable_title="Track Name",
+        probable_album=None,
+        tag_album=None,
+        parent_folder="Uploader Channel/Artist Name - Album Name [Full Album]",
+        filename="01 Track Name.ext",
+        classification_status="classified",
+        classification_confidence=0.95,
+        primary_genre="Test Genre",
+        subgenre=None,
+    )
+
+    assert plan.planned_artist == "Artist Name"
+    assert plan.planned_album == "Album Name"
+    assert plan.planned_relative_path == (
+        "Test Genre/Artist Name/Album Name/Artist Name - Track Name.ext"
+    )
+    assert "Uploader Channel" not in plan.planned_relative_path
+
+
 def test_path_traversal_is_stripped():
     path = build_planned_relative_path(
         primary_genre="../Alternative Metal",

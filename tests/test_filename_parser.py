@@ -57,6 +57,60 @@ def test_track_word_title_pattern():
     assert observation.filename_pattern == "track_title"
 
 
+def test_duplicated_space_track_prefix_strips_from_title():
+    observation = parse_filename("01 01 Wake.flac")
+
+    assert observation.possible_artist is None
+    assert observation.possible_title == "Wake"
+    assert observation.possible_track_number == "01"
+    assert observation.filename_pattern == "track_title"
+
+
+def test_duplicated_dash_track_prefix_strips_from_title():
+    observation = parse_filename("01 - 01 Wake.flac")
+
+    assert observation.possible_artist is None
+    assert observation.possible_title == "Wake"
+    assert observation.possible_track_number == "01"
+    assert observation.filename_pattern == "track_title"
+
+
+def test_duplicated_track_word_prefix_strips_from_title():
+    observation = parse_filename("Track 01 - 01 Wake.flac")
+
+    assert observation.possible_artist is None
+    assert observation.possible_title == "Wake"
+    assert observation.possible_track_number == "01"
+    assert observation.filename_pattern == "track_title"
+
+
+def test_double_digit_duplicated_track_prefix_strips_from_title():
+    observation = parse_filename("10 10 In Between.flac")
+
+    assert observation.possible_artist is None
+    assert observation.possible_title == "In Between"
+    assert observation.possible_track_number == "10"
+    assert observation.filename_pattern == "track_title"
+
+
+def test_normal_numbered_title_remains_correct():
+    observation = parse_filename("01 Papercut.flac")
+
+    assert observation.possible_artist is None
+    assert observation.possible_title == "Papercut"
+    assert observation.possible_track_number == "01"
+    assert observation.filename_pattern == "track_title"
+
+
+def test_artist_title_beginning_with_number_is_preserved():
+    observation = parse_filename("10 Years - Wasteland.flac")
+
+    assert observation.possible_artist == "10 Years"
+    assert observation.possible_title == "Wasteland"
+    assert observation.possible_track_number is None
+    assert observation.filename_pattern == "artist_title"
+
+
 def test_artist_title_remix_pattern():
     observation = parse_filename("Artist - Title (Remix).mp3")
 

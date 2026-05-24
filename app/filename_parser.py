@@ -29,6 +29,9 @@ TRACK_WORD_TITLE = re.compile(
 )
 ARTIST_TITLE = re.compile(r"^(?P<artist>.+?)\s+-\s+(?P<title>.+)$")
 TRACK_TITLE = re.compile(r"^(?P<track>\d{1,3})\s+(?P<title>.+)$")
+DUPLICATE_TRACK_TITLE_PREFIX = re.compile(
+    r"^(?P<track>\d{1,3})(?:\s+-\s+|\.\s+|\s+)(?P<title>.+)$"
+)
 MIX_SUFFIX = re.compile(r"^(?P<title>.+?)\s*\((?P<mix>[^)]+)\)$")
 
 
@@ -39,7 +42,12 @@ def parse_filename(value: str | Path) -> FilenameObservation:
 
     match = TRACK_ARTIST_TITLE.match(cleaned)
     if match:
-        title, mix = _split_mix(match.group("title"))
+        title, mix = _split_mix(
+            _strip_duplicate_track_prefix(
+                match.group("title"),
+                match.group("track"),
+            )
+        )
         return FilenameObservation(
             cleaned_filename=cleaned,
             possible_artist=match.group("artist").strip(),
@@ -53,7 +61,12 @@ def parse_filename(value: str | Path) -> FilenameObservation:
     for pattern in (TRACK_TITLE_DASH, TRACK_TITLE_DOT, TRACK_WORD_TITLE):
         match = pattern.match(cleaned)
         if match:
-            title, mix = _split_mix(match.group("title"))
+            title, mix = _split_mix(
+                _strip_duplicate_track_prefix(
+                    match.group("title"),
+                    match.group("track"),
+                )
+            )
             return FilenameObservation(
                 cleaned_filename=cleaned,
                 possible_artist=None,
@@ -79,7 +92,12 @@ def parse_filename(value: str | Path) -> FilenameObservation:
 
     match = TRACK_TITLE.match(cleaned)
     if match:
-        title, mix = _split_mix(match.group("title"))
+        title, mix = _split_mix(
+            _strip_duplicate_track_prefix(
+                match.group("title"),
+                match.group("track"),
+            )
+        )
         return FilenameObservation(
             cleaned_filename=cleaned,
             possible_artist=None,
@@ -113,3 +131,13 @@ def _split_mix(title: str) -> tuple[str, str | None]:
     if not match:
         return title.strip(), None
     return match.group("title").strip(), match.group("mix").strip()
+
+
+def _strip_duplicate_track_prefix(title: str, track_number: str) -> str:
+    stripped_title = title.strip()
+    match = DUPLICATE_TRACK_TITLE_PREFIX.match(stripped_title)
+    if not match:
+        return stripped_title
+    if int(match.group("track")) != int(track_number):
+        return stripped_title
+    return match.group("title").strip()

@@ -7,7 +7,7 @@ reviewed before file-moving operations are executed.
 
 Repository-safe evidence includes:
 
-- 616 collected tests, summarized in the
+- 622 collected tests, summarized in the
   [test coverage map](test-coverage-map.md)
 - validation pass boundaries summarized in the
   [validation evidence ledger](validation-evidence-ledger.md)
@@ -182,7 +182,7 @@ metadata audit, metadata planning, and UI helpers.
 
 Inputs: the repository test suite.
 
-Outputs: pytest results. Current collection evidence records 616 tests; see the
+Outputs: pytest results. Current collection evidence records 622 tests; see the
 [test coverage map](test-coverage-map.md) for a practical coverage summary and
 the [validation evidence ledger](validation-evidence-ledger.md) for pass/fail
 evidence boundaries.

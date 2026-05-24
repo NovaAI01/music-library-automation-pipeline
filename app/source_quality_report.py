@@ -51,6 +51,10 @@ class SourceQualityReportResult:
     sources: list[str]
 
 
+class SourceQualityReportError(ValueError):
+    """Raised when existing source-quality report inputs are invalid."""
+
+
 def generate_source_quality_report(
     out_dir: str | Path = "reports",
 ) -> SourceQualityReportResult:
@@ -96,22 +100,22 @@ def _iter_run_dirs(out_path: Path) -> list[Path]:
         for source_dir in runs_dir.iterdir()
         if source_dir.is_dir()
         for run_dir in source_dir.iterdir()
-        if run_dir.is_dir()
+        if run_dir.is_dir() and _has_valid_manifest(run_dir)
     )
 
 
 def _source_run_row(run_dir: Path) -> dict[str, Any]:
-    manifest = _read_json(run_dir / "run_manifest.json")
-    ingestion = _read_json(
+    manifest = _read_required_manifest(run_dir / "run_manifest.json")
+    ingestion = _read_optional_summary(
         run_dir / "external_metadata_ingestion" / "ingestion_summary.json"
     )
-    artist_credit = _read_json(
+    artist_credit = _read_optional_summary(
         run_dir / "artist_credit_analysis" / "artist_credit_summary.json"
     )
-    release_identity = _read_json(
+    release_identity = _read_optional_summary(
         run_dir / "release_identity_analysis" / "release_identity_summary.json"
     )
-    benchmark = _read_json(
+    benchmark = _read_optional_summary(
         run_dir / "validation_benchmark" / "benchmark_summary.json"
     )
 
@@ -160,15 +164,33 @@ def _aggregate_totals(rows: list[dict[str, Any]]) -> dict[str, int]:
     }
 
 
-def _read_json(path: Path) -> dict[str, Any]:
+def _has_valid_manifest(run_dir: Path) -> bool:
+    manifest_path = run_dir / "run_manifest.json"
+    if not manifest_path.exists():
+        return False
+    _read_required_manifest(manifest_path)
+    return True
+
+
+def _read_required_manifest(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        raise SourceQualityReportError(f"Missing required run manifest: {path}")
+    return _read_json_object(path)
+
+
+def _read_optional_summary(path: Path) -> dict[str, Any]:
     if not path.exists():
         return {}
+    return _read_json_object(path)
+
+
+def _read_json_object(path: Path) -> dict[str, Any]:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return {}
+    except json.JSONDecodeError as exc:
+        raise SourceQualityReportError(f"Malformed JSON in {path}: {exc.msg}") from exc
     if not isinstance(data, dict):
-        return {}
+        raise SourceQualityReportError(f"JSON root must be an object in {path}")
     return data
 
 

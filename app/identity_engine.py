@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from app import db
+from app.album_organization import UNKNOWN_ALBUM, infer_album
 from app.artist_seeds import list_seed_artists, match_seed_artist, normalize_artist_name
 
 
@@ -135,6 +136,7 @@ def resolve_identity(
     filename_artist: str | None = None,
     filename_title: str | None = None,
     filename_mix: str | None = None,
+    filename_track_number: str | None = None,
     parent_folder: str | None = None,
 ) -> IdentityResolution:
     """Resolve probable track identity without guessing missing data."""
@@ -149,6 +151,7 @@ def resolve_identity(
     filename_artist = _clean(filename_artist)
     filename_title = _clean(filename_title)
     filename_mix = _clean(filename_mix)
+    filename_track_number = _clean(filename_track_number)
     parent_folder = _clean(parent_folder)
 
     tag_artist_seed = match_seed_artist(tag_artist) if tag_artist else None
@@ -163,6 +166,12 @@ def resolve_identity(
         filename_title=raw_filename_title,
         tag_title=raw_tag_title,
     )
+    chapter_album_context = _has_chapter_album_context(
+        filename_artist=normalized_filename_artist,
+        filename_title=filename_title,
+        filename_track_number=filename_track_number,
+        parent_folder=parent_folder,
+    )
     tag_artist_deprioritized = _is_contaminated_tag_artist(
         tag_artist=tag_artist,
         tag_artist_seed_matched=tag_artist_seed is not None,
@@ -170,6 +179,7 @@ def resolve_identity(
             filename_artist_seed is not None or parent_artist_seed_matched
             or title_artist_evidence is not None
         ),
+        chapter_album_context=chapter_album_context,
     )
     deprioritized_reason = (
         "uploader_or_label_metadata" if tag_artist_deprioritized else None
@@ -187,6 +197,8 @@ def resolve_identity(
     elif tag_artist_deprioritized and parent_artist:
         probable_artist = parent_artist
         selected_artist_source = "parent_folder"
+    elif tag_artist_deprioritized:
+        probable_artist = None
     elif normalized_tag_artist:
         probable_artist = normalized_tag_artist
         selected_artist_source = "tag"
@@ -205,8 +217,12 @@ def resolve_identity(
     )
 
     if title_artist_evidence and probable_artist == title_artist_evidence.artist:
-        probable_title = title_artist_evidence.title
-        selected_title_source = title_artist_evidence.source
+        if chapter_album_context and cleaned_filename_title:
+            probable_title = cleaned_filename_title
+            selected_title_source = "filename"
+        else:
+            probable_title = title_artist_evidence.title
+            selected_title_source = title_artist_evidence.source
     elif tag_artist_deprioritized and cleaned_filename_title:
         probable_title = cleaned_filename_title
         selected_title_source = "filename"
@@ -272,12 +288,19 @@ def resolve_identity(
         filename_title=filename_title,
         artist_seed_matched=artist_seed_matched,
     )
+    probable_album = _resolve_probable_album(
+        tag_album=tag_album,
+        parent_folder=parent_folder,
+        probable_artist=probable_artist,
+        probable_title=probable_title,
+        chapter_album_context=chapter_album_context,
+    )
 
     return IdentityResolution(
         observed_file_id=observed_file_id,
         probable_artist=probable_artist,
         probable_title=probable_title,
-        probable_album=tag_album,
+        probable_album=probable_album,
         probable_year=_extract_year(tag_date),
         probable_mix=filename_mix,
         identity_confidence=confidence,
@@ -395,7 +418,8 @@ def identify_scan_run(
                 tag_observations.date AS tag_date,
                 filename_observations.possible_artist AS filename_artist,
                 filename_observations.possible_title AS filename_title,
-                filename_observations.possible_mix AS filename_mix
+                filename_observations.possible_mix AS filename_mix,
+                filename_observations.possible_track_number AS filename_track_number
             FROM observed_files
             LEFT JOIN tag_observations
                 ON tag_observations.observed_file_id = observed_files.id
@@ -429,6 +453,7 @@ def identify_scan_run(
                 filename_artist=row["filename_artist"],
                 filename_title=row["filename_title"],
                 filename_mix=row["filename_mix"],
+                filename_track_number=row["filename_track_number"],
                 parent_folder=row["parent_folder"],
             )
             _insert_identity(connection, resolution)
@@ -532,8 +557,12 @@ def _is_contaminated_tag_artist(
     tag_artist: str | None,
     tag_artist_seed_matched: bool,
     seed_artist_available: bool,
+    chapter_album_context: bool = False,
 ) -> bool:
-    if not tag_artist or tag_artist_seed_matched or not seed_artist_available:
+    if not tag_artist or tag_artist_seed_matched:
+        return False
+
+    if not seed_artist_available and not chapter_album_context:
         return False
 
     if _is_known_label_uploader_name(tag_artist):
@@ -542,7 +571,46 @@ def _is_contaminated_tag_artist(
     normalized_tag_artist = tag_artist.lower()
     if any(term in normalized_tag_artist for term in CONTAMINATED_TAG_ARTIST_TERMS):
         return True
-    return True
+    return seed_artist_available
+
+
+def _has_chapter_album_context(
+    *,
+    filename_artist: str | None,
+    filename_title: str | None,
+    filename_track_number: str | None,
+    parent_folder: str | None,
+) -> bool:
+    return bool(
+        filename_track_number
+        and filename_title
+        and not filename_artist
+        and parent_folder
+    )
+
+
+def _resolve_probable_album(
+    *,
+    tag_album: str | None,
+    parent_folder: str | None,
+    probable_artist: str | None,
+    probable_title: str | None,
+    chapter_album_context: bool,
+) -> str | None:
+    if tag_album:
+        return tag_album
+    if not chapter_album_context:
+        return None
+
+    inference = infer_album(
+        album_tag=None,
+        parent_folder=parent_folder,
+        title=probable_title,
+        artist=probable_artist,
+    )
+    if inference.album == UNKNOWN_ALBUM:
+        return None
+    return inference.album
 
 
 def _is_known_label_uploader_name(value: str) -> bool:

@@ -30,6 +30,33 @@ def test_track_title_pattern():
     assert observation.filename_pattern == "track_title"
 
 
+def test_track_title_hyphen_pattern():
+    observation = parse_filename("01 - Papercut.mp3")
+
+    assert observation.possible_artist is None
+    assert observation.possible_title == "Papercut"
+    assert observation.possible_track_number == "01"
+    assert observation.filename_pattern == "track_title"
+
+
+def test_track_title_dot_pattern():
+    observation = parse_filename("1. Papercut.mp3")
+
+    assert observation.possible_artist is None
+    assert observation.possible_title == "Papercut"
+    assert observation.possible_track_number == "1"
+    assert observation.filename_pattern == "track_title"
+
+
+def test_track_word_title_pattern():
+    observation = parse_filename("Track 01 - Papercut.mp3")
+
+    assert observation.possible_artist is None
+    assert observation.possible_title == "Papercut"
+    assert observation.possible_track_number == "01"
+    assert observation.filename_pattern == "track_title"
+
+
 def test_artist_title_remix_pattern():
     observation = parse_filename("Artist - Title (Remix).mp3")
 

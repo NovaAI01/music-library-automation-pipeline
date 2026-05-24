@@ -21,6 +21,12 @@ class FilenameObservation:
 TRACK_ARTIST_TITLE = re.compile(
     r"^(?P<track>\d{1,3})\s+-\s+(?P<artist>.+?)\s+-\s+(?P<title>.+)$"
 )
+TRACK_TITLE_DASH = re.compile(r"^(?P<track>\d{1,3})\s+-\s+(?P<title>.+)$")
+TRACK_TITLE_DOT = re.compile(r"^(?P<track>\d{1,3})\.\s+(?P<title>.+)$")
+TRACK_WORD_TITLE = re.compile(
+    r"^Track\s+(?P<track>\d{1,3})\s+-\s+(?P<title>.+)$",
+    re.IGNORECASE,
+)
 ARTIST_TITLE = re.compile(r"^(?P<artist>.+?)\s+-\s+(?P<title>.+)$")
 TRACK_TITLE = re.compile(r"^(?P<track>\d{1,3})\s+(?P<title>.+)$")
 MIX_SUFFIX = re.compile(r"^(?P<title>.+?)\s*\((?P<mix>[^)]+)\)$")
@@ -43,6 +49,20 @@ def parse_filename(value: str | Path) -> FilenameObservation:
             filename_pattern="track_artist_title",
             parser_confidence=0.9,
         )
+
+    for pattern in (TRACK_TITLE_DASH, TRACK_TITLE_DOT, TRACK_WORD_TITLE):
+        match = pattern.match(cleaned)
+        if match:
+            title, mix = _split_mix(match.group("title"))
+            return FilenameObservation(
+                cleaned_filename=cleaned,
+                possible_artist=None,
+                possible_title=title,
+                possible_mix=mix,
+                possible_track_number=match.group("track"),
+                filename_pattern="track_title",
+                parser_confidence=0.65,
+            )
 
     match = ARTIST_TITLE.match(cleaned)
     if match:

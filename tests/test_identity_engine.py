@@ -623,6 +623,67 @@ def test_non_seed_uploader_tag_cannot_create_conflict_with_filename_seed_artist(
     assert result.evidence["conflict_reasons"] == []
 
 
+def test_numbered_chapter_filename_title_beats_youtube_tag_title_noise():
+    observation = parse_filename("01 - Papercut.mp3")
+
+    result = resolve_identity(
+        tag_artist="Warner Records Vault",
+        tag_title="Linkin Park - Papercut [Official Music Video]",
+        filename_artist=observation.possible_artist,
+        filename_title=observation.possible_title,
+        filename_track_number=observation.possible_track_number,
+        parent_folder="Hybrid Theory",
+    )
+
+    assert result.identity_status == "identified"
+    assert result.probable_artist == "Linkin Park"
+    assert result.probable_title == "Papercut"
+    assert result.probable_album == "Hybrid Theory"
+    assert result.evidence["selected_title_source"] == "filename"
+    assert result.evidence["tag_artist_deprioritized"] is True
+    assert result.evidence["conflict_reasons"] == []
+
+
+def test_numbered_chapter_uploader_artist_does_not_override_filename_title():
+    observation = parse_filename("02 - Forgotten.mp3")
+
+    result = resolve_identity(
+        tag_artist="Better Noise Music",
+        tag_title="Official Music Video",
+        filename_artist=observation.possible_artist,
+        filename_title=observation.possible_title,
+        filename_track_number=observation.possible_track_number,
+        parent_folder="Hybrid Theory",
+    )
+
+    assert result.identity_status == "partial"
+    assert result.probable_artist is None
+    assert result.probable_title == "Forgotten"
+    assert result.probable_album == "Hybrid Theory"
+    assert result.evidence["selected_artist_source"] is None
+    assert result.evidence["selected_title_source"] == "filename"
+    assert result.evidence["tag_artist_deprioritized"] is True
+    assert result.evidence["conflict_reasons"] == []
+
+
+def test_numbered_chapter_album_folder_is_not_invented_as_artist():
+    observation = parse_filename("03 Track Name.flac")
+
+    result = resolve_identity(
+        tag_artist="Better Noise Music",
+        tag_title="Official Audio",
+        filename_artist=observation.possible_artist,
+        filename_title=observation.possible_title,
+        filename_track_number=observation.possible_track_number,
+        parent_folder="Hybrid Theory",
+    )
+
+    assert result.probable_artist is None
+    assert result.probable_title == "Track Name"
+    assert result.probable_album == "Hybrid Theory"
+    assert result.identity_status == "partial"
+
+
 def test_parent_folder_treated_as_weak_evidence():
     result = resolve_identity(parent_folder="Deftones")
 

@@ -3,8 +3,13 @@ import hashlib
 import json
 from pathlib import Path
 
+import pytest
+
 from app.main import main
-from app.source_quality_report import generate_source_quality_report
+from app.source_quality_report import (
+    SourceQualityReportError,
+    generate_source_quality_report,
+)
 
 
 def test_source_quality_report_reads_multiple_runs_and_writes_json_csv(tmp_path):
@@ -126,6 +131,67 @@ def test_source_quality_report_tolerates_missing_optional_summaries(tmp_path):
     assert row["total_cohorts"] == "0"
     assert row["metadata_only"] == "true"
     assert row["audio_downloaded"] == ""
+
+
+def test_source_quality_report_malformed_optional_summary_raises(tmp_path):
+    reports = tmp_path / "reports"
+    run_dir = _write_run(
+        reports,
+        source_name="jamendo",
+        run_label="jamendo_bad_summary",
+        manifest={"metadata_only": True},
+    )
+    summary_path = (
+        run_dir / "external_metadata_ingestion" / "ingestion_summary.json"
+    )
+    summary_path.parent.mkdir(parents=True, exist_ok=True)
+    summary_path.write_text("{not json\n", encoding="utf-8")
+
+    with pytest.raises(SourceQualityReportError, match="Malformed JSON"):
+        generate_source_quality_report(reports)
+
+
+def test_source_quality_report_malformed_run_manifest_raises(tmp_path):
+    reports = tmp_path / "reports"
+    manifest_path = (
+        reports / "runs" / "jamendo" / "bad_manifest" / "run_manifest.json"
+    )
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text("{not json\n", encoding="utf-8")
+
+    with pytest.raises(SourceQualityReportError, match="Malformed JSON"):
+        generate_source_quality_report(reports)
+
+
+def test_source_quality_report_ignores_run_folders_without_manifest(tmp_path):
+    reports = tmp_path / "reports"
+    _write_run(
+        reports,
+        source_name="jamendo",
+        run_label="jamendo_100",
+        ingestion={"input_records": 100},
+        manifest={"metadata_only": True},
+    )
+    incomplete_run_dir = reports / "runs" / "jamendo" / "incomplete"
+    incomplete_summary_path = (
+        incomplete_run_dir
+        / "external_metadata_ingestion"
+        / "ingestion_summary.json"
+    )
+    incomplete_summary_path.parent.mkdir(parents=True, exist_ok=True)
+    incomplete_summary_path.write_text(
+        json.dumps({"input_records": 999}) + "\n",
+        encoding="utf-8",
+    )
+
+    result = generate_source_quality_report(reports)
+
+    summary = json.loads(Path(result.output_json).read_text(encoding="utf-8"))
+    rows = _read_csv(Path(result.output_csv))
+    assert result.source_run_count == 1
+    assert summary["source_run_count"] == 1
+    assert summary["aggregate_totals"]["input_records"] == 100
+    assert [row["run_label"] for row in rows] == ["jamendo_100"]
 
 
 def test_source_quality_report_does_not_mutate_source_reports(tmp_path):

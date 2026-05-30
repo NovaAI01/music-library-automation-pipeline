@@ -7,7 +7,7 @@ reviewed before file-moving operations are executed.
 
 Repository-safe evidence includes:
 
-- 637 collected tests, summarized in the
+- last recorded 637-test full-suite evidence, summarized in the
   [test coverage map](test-coverage-map.md)
 - validation pass boundaries summarized in the
   [validation evidence ledger](validation-evidence-ledger.md)
@@ -76,9 +76,10 @@ Placement and review behavior must follow:
 The original messy source state is preserved for audit, rollback, and
 before/after proof. The placement planner emits artist/release/track paths
 under `OrganizedLibrary/Music/` for clean canonical rows and preserves original
-relative paths under `_Review/` or `_Unresolved/` for governance rows. Future
-profile layouts are preview/export views only and must not move files from a
-dropdown change.
+relative paths under `_Review/` or `_Unresolved/` for governance rows. Unsplit
+full-album single-file downloads route to `_Review/placement/` until reviewed.
+Future profile layouts are preview/export views only and must not move files
+from a dropdown change.
 
 ## 2. Metadata Audit
 
@@ -229,10 +230,10 @@ metadata audit, metadata planning, and UI helpers.
 
 Inputs: the repository test suite.
 
-Outputs: pytest results. Current collection evidence records 637 tests; see the
-[test coverage map](test-coverage-map.md) for a practical coverage summary and
-the [validation evidence ledger](validation-evidence-ledger.md) for pass/fail
-evidence boundaries.
+Outputs: pytest results. The last recorded full-suite evidence covers 637
+tests; see the [test coverage map](test-coverage-map.md) for a practical
+coverage summary and the [validation evidence ledger](validation-evidence-ledger.md)
+for pass/fail evidence boundaries.
 
 Safety boundary: tests exercise behavior without requiring operators to mutate
 the production library.

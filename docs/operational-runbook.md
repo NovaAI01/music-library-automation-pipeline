@@ -118,7 +118,8 @@ Current placement scope is canonical path planning only. `plan-placement`
 emits `OrganizedLibrary/Music/...` clean paths and `_Review/` or
 `_Unresolved/` governance paths; it does not move files. Keep future
 organization profile previews non-mutating. Do not build profile UI or dropdown
-switching in the proof phase.
+switching in the proof phase. Unsplit full-album single-file downloads are
+routed to `_Review/placement/` and must not be treated as clean album tracks.
 
 ## Docker runtime verification
 

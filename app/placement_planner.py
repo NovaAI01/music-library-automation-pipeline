@@ -34,6 +34,12 @@ SINGLE_ARTIST_COMPILATION_TERMS: tuple[str, ...] = (
     "essential",
     "greatest hits",
 )
+FULL_ALBUM_SOURCE_TERMS: tuple[str, ...] = (
+    "album stream",
+    "full album",
+    "full album hq",
+    "full album stream",
+)
 
 
 @dataclass(frozen=True)
@@ -289,6 +295,17 @@ def create_placement_plan(
         probable_album=probable_album,
         parent_folder=parent_folder,
     )
+    if status == "planned" and _is_unsplit_full_album_source(
+        title=probable_title,
+        album=planned_album,
+        parent_folder=parent_folder,
+        filename=filename,
+        original_relative_path=original_relative_path,
+        track_number=track_number,
+    ):
+        status = "needs_review"
+        reasons.append("unsplit_full_album")
+
     if status == "planned":
         planned_relative_path = build_planned_relative_path(
             artist=probable_artist or "_Unknown",
@@ -329,9 +346,10 @@ def create_placement_plan(
             extension=extension,
         )
     elif status == "needs_review":
+        queue = "placement" if "unsplit_full_album" in reasons else "classification"
         planned_relative_path = build_governance_relative_path(
             zone=REVIEW_ROOT,
-            queue="classification",
+            queue=queue,
             original_relative_path=original_relative_path,
             source_path=source_path,
             title=probable_title,
@@ -561,6 +579,54 @@ def _planned_album_value(
     ):
         return None
     return album
+
+
+def _is_unsplit_full_album_source(
+    *,
+    title: str | None,
+    album: str | None,
+    parent_folder: str | None,
+    filename: str | None,
+    original_relative_path: str | None,
+    track_number: str | None,
+) -> bool:
+    if _number_value(track_number):
+        return False
+
+    title_key = _album_source_key(title)
+    album_key = _album_source_key(album)
+    evidence_values = (title, album, parent_folder, filename, original_relative_path)
+    if not any(_has_full_album_source_signal(value) for value in evidence_values):
+        return False
+
+    if title_key and album_key and (
+        title_key == album_key
+        or title_key.startswith(album_key)
+        or album_key.startswith(title_key)
+    ):
+        return True
+
+    for value in (parent_folder, filename, original_relative_path):
+        value_key = _album_source_key(value)
+        if title_key and value_key and title_key in value_key:
+            return True
+        if album_key and value_key and album_key in value_key:
+            return True
+    return False
+
+
+def _has_full_album_source_signal(value: str | None) -> bool:
+    normalized = _normalize_text(value)
+    return any(term in normalized for term in FULL_ALBUM_SOURCE_TERMS)
+
+
+def _album_source_key(value: str | None) -> str:
+    normalized = _normalize_text(value)
+    for term in FULL_ALBUM_SOURCE_TERMS:
+        normalized = normalized.replace(term, " ")
+    normalized = re.sub(r"\bhq\b", " ", normalized)
+    normalized = re.sub(r"\bfull\b|\balbum\b|\bstream\b", " ", normalized)
+    return re.sub(r"[^a-z0-9]+", "", normalized)
 
 
 def _release_folder(*, year: str | None, release: str | None) -> str | None:

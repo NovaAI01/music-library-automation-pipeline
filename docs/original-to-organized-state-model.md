@@ -97,6 +97,9 @@ Destination classes:
 Rows with complete, safe evidence can be proposed for canonical placement.
 Rows with partial, conflicting, uncertain, unsupported, or unsafe evidence must
 remain in `_Review/` or `_Unresolved/`.
+Unsplit full-album single-file sources are placement-review evidence, not clean
+canonical tracks, unless a later reviewed workflow proves they are true
+single-track releases.
 
 ## Required Evidence Links
 

@@ -137,6 +137,7 @@ Current planner behavior:
 - clean canonical rows produce `OrganizedLibrary/Music/...` paths
 - identity review rows produce `OrganizedLibrary/_Review/identity/<original relative path>`
 - classification review rows produce `OrganizedLibrary/_Review/classification/<original relative path>`
+- unsplit full-album single-file sources produce `OrganizedLibrary/_Review/placement/<original relative path>`
 - unresolved rows produce `OrganizedLibrary/_Unresolved/unknown/<original relative path or fallback>`
 - placement planning does not execute file movement
 

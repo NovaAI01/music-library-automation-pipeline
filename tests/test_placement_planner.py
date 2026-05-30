@@ -279,6 +279,141 @@ def test_placement_uses_clean_album_folder_for_planned_path():
     assert "Uploader Channel" not in plan.planned_relative_path
 
 
+def test_unsplit_full_album_single_file_routes_to_placement_review_tool():
+    plan = create_placement_plan(
+        observed_file_id=1,
+        scan_run_id=1,
+        source_path=(
+            "/music/Anticyclone/TOOL - Lateralus (Full Album HQ)./"
+            " TOOL - Lateralus (Full Album HQ)..flac"
+        ),
+        original_relative_path=(
+            "Anticyclone/TOOL - Lateralus (Full Album HQ)./"
+            " TOOL - Lateralus (Full Album HQ)..flac"
+        ),
+        extension=".flac",
+        identity_status="identified",
+        identity_confidence=0.95,
+        probable_artist="Tool",
+        probable_title="Lateralus (Full Album HQ)",
+        probable_album="Lateralus (Full Album HQ)",
+        tag_album=None,
+        parent_folder="Anticyclone/TOOL - Lateralus (Full Album HQ).",
+        filename=" TOOL - Lateralus (Full Album HQ)..flac",
+        classification_status="classified",
+        classification_confidence=0.95,
+        primary_genre="Progressive Metal",
+        subgenre=None,
+    )
+
+    assert plan.placement_status == "needs_review"
+    assert plan.planned_relative_path == (
+        "OrganizedLibrary/_Review/placement/Anticyclone/"
+        "TOOL - Lateralus (Full Album HQ)/TOOL - Lateralus (Full Album HQ)flac"
+    )
+    assert "unsplit_full_album" in plan.reason["reasons"]
+
+
+def test_unsplit_full_album_single_file_routes_to_placement_review_motionless():
+    plan = create_placement_plan(
+        observed_file_id=1,
+        scan_run_id=1,
+        source_path=(
+            "/music/Motionless In White - Disguise (Full Album)/"
+            " Motionless In White - Disguise (Full Album).flac"
+        ),
+        original_relative_path=(
+            "Motionless In White - Disguise (Full Album)/"
+            " Motionless In White - Disguise (Full Album).flac"
+        ),
+        extension=".flac",
+        identity_status="identified",
+        identity_confidence=0.95,
+        probable_artist="Motionless in White",
+        probable_title="Disguise (Full Album)",
+        probable_album="Disguise",
+        tag_album=None,
+        parent_folder="Motionless In White - Disguise (Full Album)",
+        filename=" Motionless In White - Disguise (Full Album).flac",
+        classification_status="classified",
+        classification_confidence=0.95,
+        primary_genre="Metalcore",
+        subgenre=None,
+    )
+
+    assert plan.placement_status == "needs_review"
+    assert plan.planned_relative_path == (
+        "OrganizedLibrary/_Review/placement/"
+        "Motionless In White - Disguise (Full Album)/"
+        "Motionless In White - Disguise (Full Album).flac"
+    )
+    assert "unsplit_full_album" in plan.reason["reasons"]
+
+
+def test_chapter_split_full_album_track_stays_clean_planned_path():
+    plan = create_placement_plan(
+        observed_file_id=1,
+        scan_run_id=1,
+        source_path=(
+            "/music/Warner Records Vault/Deftones - Around The Fur (Full Album)/"
+            "01 My Own Summer (Shove It).flac"
+        ),
+        original_relative_path=(
+            "Warner Records Vault/Deftones - Around The Fur (Full Album)/"
+            "01 My Own Summer (Shove It).flac"
+        ),
+        extension=".flac",
+        identity_status="identified",
+        identity_confidence=0.95,
+        probable_artist="Deftones",
+        probable_title="My Own Summer (Shove It)",
+        probable_album="Around the Fur",
+        tag_album=None,
+        filename_track_number="01",
+        parent_folder="Warner Records Vault/Deftones - Around The Fur (Full Album)",
+        filename="01 My Own Summer (Shove It).flac",
+        classification_status="classified",
+        classification_confidence=0.95,
+        primary_genre="Alternative Metal",
+        subgenre=None,
+    )
+
+    assert plan.placement_status == "planned"
+    assert plan.planned_relative_path == (
+        "OrganizedLibrary/Music/Artists/Deftones/Albums/Around The Fur/"
+        "01 - My Own Summer (Shove It).flac"
+    )
+    assert "unsplit_full_album" not in plan.reason["reasons"]
+
+
+def test_legitimate_standalone_single_stays_clean_planned_path():
+    plan = create_placement_plan(
+        observed_file_id=1,
+        scan_run_id=1,
+        source_path="/music/NOTHING MORE - FREEFALL.flac",
+        original_relative_path="NOTHING MORE - FREEFALL.flac",
+        extension=".flac",
+        identity_status="identified",
+        identity_confidence=0.95,
+        probable_artist="Nothing More",
+        probable_title="FREEFALL",
+        probable_album=None,
+        tag_album=None,
+        parent_folder="",
+        filename="NOTHING MORE - FREEFALL.flac",
+        classification_status="classified",
+        classification_confidence=0.95,
+        primary_genre="Alternative Rock",
+        subgenre=None,
+    )
+
+    assert plan.placement_status == "planned"
+    assert plan.planned_relative_path == (
+        "OrganizedLibrary/Music/Artists/Nothing More/Singles/FREEFALL.flac"
+    )
+    assert "unsplit_full_album" not in plan.reason["reasons"]
+
+
 def test_path_traversal_is_stripped():
     path = build_planned_relative_path(
         artist="../Deftones",

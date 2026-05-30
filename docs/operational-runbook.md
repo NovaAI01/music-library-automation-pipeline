@@ -47,6 +47,64 @@ This proves the collected test bodies pass in the verifying environment. It
 does not prove Docker image build behavior, container runtime behavior, live
 external service availability, or correctness for every private music library.
 
+## Scarlette Track Library proof workflow
+
+The active private proof library is:
+
+```text
+~/Music/ScarletteTrackLibrary
+```
+
+The older path `~/Music/ScarletteTestLibrary` is deprecated and should not be
+used for current proof evidence.
+
+Allowed proof-phase commands:
+
+```bash
+python -m app.main scan --source ~/Music/ScarletteTrackLibrary
+python -m app.main identify --scan-run-id <ID>
+python -m app.main classify --scan-run-id <ID>
+python -m app.main plan-placement --scan-run-id <ID>
+```
+
+Do not run these proof-phase commands:
+
+```text
+execute-placement
+quarantine-duplicates
+restore-quarantine
+```
+
+The proof phase is scan/report/planning only. It must not mutate audio files,
+move files into placement destinations, quarantine duplicates, or restore
+quarantined files.
+
+Current chapter-split identity expectation: numbered chapter filenames such as
+`01 01. Like A Shadow.flac`, `01 My Own Summer (Shove It).flac`, and other
+`NN <title>`, `NN. <title>`, or `NN NN. <title>` shapes supply track-title
+evidence. Full-album parent folders supply album context. Uploader/channel
+folders are treated as source context unless independently supported by known
+artist evidence.
+
+Recorded proof evidence:
+
+| Metric | Before fix, scan 8 | After fix, scan 13 |
+|---|---:|---:|
+| audio files seen | 536 | 536 |
+| identified | 480 | 480 |
+| partial | 0 | 55 |
+| conflicting | 56 | 1 |
+| classified | 467 | 467 |
+| uncertain | 69 | 69 |
+| planned | 467 | 467 |
+| blocked unknown identity | 0 | 55 |
+| blocked unknown classification | 13 | 13 |
+| placement conflicts | 56 | 1 |
+
+Remaining backlog after the fix is review work, not an execution approval: 55
+identity-partial rows, 13 unknown classification blocks, 69 uncertain
+classifications, and 1 remaining conflict.
+
 ## Docker runtime verification
 
 Build the local runtime image:

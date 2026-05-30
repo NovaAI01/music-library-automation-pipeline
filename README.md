@@ -76,7 +76,8 @@ reasoning before any local file operation is approved.
 | MusicBrainz 50k | A large canonical metadata sample can be converted and ingested as metadata-only evidence: 50,000 rows seen, 49,773 accepted after conversion, 0 ingestion rejects, and duplicate-like records explained through release identity analysis. See [MusicBrainz 50k result](docs/validation-results/musicbrainz-50k-consolidated-result.md). | It does not prove all MusicBrainz rows are correct, that all duplicates are solved, or that any merge/delete action is safe. |
 | Jamendo 10k | A second live catalog metadata source can run through acquisition, ingestion, artist-credit analysis, release-identity analysis, and benchmarking with 10,000 fetched and 10,000 accepted records. See [Jamendo 10k result](docs/validation-results/jamendo-10k-validation.md). | It does not prove all Jamendo metadata, all catalog APIs, Discogs, broader Internet Archive distributions, or YouTube metadata behavior. |
 | Internet Archive 10k | A live Internet Archive metadata search can run through acquisition, ingestion, artist-credit analysis, release-identity analysis, benchmarking, and source-quality report inclusion with 10,000 fetched, 10,000 accepted, and 0 rejected records. See [Internet Archive 10k result](docs/validation-results/internet-archive-10k-validation.md). | It does not prove broader Internet Archive distributions; this query showed weak artist completeness and unresolved artist credits, with 8,008 missing artists and 8,075 unresolved artist credits. |
-| 632 tests | The deterministic pipeline has focused regression coverage across scanning, identity, classification, planning, reporting, duplicate review, quarantine, restore, metadata audit/planning, validation, portfolio demo tooling, and UI behavior. See the [test coverage map](docs/test-coverage-map.md) and [validation evidence ledger](docs/validation-evidence-ledger.md). | It does not replace source-specific validation, full end-to-end review on a private library, exhaustive correctness proof, or a fresh full-suite run by the reviewer. |
+| 637 tests | The deterministic pipeline has focused regression coverage across scanning, identity, classification, planning, reporting, duplicate review, quarantine, restore, metadata audit/planning, validation, portfolio demo tooling, and UI behavior. See the [test coverage map](docs/test-coverage-map.md) and [validation evidence ledger](docs/validation-evidence-ledger.md). | It does not replace source-specific validation, full end-to-end review on a private library, exhaustive correctness proof, or a fresh full-suite run by the reviewer. |
+| Scarlette Track Library proof | A private, messy 536-audio-file proof library at `~/Music/ScarletteTrackLibrary` verifies scan -> identify -> classify -> plan-placement behavior against chapter-split full-album files. The chapter identity fix reduced conflicts from 56 to 1 while preserving 467 planned rows. See the [operational runbook](docs/operational-runbook.md) and [validation evidence ledger](docs/validation-evidence-ledger.md). | It does not authorize placement execution, quarantine, restore, tag writes, audio downloads, or use of the deprecated `~/Music/ScarletteTestLibrary` path. Remaining review backlog is expected. |
 
 Validation boundaries documented in the public evidence include
 `metadata_only=true`, `audio_downloaded=false`,
@@ -197,6 +198,45 @@ and writes `reports/source_quality/source_quality_summary.json` plus
 `reports/source_quality/source_quality_by_source.csv`. It tolerates missing
 optional summary files and does not mutate source reports, local media, or the
 canonical graph.
+
+## Private proof workflow
+
+The current private proof library is:
+
+```text
+~/Music/ScarletteTrackLibrary
+```
+
+The old `~/Music/ScarletteTestLibrary` path is deprecated and should not be
+used for current proof runs.
+
+The current proof phase is read/report only: scan, identify, classify, and
+placement planning are allowed. Do not run `execute-placement`,
+`quarantine-duplicates`, or `restore-quarantine` as part of this proof phase.
+
+The chapter-split identity fix treats numbered chapter filenames such as
+`01 01. Like A Shadow.flac` as stronger track-title evidence than embedded
+full-album uploader/title tags, treats the parent folder as album context, and
+does not promote the uploader folder as a high-confidence artist unless
+independently supported.
+
+Latest recorded comparison:
+
+| Metric | Before fix, scan 8 | After fix, scan 13 |
+|---|---:|---:|
+| audio files seen | 536 | 536 |
+| identified | 480 | 480 |
+| partial | 0 | 55 |
+| conflicting | 56 | 1 |
+| classified | 467 | 467 |
+| uncertain | 69 | 69 |
+| planned | 467 | 467 |
+| blocked unknown identity | 0 | 55 |
+| blocked unknown classification | 13 | 13 |
+| placement conflicts | 56 | 1 |
+
+Remaining review backlog after the fix: 55 identity-partial rows, 13 unknown
+classification blocks, 69 uncertain classifications, and 1 remaining conflict.
 
 ## Architecture summary
 

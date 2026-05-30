@@ -70,12 +70,12 @@ What it checks:
 Why it passes / expected pass signal:
 
 - command exits with status 0
-- output ends with `632 tests collected`
+- output ends with `637 tests collected`
 
 What it proves:
 
 - the current test suite is discoverable
-- the 632 count is a collection count derived from pytest nodeids
+- the 637 count is a collection count derived from pytest nodeids
 
 What it does not prove:
 
@@ -89,6 +89,72 @@ Boundary notes:
 - collection-only imports tests but does not execute test bodies
 - no audio downloads, local media mutation, or canonical graph mutation are
   expected from collection-only
+
+## Scarlette Track Library proof scan
+
+Status in this Codex session: documented from user-terminal evidence and local
+proof runs. This is private-library evidence, not CI evidence.
+
+Active proof path:
+
+```text
+~/Music/ScarletteTrackLibrary
+```
+
+Deprecated path:
+
+```text
+~/Music/ScarletteTestLibrary
+```
+
+What it checks:
+
+- scanner can observe a realistic messy local library with 536 audio files
+- identity resolution handles chapter-split full-album files
+- numbered chapter filenames provide track-title evidence
+- full-album parent folders provide album context
+- uploader/channel folders do not override chapter filenames without
+  independent artist evidence
+- classify and plan-placement can run after identity resolution
+
+Why it passes / expected pass signal:
+
+| Metric | Before fix, scan 8 | After fix, scan 13 |
+|---|---:|---:|
+| audio files seen | 536 | 536 |
+| identified | 480 | 480 |
+| partial | 0 | 55 |
+| conflicting | 56 | 1 |
+| classified | 467 | 467 |
+| uncertain | 69 | 69 |
+| planned | 467 | 467 |
+| blocked unknown identity | 0 | 55 |
+| blocked unknown classification | 13 | 13 |
+| placement conflicts | 56 | 1 |
+
+What it proves:
+
+- the dominant chapter-split full-album conflict mode was reduced from 56
+  conflicts to 1 remaining conflict on the active proof library
+- the pipeline now blocks uncertain chapter rows as partial identity rather
+  than choosing uploader-as-artist and full-album-title-as-track
+- planning counts remain stable for classifiable rows
+
+What remains manual:
+
+- 55 identity-partial rows need review or stronger artist evidence
+- 13 unknown classification blocks remain
+- 69 uncertain classifications remain
+- 1 conflict remains outside the fixed dominant failure mode
+
+Boundary notes:
+
+- allowed proof-phase commands are scan, identify, classify, and
+  plan-placement
+- do not run `execute-placement`, `quarantine-duplicates`, or
+  `restore-quarantine` during this proof phase
+- no downloaded audio should be modified
+- no downloader repository commands are part of this proof
 
 ## `python -m app.main source-quality-report`
 
@@ -327,7 +393,8 @@ Boundary notes:
 
 ## `python -m pytest -q`
 
-Status in this Codex session: manual verification required before commit.
+Status: passed manually in the user terminal after the chapter-split identity
+fix and test data-root isolation fix.
 
 What it checks:
 
@@ -339,7 +406,7 @@ What it checks:
 Why it passes / expected pass signal:
 
 - command exits with status 0
-- terminal reports all collected tests passing, currently expected as 632 tests
+- terminal reports all collected tests passing, currently `637 passed in 12.11s`
 
 What it proves:
 

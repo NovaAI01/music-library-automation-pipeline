@@ -7,7 +7,7 @@ reviewed before file-moving operations are executed.
 
 Repository-safe evidence includes:
 
-- 632 collected tests, summarized in the
+- 637 collected tests, summarized in the
   [test coverage map](test-coverage-map.md)
 - validation pass boundaries summarized in the
   [validation evidence ledger](validation-evidence-ledger.md)
@@ -32,6 +32,38 @@ or quarantine action. File movement is handled by separate commands.
 
 Operational value: creates a repeatable evidence base for identity resolution,
 classification, placement planning, duplicate detection, and reporting.
+
+### Current Private Proof Library
+
+The active messy-library proof path is `~/Music/ScarletteTrackLibrary`.
+`~/Music/ScarletteTestLibrary` is deprecated for current proof runs.
+
+This proof phase allows scan, identify, classify, and placement planning only.
+It explicitly does not authorize `execute-placement`,
+`quarantine-duplicates`, or `restore-quarantine`.
+
+Chapter-split full-album files are expected to resolve title evidence from the
+numbered chapter filename and album evidence from the immediate parent folder.
+Uploader/channel folders remain source context unless independently matched to
+known artist evidence.
+
+Recorded evidence:
+
+| Metric | Before fix, scan 8 | After fix, scan 13 |
+|---|---:|---:|
+| audio files seen | 536 | 536 |
+| identified | 480 | 480 |
+| partial | 0 | 55 |
+| conflicting | 56 | 1 |
+| classified | 467 | 467 |
+| uncertain | 69 | 69 |
+| planned | 467 | 467 |
+| blocked unknown identity | 0 | 55 |
+| blocked unknown classification | 13 | 13 |
+| placement conflicts | 56 | 1 |
+
+The remaining backlog is 55 identity-partial rows, 13 unknown classification
+blocks, 69 uncertain classifications, and 1 conflict.
 
 ## 2. Metadata Audit
 
@@ -182,7 +214,7 @@ metadata audit, metadata planning, and UI helpers.
 
 Inputs: the repository test suite.
 
-Outputs: pytest results. Current collection evidence records 632 tests; see the
+Outputs: pytest results. Current collection evidence records 637 tests; see the
 [test coverage map](test-coverage-map.md) for a practical coverage summary and
 the [validation evidence ledger](validation-evidence-ledger.md) for pass/fail
 evidence boundaries.

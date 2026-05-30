@@ -238,6 +238,24 @@ Latest recorded comparison:
 Remaining review backlog after the fix: 55 identity-partial rows, 13 unknown
 classification blocks, 69 uncertain classifications, and 1 remaining conflict.
 
+## Organization architecture lock
+
+Canonical organization is documented before further implementation in:
+
+- [Organized library contract](docs/organized-library-contract.md)
+- [Original to organized state model](docs/original-to-organized-state-model.md)
+- [Organization profile preview spec](docs/organization-profile-preview-spec.md)
+
+The locked contract preserves the original messy source state for audit,
+rollback, and before/after proof. The canonical user-facing output is rooted at
+`OrganizedLibrary/Music/`, with underscore-prefixed folders reserved for
+review, unresolved, and system/governance zones. Genre is metadata and UI
+filtering first, not the default physical owner.
+
+Future organization profiles are preview/export views over canonical metadata.
+The future dropdown/profile UI must be preview-first and must not move files
+until explicit confirmation and an execution manifest exist.
+
 ## Architecture summary
 
 ```text
@@ -270,6 +288,9 @@ Core workflow:
 - [Test coverage map](docs/test-coverage-map.md)
 - [Validation evidence ledger](docs/validation-evidence-ledger.md)
 - [Operational runbook](docs/operational-runbook.md)
+- [Organized library contract](docs/organized-library-contract.md)
+- [Original to organized state model](docs/original-to-organized-state-model.md)
+- [Organization profile preview spec](docs/organization-profile-preview-spec.md)
 
 Analysis and governance:
 

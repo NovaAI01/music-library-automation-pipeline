@@ -105,6 +105,19 @@ Remaining backlog after the fix is review work, not an execution approval: 55
 identity-partial rows, 13 unknown classification blocks, 69 uncertain
 classifications, and 1 remaining conflict.
 
+## Organization contract references
+
+Use these docs before changing placement, review queue, or organization
+behavior:
+
+- [Organized library contract](organized-library-contract.md)
+- [Original to organized state model](original-to-organized-state-model.md)
+- [Organization profile preview spec](organization-profile-preview-spec.md)
+
+Current scope is to preserve original source state, plan canonical output, and
+keep future organization profile previews non-mutating. Do not build profile UI
+or dropdown switching in the proof phase.
+
 ## Docker runtime verification
 
 Build the local runtime image:

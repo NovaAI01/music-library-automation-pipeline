@@ -65,6 +65,20 @@ Recorded evidence:
 The remaining backlog is 55 identity-partial rows, 13 unknown classification
 blocks, 69 uncertain classifications, and 1 conflict.
 
+### Canonical Organization Contract
+
+Before any further implementation, placement and review behavior must follow:
+
+- [Organized library contract](organized-library-contract.md)
+- [Original to organized state model](original-to-organized-state-model.md)
+- [Organization profile preview spec](organization-profile-preview-spec.md)
+
+The original messy source state is preserved for audit, rollback, and
+before/after proof. The canonical physical owner is artist/release/track under
+`OrganizedLibrary/Music/`; review, unresolved, and system evidence live in
+underscore-prefixed governance zones. Future profile layouts are preview/export
+views only and must not move files from a dropdown change.
+
 ## 2. Metadata Audit
 
 Purpose: inspect FLAC tag quality and identify missing, malformed, or

@@ -32,7 +32,12 @@ TRACK_TITLE = re.compile(r"^(?P<track>\d{1,3})\s+(?P<title>.+)$")
 DUPLICATE_TRACK_TITLE_PREFIX = re.compile(
     r"^(?P<track>\d{1,3})(?:\s+-\s+|\.\s+|\s+)(?P<title>.+)$"
 )
-MIX_SUFFIX = re.compile(r"^(?P<title>.+?)\s*\((?P<mix>[^)]+)\)$")
+MIX_SUFFIX = re.compile(
+    r"^(?P<title>.+?)\s*\("
+    r"(?P<mix>[^)]*(?:mix|remix|version|edit|remaster|acoustic|live|instrumental)[^)]*)"
+    r"\)$",
+    re.IGNORECASE,
+)
 
 
 def parse_filename(value: str | Path) -> FilenameObservation:

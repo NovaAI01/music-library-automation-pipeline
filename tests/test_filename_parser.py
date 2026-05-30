@@ -66,6 +66,15 @@ def test_duplicated_space_track_prefix_strips_from_title():
     assert observation.filename_pattern == "track_title"
 
 
+def test_duplicated_dot_track_prefix_strips_from_title():
+    observation = parse_filename("01 01. Like A Shadow.flac")
+
+    assert observation.possible_artist is None
+    assert observation.possible_title == "Like A Shadow"
+    assert observation.possible_track_number == "01"
+    assert observation.filename_pattern == "track_title"
+
+
 def test_duplicated_dash_track_prefix_strips_from_title():
     observation = parse_filename("01 - 01 Wake.flac")
 
@@ -118,6 +127,16 @@ def test_artist_title_remix_pattern():
     assert observation.possible_title == "Title"
     assert observation.possible_mix == "Remix"
     assert observation.filename_pattern == "artist_title_with_mix"
+
+
+def test_parenthetical_subtitle_is_preserved_as_title_text():
+    observation = parse_filename("01 My Own Summer (Shove It).flac")
+
+    assert observation.possible_artist is None
+    assert observation.possible_title == "My Own Summer (Shove It)"
+    assert observation.possible_mix is None
+    assert observation.possible_track_number == "01"
+    assert observation.filename_pattern == "track_title"
 
 
 def test_hyphenated_artist_title_pattern_preserves_artist_name():

@@ -74,6 +74,11 @@ FULL_WIDTH_PUNCTUATION = str.maketrans(
 )
 
 TITLE_ARTIST_SEPARATORS = re.compile(r"\s+[-–—]\s+|:\s+")
+ALBUM_ARTIST_SEPARATOR = re.compile(r"\s*[-–—|｜]\s*")
+FULL_ALBUM_DECORATION = re.compile(
+    r"\s*(?:(?:\[|\()\s*full album(?: stream)?\s*(?:\]|\))|full album(?: stream)?)\s*$",
+    re.IGNORECASE,
+)
 
 PARENT_ARTIST_ALIASES: dict[str, str] = {
     normalize_artist_name("CrossfadeMusicTV"): "Crossfade",
@@ -172,6 +177,10 @@ def resolve_identity(
         filename_track_number=filename_track_number,
         parent_folder=parent_folder,
     )
+    chapter_tag_title_album_context = _chapter_tag_title_matches_parent_album(
+        tag_title=tag_title,
+        parent_folder=parent_folder,
+    ) if chapter_album_context else False
     tag_artist_deprioritized = _is_contaminated_tag_artist(
         tag_artist=tag_artist,
         tag_artist_seed_matched=tag_artist_seed is not None,
@@ -180,9 +189,14 @@ def resolve_identity(
             or title_artist_evidence is not None
         ),
         chapter_album_context=chapter_album_context,
+        chapter_tag_title_album_context=chapter_tag_title_album_context,
     )
     deprioritized_reason = (
-        "uploader_or_label_metadata" if tag_artist_deprioritized else None
+        "chapter_album_metadata"
+        if tag_artist_deprioritized and chapter_tag_title_album_context
+        else "uploader_or_label_metadata"
+        if tag_artist_deprioritized
+        else None
     )
 
     selected_artist_source = None
@@ -226,6 +240,9 @@ def resolve_identity(
     elif tag_artist_deprioritized and cleaned_filename_title:
         probable_title = cleaned_filename_title
         selected_title_source = "filename"
+    elif chapter_tag_title_album_context and cleaned_filename_title:
+        probable_title = cleaned_filename_title
+        selected_title_source = "filename"
     elif cleaned_tag_title:
         probable_title = cleaned_tag_title
         selected_title_source = "tag"
@@ -237,14 +254,19 @@ def resolve_identity(
 
     conflict_reasons = _detect_conflicts(
         tag_artist=None if tag_artist_deprioritized else normalized_tag_artist,
-        tag_title=None if _has_seed_artist_support(
-            probable_artist=probable_artist,
-            filename_artist=normalized_filename_artist,
-            parent_artist=parent_artist,
-            title_artist=title_artist_evidence.artist
-            if title_artist_evidence
-            else None,
-        ) else _clean_title(tag_title, probable_artist=probable_artist),
+        tag_title=(
+            None
+            if chapter_tag_title_album_context
+            or _has_seed_artist_support(
+                probable_artist=probable_artist,
+                filename_artist=normalized_filename_artist,
+                parent_artist=parent_artist,
+                title_artist=title_artist_evidence.artist
+                if title_artist_evidence
+                else None,
+            )
+            else _clean_title(tag_title, probable_artist=probable_artist)
+        ),
         filename_artist=normalized_filename_artist,
         filename_title=cleaned_filename_title,
         title_artist=title_artist_evidence.artist if title_artist_evidence else None,
@@ -276,6 +298,7 @@ def resolve_identity(
         conflict_reasons=conflict_reasons,
         tag_artist_deprioritized=tag_artist_deprioritized,
         deprioritized_reason=deprioritized_reason,
+        tag_title_deprioritized=chapter_tag_title_album_context,
     )
 
     confidence = calculate_identity_confidence(
@@ -380,6 +403,7 @@ def build_identity_evidence(
     conflict_reasons: list[str],
     tag_artist_deprioritized: bool = False,
     deprioritized_reason: str | None = None,
+    tag_title_deprioritized: bool = False,
 ) -> dict[str, Any]:
     """Build the required evidence JSON payload."""
 
@@ -397,6 +421,8 @@ def build_identity_evidence(
     if tag_artist_deprioritized:
         evidence["tag_artist_deprioritized"] = True
         evidence["deprioritized_reason"] = deprioritized_reason
+    if tag_title_deprioritized:
+        evidence["tag_title_deprioritized"] = True
     return evidence
 
 
@@ -558,9 +584,13 @@ def _is_contaminated_tag_artist(
     tag_artist_seed_matched: bool,
     seed_artist_available: bool,
     chapter_album_context: bool = False,
+    chapter_tag_title_album_context: bool = False,
 ) -> bool:
     if not tag_artist or tag_artist_seed_matched:
         return False
+
+    if chapter_album_context and chapter_tag_title_album_context:
+        return True
 
     if not seed_artist_available and not chapter_album_context:
         return False
@@ -602,6 +632,13 @@ def _resolve_probable_album(
     if not chapter_album_context:
         return None
 
+    chapter_album = _chapter_album_candidate(
+        parent_folder,
+        artist=probable_artist,
+    )
+    if chapter_album:
+        return chapter_album
+
     inference = infer_album(
         album_tag=None,
         parent_folder=parent_folder,
@@ -611,6 +648,74 @@ def _resolve_probable_album(
     if inference.album == UNKNOWN_ALBUM:
         return None
     return inference.album
+
+
+def _chapter_tag_title_matches_parent_album(
+    *,
+    tag_title: str | None,
+    parent_folder: str | None,
+) -> bool:
+    parent_album = _chapter_album_candidate(parent_folder)
+    tag_album = _chapter_album_title_candidate(tag_title)
+    if not parent_album or not tag_album:
+        return False
+    if _normalize_title(parent_album) == _normalize_title(tag_album):
+        return True
+
+    for match in ALBUM_ARTIST_SEPARATOR.finditer(tag_album):
+        suffix = tag_album[match.end() :].strip()
+        if suffix and _normalize_title(suffix) == _normalize_title(parent_album):
+            return True
+    return False
+
+
+def _chapter_album_candidate(
+    parent_folder: str | None,
+    *,
+    artist: str | None = None,
+) -> str | None:
+    candidate = _immediate_parent_folder(parent_folder)
+    candidate = _strip_full_album_decoration(candidate)
+    candidate = _strip_artist_album_prefix(candidate, artist=artist)
+    candidate = _strip_full_album_decoration(candidate)
+    return candidate
+
+
+def _chapter_album_title_candidate(tag_title: str | None) -> str | None:
+    return _strip_full_album_decoration(tag_title)
+
+
+def _immediate_parent_folder(value: str | None) -> str | None:
+    cleaned = _clean(value)
+    if not cleaned:
+        return None
+    parts = [part.strip() for part in re.split(r"[\\/]", cleaned) if part.strip()]
+    return parts[-1] if parts else None
+
+
+def _strip_full_album_decoration(value: str | None) -> str | None:
+    if not value:
+        return None
+
+    cleaned = _clean(value)
+    if not cleaned:
+        return None
+    while True:
+        next_cleaned = FULL_ALBUM_DECORATION.sub("", cleaned).strip()
+        if next_cleaned == cleaned:
+            return _clean(next_cleaned)
+        cleaned = next_cleaned
+
+
+def _strip_artist_album_prefix(value: str | None, *, artist: str | None) -> str | None:
+    if not value or not artist:
+        return value
+    for match in ALBUM_ARTIST_SEPARATOR.finditer(value):
+        prefix = value[: match.start()].strip()
+        suffix = value[match.end() :].strip()
+        if suffix and normalize_artist_name(prefix) == normalize_artist_name(artist):
+            return suffix
+    return value
 
 
 def _is_known_label_uploader_name(value: str) -> bool:

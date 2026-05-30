@@ -644,6 +644,69 @@ def test_numbered_chapter_filename_title_beats_youtube_tag_title_noise():
     assert result.evidence["conflict_reasons"] == []
 
 
+def test_chapter_split_full_album_tag_title_does_not_override_filename_title():
+    observation = parse_filename("01 01. Like A Shadow.flac")
+
+    result = resolve_identity(
+        tag_artist="Eysonance",
+        tag_title="Holding Absence [Full Album]",
+        filename_artist=observation.possible_artist,
+        filename_title=observation.possible_title,
+        filename_track_number=observation.possible_track_number,
+        parent_folder="Eysonance/Holding Absence [Full Album]",
+    )
+
+    assert result.identity_status == "partial"
+    assert result.probable_artist is None
+    assert result.probable_title == "Like A Shadow"
+    assert result.probable_album == "Holding Absence"
+    assert result.evidence["selected_artist_source"] is None
+    assert result.evidence["selected_title_source"] == "filename"
+    assert result.evidence["tag_artist_deprioritized"] is True
+    assert result.evidence["conflict_reasons"] == []
+
+
+def test_chapter_split_label_uploader_does_not_override_parenthetical_title():
+    observation = parse_filename("01 My Own Summer (Shove It).flac")
+
+    result = resolve_identity(
+        tag_artist="Warner Records Vault",
+        tag_title="Deftones - Around The Fur (Full Album)",
+        filename_artist=observation.possible_artist,
+        filename_title=observation.possible_title,
+        filename_mix=observation.possible_mix,
+        filename_track_number=observation.possible_track_number,
+        parent_folder="Warner Records Vault/Deftones - Around The Fur (Full Album)",
+    )
+
+    assert result.identity_status == "identified"
+    assert result.probable_artist == "Deftones"
+    assert result.probable_title == "My Own Summer (Shove It)"
+    assert result.probable_album == "Around The Fur"
+    assert result.probable_mix is None
+    assert result.evidence["selected_title_source"] == "filename"
+    assert result.evidence["tag_artist_deprioritized"] is True
+    assert result.evidence["conflict_reasons"] == []
+
+
+def test_chapter_split_parent_album_survives_album_title_track():
+    observation = parse_filename("04 Around the Fur.flac")
+
+    result = resolve_identity(
+        tag_artist="Warner Records Vault",
+        tag_title="Deftones - Around The Fur (Full Album)",
+        filename_artist=observation.possible_artist,
+        filename_title=observation.possible_title,
+        filename_track_number=observation.possible_track_number,
+        parent_folder="Warner Records Vault/Deftones - Around The Fur (Full Album)",
+    )
+
+    assert result.identity_status == "identified"
+    assert result.probable_artist == "Deftones"
+    assert result.probable_title == "Around the Fur"
+    assert result.probable_album == "Around The Fur"
+
+
 def test_numbered_chapter_uploader_artist_does_not_override_filename_title():
     observation = parse_filename("02 - Forgotten.mp3")
 

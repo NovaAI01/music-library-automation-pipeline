@@ -113,7 +113,9 @@ def test_reports_are_generated_deterministically(tmp_path):
     assert _read_text(second.source_risk_assessment_path) == first_risk
 
 
-def test_cli_writes_expected_report_files(tmp_path):
+def test_cli_writes_expected_report_files(tmp_path, monkeypatch):
+    monkeypatch.setenv("MUSIC_INTELLIGENCE_DATA_ROOT", str(tmp_path / "data"))
+
     exit_code = main(
         [
             "plan-metadata-acquisition",
@@ -129,6 +131,9 @@ def test_cli_writes_expected_report_files(tmp_path):
     assert (report_dir / "acquisition_plan.json").exists()
     assert (report_dir / "acquisition_steps.csv").exists()
     assert (report_dir / "source_risk_assessment.json").exists()
+
+    plan = _read_json(report_dir / "acquisition_plan.json")
+    assert plan["storage_target"].startswith(str(tmp_path / "data"))
 
     rows = _read_csv(report_dir / "acquisition_steps.csv")
     assert [row["step_number"] for row in rows] == ["1", "2", "3", "4"]

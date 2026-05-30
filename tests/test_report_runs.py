@@ -168,6 +168,7 @@ def test_run_label_does_not_change_benchmark_metrics_or_source_data(tmp_path, mo
 def test_convert_musicbrainz_dump_run_label_writes_isolated_outputs(tmp_path, monkeypatch):
     fixture_dump = Path(__file__).parent / "fixtures" / "musicbrainz_dump"
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("MUSIC_INTELLIGENCE_DATA_ROOT", str(tmp_path / "data"))
 
     exit_code = main(
         [
@@ -189,6 +190,7 @@ def test_convert_musicbrainz_dump_run_label_writes_isolated_outputs(tmp_path, mo
     assert (run_root / "musicbrainz_conversion" / "external_tracks.csv").exists()
     assert (run_root / "musicbrainz_conversion" / "conversion_summary.json").exists()
     assert manifest["report_paths"]["convert-musicbrainz-dump"] == str(run_root / "musicbrainz_conversion")
+    assert manifest["data_root"] == str(tmp_path / "data")
 
 
 def _write_external_tracks(tmp_path, source_name, rows):

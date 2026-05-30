@@ -132,6 +132,14 @@ Active scope:
 - plan canonical output
 - document future profile previews
 
+Current planner behavior:
+
+- clean canonical rows produce `OrganizedLibrary/Music/...` paths
+- identity review rows produce `OrganizedLibrary/_Review/identity/<original relative path>`
+- classification review rows produce `OrganizedLibrary/_Review/classification/<original relative path>`
+- unresolved rows produce `OrganizedLibrary/_Unresolved/unknown/<original relative path or fallback>`
+- placement planning does not execute file movement
+
 Out of scope for the current phase:
 
 - profile dropdown UI
@@ -140,4 +148,3 @@ Out of scope for the current phase:
 - placement execution
 - quarantine or restore execution
 - downloader changes
-

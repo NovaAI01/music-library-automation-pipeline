@@ -240,17 +240,17 @@ classification blocks, 69 uncertain classifications, and 1 remaining conflict.
 
 ## Organization architecture lock
 
-Canonical organization is documented before further implementation in:
+Canonical placement path generation now follows the locked architecture in:
 
 - [Organized library contract](docs/organized-library-contract.md)
 - [Original to organized state model](docs/original-to-organized-state-model.md)
 - [Organization profile preview spec](docs/organization-profile-preview-spec.md)
 
-The locked contract preserves the original messy source state for audit,
-rollback, and before/after proof. The canonical user-facing output is rooted at
-`OrganizedLibrary/Music/`, with underscore-prefixed folders reserved for
-review, unresolved, and system/governance zones. Genre is metadata and UI
-filtering first, not the default physical owner.
+The placement planner produces `OrganizedLibrary/Music/...` paths for clean
+canonical rows and `OrganizedLibrary/_Review/...` or
+`OrganizedLibrary/_Unresolved/...` paths for governance rows while preserving
+the original relative path. Genre is metadata and UI filtering first, not the
+default physical owner.
 
 Future organization profiles are preview/export views over canonical metadata.
 The future dropdown/profile UI must be preview-first and must not move files

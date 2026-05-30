@@ -14,7 +14,12 @@ from app.placement_planner import (
 
 def test_classified_identified_track_creates_planned_path(tmp_path):
     db_path = tmp_path / "ledger.sqlite3"
-    scan_run_id = _insert_track(db_path)
+    scan_run_id = _insert_track(
+        db_path,
+        album="White Pony",
+        year="2000",
+        track_number="04",
+    )
 
     summary = plan_scan_run_placements(scan_run_id, db_path)
     row = _fetch_all(db_path, "SELECT * FROM placement_plans")[0]
@@ -22,9 +27,10 @@ def test_classified_identified_track_creates_planned_path(tmp_path):
     assert summary.planned == 1
     assert row["placement_status"] == "planned"
     assert row["planned_relative_path"] == (
-        "Alternative Metal/Deftones/Unknown Album/Deftones - Change.mp3"
+        "OrganizedLibrary/Music/Artists/Deftones/Albums/[2000] White Pony/"
+        "04 - Change.mp3"
     )
-    assert row["planned_album"] == "Unknown Album"
+    assert row["planned_album"] == "White Pony"
 
 
 def test_null_subgenre_becomes_unsorted(tmp_path):
@@ -35,9 +41,7 @@ def test_null_subgenre_becomes_unsorted(tmp_path):
     row = _fetch_all(db_path, "SELECT planned_relative_path, planned_subgenre FROM placement_plans")[0]
 
     assert row["planned_subgenre"] == "_Unsorted"
-    assert row["planned_relative_path"] == (
-        "Alternative Metal/Deftones/Unknown Album/Deftones - Change.mp3"
-    )
+    assert row["planned_relative_path"].startswith("OrganizedLibrary/Music/Artists/")
 
 
 def test_unknown_identity_blocks_placement(tmp_path):
@@ -53,7 +57,27 @@ def test_unknown_identity_blocks_placement(tmp_path):
     row = _fetch_all(db_path, "SELECT * FROM placement_plans")[0]
 
     assert row["placement_status"] == "blocked_unknown_identity"
-    assert row["planned_relative_path"] is None
+    assert row["planned_relative_path"] == (
+        "OrganizedLibrary/_Review/identity/Deftones/Change.mp3"
+    )
+
+
+def test_partial_identity_routes_to_identity_review(tmp_path):
+    db_path = tmp_path / "ledger.sqlite3"
+    scan_run_id = _insert_track(
+        db_path,
+        identity_status="partial",
+        artist=None,
+        title="Change",
+    )
+
+    plan_scan_run_placements(scan_run_id, db_path)
+    row = _fetch_all(db_path, "SELECT * FROM placement_plans")[0]
+
+    assert row["placement_status"] == "blocked_unknown_identity"
+    assert row["planned_relative_path"] == (
+        "OrganizedLibrary/_Review/identity/Deftones/Change.mp3"
+    )
 
 
 def test_unknown_classification_blocks_placement(tmp_path):
@@ -69,7 +93,9 @@ def test_unknown_classification_blocks_placement(tmp_path):
     row = _fetch_all(db_path, "SELECT * FROM placement_plans")[0]
 
     assert row["placement_status"] == "blocked_unknown_classification"
-    assert row["planned_relative_path"] is None
+    assert row["planned_relative_path"] == (
+        "OrganizedLibrary/_Review/classification/Deftones/Change.mp3"
+    )
 
 
 def test_conflicting_identity_creates_conflict_status(tmp_path):
@@ -80,6 +106,9 @@ def test_conflicting_identity_creates_conflict_status(tmp_path):
     row = _fetch_all(db_path, "SELECT * FROM placement_plans")[0]
 
     assert row["placement_status"] == "conflict"
+    assert row["planned_relative_path"] == (
+        "OrganizedLibrary/_Review/identity/Deftones/Change.mp3"
+    )
     assert json.loads(row["reason_json"])["reasons"] == ["identity_conflicting"]
 
 
@@ -98,6 +127,30 @@ def test_uncertain_classification_creates_needs_review_status(tmp_path):
 
     assert row["placement_status"] == "needs_review"
     assert row["placement_confidence"] == 0.5
+    assert row["planned_relative_path"] == (
+        "OrganizedLibrary/_Review/classification/Deftones/Change.mp3"
+    )
+
+
+def test_no_usable_identity_or_original_path_routes_to_unresolved_unknown():
+    plan = create_placement_plan(
+        observed_file_id=1,
+        scan_run_id=1,
+        source_path="",
+        original_relative_path=None,
+        extension=".mp3",
+        identity_status="unknown",
+        identity_confidence=0.1,
+        probable_artist=None,
+        probable_title=None,
+        classification_status="unknown",
+        classification_confidence=0.1,
+        primary_genre=None,
+        subgenre=None,
+    )
+
+    assert plan.placement_status == "blocked_unknown_identity"
+    assert plan.planned_relative_path == "OrganizedLibrary/_Unresolved/unknown/_Unknown.mp3"
 
 
 def test_path_components_are_sanitized():
@@ -106,15 +159,94 @@ def test_path_components_are_sanitized():
 
 def test_planned_relative_path_is_never_absolute():
     path = build_planned_relative_path(
-        primary_genre="/Alternative Metal",
-        subgenre="/Shoegaze Metal",
         artist="/Deftones",
         album="/White Pony",
         title="/Change",
         extension=".mp3",
+        year="2000",
+        track_number="04",
     )
 
     assert not path.startswith("/")
+    assert path.startswith("OrganizedLibrary/Music/Artists/")
+
+
+def test_ep_path_uses_ep_bucket():
+    path = build_planned_relative_path(
+        artist="Deftones",
+        album="B-Sides EP",
+        title="Knife Prty",
+        extension=".flac",
+        year="2001",
+        track_number="02",
+    )
+
+    assert path == (
+        "OrganizedLibrary/Music/Artists/Deftones/EPs/[2001] B-Sides EP/"
+        "02 - Knife Prty.flac"
+    )
+
+
+def test_single_path_uses_singles_bucket():
+    path = build_planned_relative_path(
+        artist="Deftones",
+        album=None,
+        title="Change",
+        extension=".mp3",
+        year="2000",
+    )
+
+    assert path == "OrganizedLibrary/Music/Artists/Deftones/Singles/[2000] Change.mp3"
+
+
+def test_live_path_uses_live_bucket():
+    path = build_planned_relative_path(
+        artist="Deftones",
+        album="Live at Dynamo",
+        title="Change",
+        extension=".mp3",
+        year="1998",
+        track_number="03",
+    )
+
+    assert path == (
+        "OrganizedLibrary/Music/Artists/Deftones/Live/[1998] Live at Dynamo/"
+        "03 - Change.mp3"
+    )
+
+
+def test_various_artists_compilation_path_includes_track_artist():
+    path = build_planned_relative_path(
+        artist="Deftones",
+        album_artist="Various Artists",
+        album="Soundtrack Album",
+        title="Change",
+        extension=".mp3",
+        year="2002",
+        track_number="07",
+    )
+
+    assert path == (
+        "OrganizedLibrary/Music/Compilations/Various Artists/"
+        "[2002] Soundtrack Album/07 - Deftones - Change.mp3"
+    )
+
+
+def test_single_artist_compilation_path_uses_compilation_bucket():
+    path = build_planned_relative_path(
+        artist="Deftones",
+        album_artist="Deftones",
+        album="Greatest Hits",
+        title="Change",
+        extension=".mp3",
+        year="2010",
+        track_number="01",
+    )
+
+    assert path == (
+        "OrganizedLibrary/Music/Compilations/Single Artist/"
+        "[2010] Deftones - Greatest Hits/01 - Change.mp3"
+    )
 
 
 def test_placement_uses_clean_album_folder_for_planned_path():
@@ -122,6 +254,7 @@ def test_placement_uses_clean_album_folder_for_planned_path():
         observed_file_id=1,
         scan_run_id=1,
         source_path="/downloads/Uploader Channel/Artist Name - Album Name [Full Album]/01 Track Name.ext",
+        original_relative_path="Uploader Channel/Artist Name - Album Name [Full Album]/01 Track Name.ext",
         extension=".ext",
         identity_status="identified",
         identity_confidence=0.95,
@@ -140,19 +273,20 @@ def test_placement_uses_clean_album_folder_for_planned_path():
     assert plan.planned_artist == "Artist Name"
     assert plan.planned_album == "Album Name"
     assert plan.planned_relative_path == (
-        "Test Genre/Artist Name/Album Name/Artist Name - Track Name.ext"
+        "OrganizedLibrary/Music/Artists/Artist Name/Albums/Album Name/"
+        "01 - Track Name.ext"
     )
     assert "Uploader Channel" not in plan.planned_relative_path
 
 
 def test_path_traversal_is_stripped():
     path = build_planned_relative_path(
-        primary_genre="../Alternative Metal",
-        subgenre="../../Shoegaze Metal",
         artist="../Deftones",
         album="../White Pony",
         title="../Change",
         extension=".mp3",
+        year="2000",
+        track_number="04",
     )
 
     assert ".." not in path
@@ -160,15 +294,15 @@ def test_path_traversal_is_stripped():
 
 def test_collision_appends_numeric_suffix():
     existing = {
-        "Alternative Metal/Deftones/Unknown Album/Deftones - Change.mp3"
+        "OrganizedLibrary/Music/Artists/Deftones/Singles/Change.mp3"
     }
 
     result = detect_planned_path_collision(
-        "Alternative Metal/Deftones/Unknown Album/Deftones - Change.mp3",
+        "OrganizedLibrary/Music/Artists/Deftones/Singles/Change.mp3",
         existing,
     )
 
-    assert result == "Alternative Metal/Deftones/Unknown Album/Deftones - Change (2).mp3"
+    assert result == "OrganizedLibrary/Music/Artists/Deftones/Singles/Change (2).mp3"
 
 
 def test_repeated_planner_run_does_not_duplicate_rows(tmp_path):
@@ -208,6 +342,7 @@ def test_create_placement_plan_collision_within_batch():
         observed_file_id=1,
         scan_run_id=1,
         source_path="/music/one.mp3",
+        original_relative_path="one.mp3",
         extension=".mp3",
         identity_status="identified",
         identity_confidence=0.95,
@@ -223,6 +358,7 @@ def test_create_placement_plan_collision_within_batch():
         observed_file_id=2,
         scan_run_id=1,
         source_path="/music/two.mp3",
+        original_relative_path="two.mp3",
         extension=".mp3",
         identity_status="identified",
         identity_confidence=0.95,
@@ -235,9 +371,9 @@ def test_create_placement_plan_collision_within_batch():
         existing_paths=existing,
     )
 
-    assert first.planned_relative_path.endswith("Deftones - Change.mp3")
-    assert second.planned_relative_path.endswith("Deftones - Change (2).mp3")
-    assert first.planned_album == "Unknown Album"
+    assert first.planned_relative_path.endswith("Change.mp3")
+    assert second.planned_relative_path.endswith("Change (2).mp3")
+    assert first.planned_album is None
 
 
 def _insert_track(
@@ -251,6 +387,12 @@ def _insert_track(
     classification_confidence=0.95,
     primary_genre="Alternative Metal",
     subgenre="Shoegaze Metal",
+    album=None,
+    year=None,
+    album_artist=None,
+    track_number=None,
+    disc_number=None,
+    relative_path="Deftones/Change.mp3",
 ):
     db.init_db(db_path)
     connection = sqlite3.connect(db_path)
@@ -281,10 +423,10 @@ def _insert_track(
                 sha256,
                 created_at
             )
-            VALUES (?, '/music', 'Deftones/Change.mp3', 'Deftones', 'Change.mp3',
+            VALUES (?, '/music', ?, 'Deftones', 'Change.mp3',
                 '.mp3', 10, 'abc', '2026-05-10T00:00:00+00:00')
             """,
-            (scan_run_id,),
+            (scan_run_id, relative_path),
         ).lastrowid
         connection.execute(
             """
@@ -300,10 +442,63 @@ def _insert_track(
                 evidence_json,
                 created_at
             )
-            VALUES (?, ?, ?, NULL, NULL, NULL, ?, ?, '{}',
+            VALUES (?, ?, ?, ?, ?, NULL, ?, ?, '{}',
                 '2026-05-10T00:00:00+00:00')
             """,
-            (observed_file_id, artist, title, identity_confidence, identity_status),
+            (
+                observed_file_id,
+                artist,
+                title,
+                album,
+                year,
+                identity_confidence,
+                identity_status,
+            ),
+        )
+        connection.execute(
+            """
+            INSERT INTO tag_observations (
+                observed_file_id,
+                title,
+                artist,
+                album,
+                album_artist,
+                genre,
+                date,
+                track_number,
+                disc_number,
+                composer,
+                comment,
+                tag_status
+            )
+            VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, NULL, NULL, 'ok')
+            """,
+            (
+                observed_file_id,
+                title,
+                artist,
+                album,
+                album_artist,
+                year,
+                track_number,
+                disc_number,
+            ),
+        )
+        connection.execute(
+            """
+            INSERT INTO filename_observations (
+                observed_file_id,
+                cleaned_filename,
+                possible_artist,
+                possible_title,
+                possible_mix,
+                possible_track_number,
+                filename_pattern,
+                parser_confidence
+            )
+            VALUES (?, 'Change', NULL, ?, NULL, ?, 'track_title', 0.65)
+            """,
+            (observed_file_id, title, track_number),
         )
         connection.execute(
             """

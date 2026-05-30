@@ -114,9 +114,11 @@ behavior:
 - [Original to organized state model](original-to-organized-state-model.md)
 - [Organization profile preview spec](organization-profile-preview-spec.md)
 
-Current scope is to preserve original source state, plan canonical output, and
-keep future organization profile previews non-mutating. Do not build profile UI
-or dropdown switching in the proof phase.
+Current placement scope is canonical path planning only. `plan-placement`
+emits `OrganizedLibrary/Music/...` clean paths and `_Review/` or
+`_Unresolved/` governance paths; it does not move files. Keep future
+organization profile previews non-mutating. Do not build profile UI or dropdown
+switching in the proof phase.
 
 ## Docker runtime verification
 

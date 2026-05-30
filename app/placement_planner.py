@@ -10,7 +10,7 @@ from pathlib import PurePosixPath
 from typing import Any
 
 from app import db
-from app.album_organization import infer_album
+from app.album_organization import UNKNOWN_ALBUM, infer_album
 
 
 PLACEMENT_STATUSES: frozenset[str] = frozenset(
@@ -21,6 +21,18 @@ PLACEMENT_STATUSES: frozenset[str] = frozenset(
         "blocked_unknown_classification",
         "conflict",
     }
+)
+ORGANIZED_ROOT = "OrganizedLibrary"
+MUSIC_ROOT = "Music"
+REVIEW_ROOT = "_Review"
+UNRESOLVED_ROOT = "_Unresolved"
+SINGLE_ARTIST_COMPILATION_TERMS: tuple[str, ...] = (
+    "anthology",
+    "best of",
+    "collection",
+    "compilation",
+    "essential",
+    "greatest hits",
 )
 
 
@@ -66,23 +78,103 @@ def sanitize_path_component(value: str | None) -> str:
 
 def build_planned_relative_path(
     *,
-    primary_genre: str,
-    subgenre: str | None,
+    primary_genre: str | None = None,
+    subgenre: str | None = None,
     artist: str,
-    album: str,
+    album: str | None,
     title: str,
     extension: str,
+    year: str | None = None,
+    track_number: str | None = None,
+    disc_number: str | None = None,
+    album_artist: str | None = None,
 ) -> str:
-    """Build the album-aware relative placement path."""
+    """Build the canonical organized relative placement path."""
 
-    safe_primary = sanitize_path_component(primary_genre)
     safe_artist = sanitize_path_component(artist)
-    safe_album = sanitize_path_component(album)
     safe_title = sanitize_path_component(title)
     safe_extension = _sanitize_extension(extension)
-    filename = f"{safe_artist} - {safe_title}{safe_extension}"
-    relative = PurePosixPath(safe_primary, safe_artist, safe_album, filename)
+    safe_album = sanitize_path_component(album) if album else None
+    safe_year_album = _release_folder(year=year, release=safe_album)
+    track_prefix = _track_prefix(track_number=track_number, disc_number=disc_number)
+    release_type = _release_type(
+        artist=artist,
+        album=album,
+        title=title,
+        album_artist=album_artist,
+    )
+
+    if release_type == "various_artists_compilation":
+        filename = f"{track_prefix}{safe_artist} - {safe_title}{safe_extension}"
+        relative = PurePosixPath(
+            ORGANIZED_ROOT,
+            MUSIC_ROOT,
+            "Compilations",
+            "Various Artists",
+            safe_year_album or "_Unknown",
+            filename,
+        )
+    elif release_type == "single_artist_compilation":
+        compilation_folder = _release_folder(
+            year=year,
+            release=f"{safe_artist} - {safe_album or UNKNOWN_ALBUM}",
+        )
+        filename = f"{track_prefix}{safe_title}{safe_extension}"
+        relative = PurePosixPath(
+            ORGANIZED_ROOT,
+            MUSIC_ROOT,
+            "Compilations",
+            "Single Artist",
+            compilation_folder,
+            filename,
+        )
+    elif release_type == "single":
+        single_name = _release_folder(year=year, release=safe_title)
+        relative = PurePosixPath(
+            ORGANIZED_ROOT,
+            MUSIC_ROOT,
+            "Artists",
+            safe_artist,
+            "Singles",
+            f"{single_name}{safe_extension}",
+        )
+    else:
+        bucket = {
+            "ep": "EPs",
+            "live": "Live",
+        }.get(release_type, "Albums")
+        filename = f"{track_prefix}{safe_title}{safe_extension}"
+        relative = PurePosixPath(
+            ORGANIZED_ROOT,
+            MUSIC_ROOT,
+            "Artists",
+            safe_artist,
+            bucket,
+            safe_year_album or UNKNOWN_ALBUM,
+            filename,
+        )
     return relative.as_posix()
+
+
+def build_governance_relative_path(
+    *,
+    zone: str,
+    queue: str,
+    original_relative_path: str | None,
+    source_path: str | None,
+    title: str | None,
+    extension: str,
+) -> str:
+    """Build a review/unresolved path while preserving original path shape."""
+
+    relative = _sanitize_original_relative_path(original_relative_path)
+    if relative is None:
+        relative = _fallback_relative_path(
+            source_path=source_path,
+            title=title,
+            extension=extension,
+        )
+    return PurePosixPath(ORGANIZED_ROOT, zone, queue, relative).as_posix()
 
 
 def detect_planned_path_collision(
@@ -135,8 +227,14 @@ def create_placement_plan(
     identity_confidence: float | None,
     probable_artist: str | None,
     probable_title: str | None,
+    original_relative_path: str | None = None,
     probable_album: str | None = None,
+    probable_year: str | None = None,
     tag_album: str | None = None,
+    tag_album_artist: str | None = None,
+    tag_track_number: str | None = None,
+    tag_disc_number: str | None = None,
+    filename_track_number: str | None = None,
     parent_folder: str | None = None,
     filename: str | None = None,
     classification_status: str | None,
@@ -182,15 +280,65 @@ def create_placement_plan(
             title=probable_title,
             artist=probable_artist,
         )
-    if status in {"planned", "needs_review"}:
+    track_number = (
+        tag_track_number or filename_track_number or _track_number_from_filename(filename)
+    )
+    planned_album = _planned_album_value(
+        album=album_inference.album,
+        tag_album=tag_album,
+        probable_album=probable_album,
+        parent_folder=parent_folder,
+    )
+    if status == "planned":
         planned_relative_path = build_planned_relative_path(
-            primary_genre=primary_genre or "_Unknown",
-            subgenre=subgenre,
             artist=probable_artist or "_Unknown",
-            album=album_inference.album,
+            album=planned_album,
             title=probable_title or "_Unknown",
             extension=extension,
+            year=probable_year,
+            track_number=track_number,
+            disc_number=tag_disc_number,
+            album_artist=tag_album_artist,
         )
+    elif status in {"blocked_unknown_identity", "conflict"}:
+        queue = "identity"
+        zone = REVIEW_ROOT
+        if _has_no_usable_identity_title_or_path(
+            probable_artist=probable_artist,
+            probable_title=probable_title,
+            original_relative_path=original_relative_path,
+            source_path=source_path,
+        ):
+            zone = UNRESOLVED_ROOT
+            queue = "unknown"
+        planned_relative_path = build_governance_relative_path(
+            zone=zone,
+            queue=queue,
+            original_relative_path=original_relative_path,
+            source_path=source_path,
+            title=probable_title,
+            extension=extension,
+        )
+    elif status == "blocked_unknown_classification":
+        planned_relative_path = build_governance_relative_path(
+            zone=REVIEW_ROOT,
+            queue="classification",
+            original_relative_path=original_relative_path,
+            source_path=source_path,
+            title=probable_title,
+            extension=extension,
+        )
+    elif status == "needs_review":
+        planned_relative_path = build_governance_relative_path(
+            zone=REVIEW_ROOT,
+            queue="classification",
+            original_relative_path=original_relative_path,
+            source_path=source_path,
+            title=probable_title,
+            extension=extension,
+        )
+
+    if planned_relative_path:
         planned_relative_path = detect_planned_path_collision(
             planned_relative_path, existing_paths
         )
@@ -215,7 +363,7 @@ def create_placement_plan(
         planned_relative_path=planned_relative_path,
         planned_artist=probable_artist,
         planned_album=(
-            album_inference.album if status in {"planned", "needs_review"} else None
+            planned_album if status in {"planned", "needs_review"} else None
         ),
         planned_title=probable_title,
         planned_primary_genre=primary_genre,
@@ -246,13 +394,18 @@ def plan_scan_run_placements(
                 track_identity.probable_artist,
                 track_identity.probable_album,
                 track_identity.probable_title,
+                track_identity.probable_year,
                 track_identity.identity_confidence,
                 track_identity.identity_status,
                 classification_results.primary_genre,
                 classification_results.subgenre,
                 classification_results.classification_confidence,
                 classification_results.classification_status,
-                tag_observations.album AS tag_album
+                tag_observations.album AS tag_album,
+                tag_observations.album_artist AS tag_album_artist,
+                tag_observations.track_number AS tag_track_number,
+                tag_observations.disc_number AS tag_disc_number,
+                filename_observations.possible_track_number AS filename_track_number
             FROM observed_files
             LEFT JOIN track_identity
                 ON track_identity.observed_file_id = observed_files.id
@@ -260,6 +413,8 @@ def plan_scan_run_placements(
                 ON classification_results.observed_file_id = observed_files.id
             LEFT JOIN tag_observations
                 ON tag_observations.observed_file_id = observed_files.id
+            LEFT JOIN filename_observations
+                ON filename_observations.observed_file_id = observed_files.id
             WHERE observed_files.scan_run_id = ?
             ORDER BY observed_files.id
             """,
@@ -292,13 +447,19 @@ def plan_scan_run_placements(
                 observed_file_id=row["observed_file_id"],
                 scan_run_id=row["scan_run_id"],
                 source_path=source_path,
+                original_relative_path=row["relative_path"],
                 extension=row["extension"],
                 identity_status=row["identity_status"],
                 identity_confidence=row["identity_confidence"],
                 probable_artist=row["probable_artist"],
                 probable_album=row["probable_album"],
                 probable_title=row["probable_title"],
+                probable_year=row["probable_year"],
                 tag_album=row["tag_album"],
+                tag_album_artist=row["tag_album_artist"],
+                tag_track_number=row["tag_track_number"],
+                tag_disc_number=row["tag_disc_number"],
+                filename_track_number=row["filename_track_number"],
                 parent_folder=row["parent_folder"],
                 filename=row["filename"],
                 classification_status=row["classification_status"],
@@ -360,6 +521,149 @@ def _insert_placement_plan(connection, plan: PlacementPlan) -> None:
 
 def _source_file_path(source_path: str, relative_path: str) -> str:
     return str(PurePosixPath(source_path) / relative_path)
+
+
+def _release_type(
+    *,
+    artist: str,
+    album: str | None,
+    title: str,
+    album_artist: str | None,
+) -> str:
+    normalized_album_artist = _normalize_text(album_artist)
+    normalized_album = _normalize_text(album)
+    normalized_title = _normalize_text(title)
+
+    if normalized_album_artist in {"various artists", "various"}:
+        return "various_artists_compilation"
+    if album and any(term in normalized_album for term in SINGLE_ARTIST_COMPILATION_TERMS):
+        return "single_artist_compilation"
+    if album and "live" in normalized_album:
+        return "live"
+    if " live " in f" {normalized_title} ":
+        return "live"
+    if album and re.search(r"(?:^|\W)ep(?:$|\W)", normalized_album):
+        return "ep"
+    if not album:
+        return "single"
+    return "album"
+
+
+def _planned_album_value(
+    *,
+    album: str,
+    tag_album: str | None,
+    probable_album: str | None,
+    parent_folder: str | None,
+) -> str | None:
+    if album == UNKNOWN_ALBUM and not any(
+        _has_text(value) for value in (tag_album, probable_album, parent_folder)
+    ):
+        return None
+    return album
+
+
+def _release_folder(*, year: str | None, release: str | None) -> str | None:
+    safe_release = sanitize_path_component(release) if release else None
+    safe_year = _year_value(year)
+    if not safe_release:
+        return None
+    if safe_year:
+        return f"[{safe_year}] {safe_release}"
+    return safe_release
+
+
+def _track_prefix(*, track_number: str | None, disc_number: str | None) -> str:
+    track = _number_value(track_number)
+    if not track:
+        return ""
+    disc = _number_value(disc_number)
+    if disc and disc != "1":
+        return f"{disc}-{track} - "
+    return f"{track} - "
+
+
+def _number_value(value: str | None) -> str | None:
+    if value is None:
+        return None
+    match = re.search(r"\d+", str(value))
+    if not match:
+        return None
+    return f"{int(match.group(0)):02d}"
+
+
+def _track_number_from_filename(value: str | None) -> str | None:
+    if value is None:
+        return None
+    match = re.match(
+        r"^\s*(?:track\s+)?(?P<track>\d{1,3})(?:\D|$)",
+        value,
+        re.IGNORECASE,
+    )
+    return _number_value(match.group("track")) if match else None
+
+
+def _year_value(value: str | None) -> str | None:
+    if value is None:
+        return None
+    match = re.search(r"\b(19\d{2}|20\d{2})\b", str(value))
+    return match.group(1) if match else None
+
+
+def _sanitize_original_relative_path(value: str | None) -> PurePosixPath | None:
+    if not value:
+        return None
+    parts = [
+        sanitize_path_component(part)
+        for part in re.split(r"[\\/]", value)
+        if part and part not in {".", ".."}
+    ]
+    if not parts:
+        return None
+    return PurePosixPath(*parts)
+
+
+def _fallback_relative_path(
+    *,
+    source_path: str | None,
+    title: str | None,
+    extension: str,
+) -> PurePosixPath:
+    source_name = PurePosixPath(str(source_path)).name if source_path else ""
+    safe_source_name = sanitize_path_component(source_name) if source_name else None
+    if safe_source_name and safe_source_name != "_Unknown":
+        return PurePosixPath(safe_source_name)
+
+    safe_title = sanitize_path_component(title)
+    return PurePosixPath(f"{safe_title}{_sanitize_extension(extension)}")
+
+
+def _has_no_usable_identity_title_or_path(
+    *,
+    probable_artist: str | None,
+    probable_title: str | None,
+    original_relative_path: str | None,
+    source_path: str | None,
+) -> bool:
+    return not any(
+        _has_text(value)
+        for value in (
+            probable_artist,
+            probable_title,
+            original_relative_path,
+            source_path,
+        )
+    )
+
+
+def _normalize_text(value: str | None) -> str:
+    if value is None:
+        return ""
+    return re.sub(r"\s+", " ", value).strip().casefold()
+
+
+def _has_text(value: str | None) -> bool:
+    return bool(value and str(value).strip())
 
 
 def _sanitize_extension(extension: str) -> str:

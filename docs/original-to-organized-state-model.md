@@ -82,6 +82,10 @@ hidden inside a clean canonical folder.
 Placement planning proposes a destination or a governance zone. Planning is not
 execution.
 
+Current placement planning emits relative paths rooted at `OrganizedLibrary/`.
+These planned paths are evidence and preview material until an explicitly
+approved execution workflow is run.
+
 Destination classes:
 
 - canonical clean destination under `OrganizedLibrary/Music/`
@@ -142,4 +146,3 @@ restore-quarantine
 
 The state model allows future execution only after explicit review,
 confirmation, and an execution manifest.
-

@@ -67,17 +67,18 @@ blocks, 69 uncertain classifications, and 1 conflict.
 
 ### Canonical Organization Contract
 
-Before any further implementation, placement and review behavior must follow:
+Placement and review behavior must follow:
 
 - [Organized library contract](organized-library-contract.md)
 - [Original to organized state model](original-to-organized-state-model.md)
 - [Organization profile preview spec](organization-profile-preview-spec.md)
 
 The original messy source state is preserved for audit, rollback, and
-before/after proof. The canonical physical owner is artist/release/track under
-`OrganizedLibrary/Music/`; review, unresolved, and system evidence live in
-underscore-prefixed governance zones. Future profile layouts are preview/export
-views only and must not move files from a dropdown change.
+before/after proof. The placement planner emits artist/release/track paths
+under `OrganizedLibrary/Music/` for clean canonical rows and preserves original
+relative paths under `_Review/` or `_Unresolved/` for governance rows. Future
+profile layouts are preview/export views only and must not move files from a
+dropdown change.
 
 ## 2. Metadata Audit
 

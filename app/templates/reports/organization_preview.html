@@ -1,0 +1,116 @@
+{% extends "reports/base.html" %}
+{% block content %}
+<section class="cards">
+  {% for label, value in cards %}
+    <article class="card">
+      <div class="label">{{ label }}</div>
+      <div class="value">{{ value }}</div>
+    </article>
+  {% endfor %}
+</section>
+
+{% if scan_run %}
+  <section class="panel">
+    <h2>Latest Scan Run Summary</h2>
+    <p class="meta">
+      Selected scan run {{ scan_run.id }} from {{ scan_run.source_path }}.
+      Latest available scan run is {{ latest_scan_run.id if latest_scan_run else "None" }}.
+    </p>
+    <p class="meta">
+      Started {{ scan_run.started_at }}{% if scan_run.completed_at %}, completed {{ scan_run.completed_at }}{% endif %}.
+      Status: {{ scan_run.status }}.
+    </p>
+    <div class="actions section">
+      <a class="action" href="/library/organization-preview/tree?scan_run_id={{ scan_run.id }}">Open Folder Tree Preview</a>
+    </div>
+  </section>
+{% endif %}
+
+<section class="section">
+  <h2>Messy Source To Organized Explorer</h2>
+  <form class="filters" method="get" action="/library/organization-preview">
+    <select name="scan_run_id" aria-label="Scan run">
+      {% for run in scan_runs %}
+        <option value="{{ run.id }}"{% if filters.scan_run_id == run.id %} selected{% endif %}>Scan {{ run.id }}</option>
+      {% endfor %}
+    </select>
+    <select name="placement_status" aria-label="Placement status">
+      <option value="">All placement</option>
+      {% for status in placement_statuses %}
+        <option value="{{ status }}"{% if filters.placement_status == status %} selected{% endif %}>{{ status }}</option>
+      {% endfor %}
+    </select>
+    <select name="identity_status" aria-label="Identity status">
+      <option value="">All identity</option>
+      {% for status in identity_statuses %}
+        <option value="{{ status }}"{% if filters.identity_status == status %} selected{% endif %}>{{ status }}</option>
+      {% endfor %}
+    </select>
+    <select name="classification_status" aria-label="Classification status">
+      <option value="">All classification</option>
+      {% for status in classification_statuses %}
+        <option value="{{ status }}"{% if filters.classification_status == status %} selected{% endif %}>{{ status }}</option>
+      {% endfor %}
+    </select>
+    <input name="q" value="{{ filters.query }}" placeholder="Search path, title, artist, or album">
+    <button type="submit">Filter</button>
+  </form>
+  <p class="meta">Showing {{ row_count }} of {{ total_row_count }} rows.</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Original Relative Path</th>
+        <th>Identity</th>
+        <th>System Judgment</th>
+        <th>Placement</th>
+        <th>Reason</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+        <tr>
+          <td class="path">{{ row.original_relative_path }}</td>
+          <td>
+            <span class="badge confidence-{{ row.identity_status }}">{{ row.identity_status }}</span>
+            <div>{{ row.probable_artist or "Unknown Artist" }}</div>
+            <div class="muted">{{ row.probable_album or "Unknown Album" }}</div>
+            <div>{{ row.probable_title or "Unknown Title" }}</div>
+          </td>
+          <td>
+            <span class="badge confidence-{{ row.classification_status }}">{{ row.classification_status }}</span>
+            <div>{{ row.primary_genre or "Unknown Genre" }}</div>
+            <div class="muted">{{ row.subgenre or "_Unsorted" }}</div>
+          </td>
+          <td>
+            <span class="badge confidence-{{ row.placement_status }}">{{ row.placement_status }}</span>
+            <div class="path">{{ row.planned_relative_path or "No planned path" }}</div>
+          </td>
+          <td>{{ row.reason_summary or "" }}</td>
+        </tr>
+      {% else %}
+        <tr><td class="empty" colspan="5">No organization preview rows available.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="section">
+  <h2>Folder Tree Preview</h2>
+  <div class="stack">
+    {% for group in tree_groups %}
+      <article class="group">
+        <h2>{{ group.zone }} <span class="muted">({{ group.count }})</span></h2>
+        <table>
+          <tbody>
+            {% for path in group.paths[:12] %}
+              <tr><td class="path">{{ path }}</td></tr>
+            {% else %}
+              <tr><td class="empty">No planned paths in this zone.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </article>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

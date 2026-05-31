@@ -1,0 +1,28 @@
+{% extends "reports/base.html" %}
+{% block content %}
+{% if scan_run %}
+  <section class="panel">
+    <h2>Scan Run {{ scan_run.id }}</h2>
+    <p class="meta">{{ scan_run.source_path }} · {{ scan_run.audio_files_seen }} audio files · {{ scan_run.status }}</p>
+  </section>
+{% endif %}
+
+<section class="section">
+  <div class="stack">
+    {% for group in tree_groups %}
+      <article class="group">
+        <h2>{{ group.zone }} <span class="muted">({{ group.count }})</span></h2>
+        <table>
+          <tbody>
+            {% for path in group.paths %}
+              <tr><td class="path">{{ path }}</td></tr>
+            {% else %}
+              <tr><td class="empty">No planned paths in this zone.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </article>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

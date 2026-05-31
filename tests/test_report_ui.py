@@ -4,6 +4,7 @@ import re
 
 from fastapi.testclient import TestClient
 
+from app import db
 from app.main import app
 
 
@@ -143,6 +144,33 @@ def test_library_listing_routes_render(tmp_path):
     assert "Dashboard</a>" in tracks.text
 
 
+def test_organization_preview_routes_render_scan_judgment_and_tree(tmp_path):
+    client = _client(tmp_path)
+    _write_organization_preview_fixture(tmp_path)
+
+    response = client.get(
+        "/library/organization-preview",
+        params={
+            "scan_run_id": "15",
+            "placement_status": "needs_review",
+            "q": "Disguise",
+        },
+    )
+    tree = client.get("/library/organization-preview/tree", params={"scan_run_id": "15"})
+
+    assert response.status_code == 200
+    assert "Messy Source -&gt; System Judgment -&gt; Organized Destination" in response.text
+    assert "Latest Scan Run Summary" in response.text
+    assert "Motionless In White - Disguise (Full Album)" in response.text
+    assert "OrganizedLibrary/_Review/placement" in response.text
+    assert "unsplit_full_album" in response.text
+    assert "Deftones - Around The Fur" not in response.text
+    assert tree.status_code == 200
+    assert "OrganizedLibrary/Music" in tree.text
+    assert "OrganizedLibrary/_Review" in tree.text
+    assert "OrganizedLibrary/_Unresolved" in tree.text
+
+
 def test_album_browser_not_empty_when_tracks_exist_without_album_folder(tmp_path):
     client = _client(tmp_path)
     _write_report_fixture(tmp_path)
@@ -272,6 +300,7 @@ def _client(tmp_path):
     app.state.reports_dir = tmp_path / "reports"
     app.state.library_root = tmp_path / "library"
     app.state.quarantine_root = tmp_path / "quarantine"
+    app.state.db_path = tmp_path / "music_library.sqlite3"
     return TestClient(app)
 
 
@@ -507,6 +536,183 @@ def _write_metadata_fixture(tmp_path):
             ]
         },
     )
+
+
+def _write_organization_preview_fixture(tmp_path):
+    db_path = tmp_path / "music_library.sqlite3"
+    db.init_db(db_path)
+    with db.connect(db_path) as connection:
+        connection.execute(
+            """
+            INSERT INTO scan_runs (
+                id,
+                source_path,
+                started_at,
+                completed_at,
+                status,
+                total_files_seen,
+                audio_files_seen,
+                files_failed
+            )
+            VALUES (
+                15,
+                '/home/jack/Music/ScarletteTrackLibrary',
+                '2026-05-31T10:00:00+00:00',
+                '2026-05-31T10:01:00+00:00',
+                'completed',
+                3,
+                3,
+                0
+            )
+            """
+        )
+        rows = [
+            {
+                "id": 1,
+                "relative_path": "Warner Records Vault/Deftones - Around The Fur (Full Album)/01 My Own Summer (Shove It).flac",
+                "parent_folder": "Warner Records Vault/Deftones - Around The Fur (Full Album)",
+                "filename": "01 My Own Summer (Shove It).flac",
+                "artist": "Deftones",
+                "album": "Around The Fur",
+                "title": "My Own Summer (Shove It)",
+                "identity_status": "identified",
+                "classification_status": "classified",
+                "primary_genre": "Alternative Metal",
+                "subgenre": "Nu Metal",
+                "placement_status": "planned",
+                "planned_path": "OrganizedLibrary/Music/Artists/Deftones/Albums/Around The Fur/01 - My Own Summer (Shove It).flac",
+                "reason": {"reasons": []},
+            },
+            {
+                "id": 2,
+                "relative_path": "Motionless In White - Disguise (Full Album)/ Motionless In White - Disguise (Full Album).flac",
+                "parent_folder": "Motionless In White - Disguise (Full Album)",
+                "filename": " Motionless In White - Disguise (Full Album).flac",
+                "artist": "Motionless in White",
+                "album": "Disguise",
+                "title": "Disguise (Full Album)",
+                "identity_status": "identified",
+                "classification_status": "classified",
+                "primary_genre": "Metalcore",
+                "subgenre": "",
+                "placement_status": "needs_review",
+                "planned_path": "OrganizedLibrary/_Review/placement/Motionless In White - Disguise (Full Album)/Motionless In White - Disguise (Full Album).flac",
+                "reason": {"reasons": ["unsplit_full_album"]},
+            },
+            {
+                "id": 3,
+                "relative_path": "Unknown/Unknown Track.flac",
+                "parent_folder": "Unknown",
+                "filename": "Unknown Track.flac",
+                "artist": None,
+                "album": None,
+                "title": None,
+                "identity_status": "unknown",
+                "classification_status": "unknown",
+                "primary_genre": None,
+                "subgenre": None,
+                "placement_status": "blocked_unknown_identity",
+                "planned_path": "OrganizedLibrary/_Unresolved/unknown/Unknown/Unknown Track.flac",
+                "reason": {"reasons": ["identity_unknown"]},
+            },
+        ]
+        for row in rows:
+            connection.execute(
+                """
+                INSERT INTO observed_files (
+                    id,
+                    scan_run_id,
+                    source_path,
+                    relative_path,
+                    parent_folder,
+                    filename,
+                    extension,
+                    file_size_bytes,
+                    sha256,
+                    created_at
+                )
+                VALUES (?, 15, '/home/jack/Music/ScarletteTrackLibrary', ?, ?, ?, '.flac', 10, ?, '2026-05-31T10:00:00+00:00')
+                """,
+                (row["id"], row["relative_path"], row["parent_folder"], row["filename"], f"hash-{row['id']}"),
+            )
+            connection.execute(
+                """
+                INSERT INTO track_identity (
+                    observed_file_id,
+                    probable_artist,
+                    probable_title,
+                    probable_album,
+                    probable_year,
+                    probable_mix,
+                    identity_confidence,
+                    identity_status,
+                    evidence_json,
+                    created_at
+                )
+                VALUES (?, ?, ?, ?, NULL, NULL, 0.9, ?, '{}', '2026-05-31T10:00:00+00:00')
+                """,
+                (
+                    row["id"],
+                    row["artist"],
+                    row["title"],
+                    row["album"],
+                    row["identity_status"],
+                ),
+            )
+            connection.execute(
+                """
+                INSERT INTO classification_results (
+                    observed_file_id,
+                    primary_genre,
+                    subgenre,
+                    energy_level,
+                    vocal_style,
+                    mood_json,
+                    classification_confidence,
+                    classification_status,
+                    evidence_json,
+                    created_at
+                )
+                VALUES (?, ?, ?, NULL, NULL, '[]', 0.9, ?, '{}', '2026-05-31T10:00:00+00:00')
+                """,
+                (
+                    row["id"],
+                    row["primary_genre"],
+                    row["subgenre"],
+                    row["classification_status"],
+                ),
+            )
+            connection.execute(
+                """
+                INSERT INTO placement_plans (
+                    observed_file_id,
+                    scan_run_id,
+                    source_path,
+                    planned_relative_path,
+                    planned_artist,
+                    planned_album,
+                    planned_title,
+                    planned_primary_genre,
+                    planned_subgenre,
+                    placement_confidence,
+                    placement_status,
+                    reason_json,
+                    created_at
+                )
+                VALUES (?, 15, '/home/jack/Music/ScarletteTrackLibrary', ?, ?, ?, ?, ?, ?, 0.9, ?, ?, '2026-05-31T10:00:00+00:00')
+                """,
+                (
+                    row["id"],
+                    row["planned_path"],
+                    row["artist"],
+                    row["album"],
+                    row["title"],
+                    row["primary_genre"],
+                    row["subgenre"],
+                    row["placement_status"],
+                    json.dumps(row["reason"]),
+                ),
+            )
 
 
 def _write_json(path, payload):

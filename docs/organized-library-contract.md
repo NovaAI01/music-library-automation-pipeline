@@ -140,6 +140,8 @@ Current planner behavior:
 - unsplit full-album single-file sources produce `OrganizedLibrary/_Review/placement/<original relative path>`
 - unresolved rows produce `OrganizedLibrary/_Unresolved/unknown/<original relative path or fallback>`
 - placement planning does not execute file movement
+- `/library/organization-preview` and `/library/organization-preview/tree` are
+  read-only UI proof views over planned paths and review queues
 
 Out of scope for the current phase:
 

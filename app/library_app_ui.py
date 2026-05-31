@@ -325,6 +325,65 @@ def library_tracks(request: Request, q: str = ""):
     )
 
 
+@router.get("/library/organization-preview")
+def organization_preview(
+    request: Request,
+    scan_run_id: int | None = None,
+    placement_status: str = "",
+    identity_status: str = "",
+    classification_status: str = "",
+    q: str = "",
+):
+    preview = _organization_preview_data(
+        db_path=_db_path(request),
+        scan_run_id=scan_run_id,
+        placement_status=placement_status,
+        identity_status=identity_status,
+        classification_status=classification_status,
+        query=q,
+    )
+    return _render(
+        request,
+        "reports/organization_preview.html",
+        {
+            "title": "Organization Preview",
+            "eyebrow": "Messy Source -> System Judgment -> Organized Destination",
+            "intro": "Inspect source paths, system judgments, and canonical destination plans without moving, copying, deleting, or tagging files.",
+            "breadcrumbs": [("Library", "/library"), ("Organization Preview", "")],
+            "back_links": [("Back to Library", "/library")],
+            **preview,
+        },
+    )
+
+
+@router.get("/library/organization-preview/tree")
+def organization_preview_tree(request: Request, scan_run_id: int | None = None):
+    preview = _organization_preview_data(
+        db_path=_db_path(request),
+        scan_run_id=scan_run_id,
+        placement_status="",
+        identity_status="",
+        classification_status="",
+        query="",
+    )
+    return _render(
+        request,
+        "reports/organization_preview_tree.html",
+        {
+            "title": "Folder Tree Preview",
+            "eyebrow": "Read-only OrganizedLibrary Layout",
+            "intro": "Review planned organized paths grouped by governance zone. This page does not execute placement.",
+            "breadcrumbs": [
+                ("Library", "/library"),
+                ("Organization Preview", "/library/organization-preview"),
+                ("Folder Tree", ""),
+            ],
+            "back_links": [("Back to Organization Preview", "/library/organization-preview")],
+            **preview,
+        },
+    )
+
+
 @router.get("/review")
 def review_hub(request: Request):
     reports_dir = _reports_dir(request)
@@ -867,6 +926,322 @@ def _learned_rule_count(reports_dir: Path) -> int:
     return len(rules) if isinstance(rules, list) else 0
 
 
+def _organization_preview_data(
+    *,
+    db_path: Path,
+    scan_run_id: int | None,
+    placement_status: str,
+    identity_status: str,
+    classification_status: str,
+    query: str,
+) -> dict[str, Any]:
+    if not db_path.exists():
+        return _empty_organization_preview(
+            missing_files=[str(db_path)],
+            filters=_organization_filters(
+                scan_run_id=scan_run_id,
+                placement_status=placement_status,
+                identity_status=identity_status,
+                classification_status=classification_status,
+                query=query,
+            ),
+        )
+
+    with db.connect(db_path) as connection:
+        scan_runs = _organization_scan_runs(connection)
+        selected_scan = _selected_scan_run(
+            scan_runs=scan_runs,
+            scan_run_id=scan_run_id,
+        )
+        if selected_scan is None:
+            return _empty_organization_preview(
+                scan_runs=scan_runs,
+                missing_files=[],
+                filters=_organization_filters(
+                    scan_run_id=scan_run_id,
+                    placement_status=placement_status,
+                    identity_status=identity_status,
+                    classification_status=classification_status,
+                    query=query,
+                ),
+            )
+        all_rows = _organization_rows(connection, selected_scan["id"])
+
+    status_options = {
+        "placement_statuses": _status_options(all_rows, "placement_status"),
+        "identity_statuses": _status_options(all_rows, "identity_status"),
+        "classification_statuses": _status_options(all_rows, "classification_status"),
+    }
+    filters = _organization_filters(
+        scan_run_id=selected_scan["id"],
+        placement_status=placement_status,
+        identity_status=identity_status,
+        classification_status=classification_status,
+        query=query,
+    )
+    rows = _filter_organization_rows(
+        all_rows,
+        placement_status=placement_status,
+        identity_status=identity_status,
+        classification_status=classification_status,
+        query=query,
+    )
+    return {
+        "cards": _organization_cards(selected_scan, all_rows),
+        "scan_run": selected_scan,
+        "scan_runs": scan_runs,
+        "latest_scan_run": scan_runs[0] if scan_runs else None,
+        "rows": rows,
+        "row_count": len(rows),
+        "total_row_count": len(all_rows),
+        "tree_groups": _organization_tree_groups(all_rows),
+        "filters": filters,
+        **status_options,
+        "missing_files": [],
+    }
+
+
+def _empty_organization_preview(
+    *,
+    missing_files: list[str],
+    filters: dict[str, Any],
+    scan_runs: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    return {
+        "cards": _organization_cards(None, []),
+        "scan_run": None,
+        "scan_runs": scan_runs or [],
+        "latest_scan_run": scan_runs[0] if scan_runs else None,
+        "rows": [],
+        "row_count": 0,
+        "total_row_count": 0,
+        "tree_groups": _organization_tree_groups([]),
+        "filters": filters,
+        "placement_statuses": [],
+        "identity_statuses": [],
+        "classification_statuses": [],
+        "missing_files": missing_files,
+    }
+
+
+def _organization_scan_runs(connection) -> list[dict[str, Any]]:
+    rows = connection.execute(
+        """
+        SELECT
+            id,
+            source_path,
+            started_at,
+            completed_at,
+            status,
+            total_files_seen,
+            audio_files_seen,
+            files_failed
+        FROM scan_runs
+        ORDER BY id DESC
+        """
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def _selected_scan_run(
+    *,
+    scan_runs: list[dict[str, Any]],
+    scan_run_id: int | None,
+) -> dict[str, Any] | None:
+    if scan_run_id is None:
+        return scan_runs[0] if scan_runs else None
+    return next((row for row in scan_runs if row["id"] == scan_run_id), None)
+
+
+def _organization_rows(connection, scan_run_id: int) -> list[dict[str, Any]]:
+    rows = connection.execute(
+        """
+        SELECT
+            observed_files.id AS observed_file_id,
+            observed_files.relative_path AS original_relative_path,
+            observed_files.filename,
+            observed_files.extension,
+            track_identity.identity_status,
+            track_identity.probable_artist,
+            track_identity.probable_album,
+            track_identity.probable_title,
+            classification_results.classification_status,
+            classification_results.primary_genre,
+            classification_results.subgenre,
+            placement_plans.placement_status,
+            placement_plans.planned_relative_path,
+            placement_plans.reason_json
+        FROM observed_files
+        LEFT JOIN track_identity
+            ON track_identity.observed_file_id = observed_files.id
+        LEFT JOIN classification_results
+            ON classification_results.observed_file_id = observed_files.id
+        LEFT JOIN placement_plans
+            ON placement_plans.observed_file_id = observed_files.id
+            AND placement_plans.scan_run_id = observed_files.scan_run_id
+        WHERE observed_files.scan_run_id = ?
+        ORDER BY observed_files.relative_path
+        """,
+        (scan_run_id,),
+    ).fetchall()
+    return [_organization_row(dict(row)) for row in rows]
+
+
+def _organization_row(row: dict[str, Any]) -> dict[str, Any]:
+    identity_status = row.get("identity_status") or "unknown"
+    classification_status = row.get("classification_status") or "unknown"
+    placement_status = row.get("placement_status") or "not_planned"
+    reason = _compact_reason(row.get("reason_json"))
+    return {
+        **row,
+        "identity_status": identity_status,
+        "classification_status": classification_status,
+        "placement_status": placement_status,
+        "reason_summary": reason,
+        "tree_zone": _organization_zone(row.get("planned_relative_path")),
+    }
+
+
+def _compact_reason(reason_json: str | None) -> str:
+    if not reason_json:
+        return ""
+    try:
+        payload = json.loads(reason_json)
+    except (TypeError, json.JSONDecodeError):
+        return str(reason_json)
+    if not isinstance(payload, dict):
+        return str(reason_json)
+    parts: list[str] = []
+    reasons = payload.get("reasons")
+    if isinstance(reasons, list) and reasons:
+        parts.append(", ".join(str(reason) for reason in reasons))
+    album_reason = payload.get("album_reason")
+    if album_reason:
+        parts.append(f"album: {album_reason}")
+    return " | ".join(parts) if parts else json.dumps(payload, sort_keys=True)
+
+
+def _organization_cards(
+    scan_run: dict[str, Any] | None,
+    rows: list[dict[str, Any]],
+) -> list[tuple[str, Any]]:
+    identity_counts = Counter(row["identity_status"] for row in rows)
+    classification_counts = Counter(row["classification_status"] for row in rows)
+    placement_counts = Counter(row["placement_status"] for row in rows)
+    blocked_count = sum(
+        count
+        for status, count in placement_counts.items()
+        if str(status).startswith("blocked_")
+    )
+    return [
+        ("Scan run", scan_run["id"] if scan_run else "None"),
+        ("Total files", scan_run.get("total_files_seen", 0) if scan_run else 0),
+        ("Audio files", scan_run.get("audio_files_seen", 0) if scan_run else 0),
+        ("Files failed", scan_run.get("files_failed", 0) if scan_run else 0),
+        ("Identified", identity_counts.get("identified", 0)),
+        ("Partial", identity_counts.get("partial", 0)),
+        ("Conflicting", identity_counts.get("conflicting", 0)),
+        ("Identity unknown", identity_counts.get("unknown", 0)),
+        ("Classified", classification_counts.get("classified", 0)),
+        ("Uncertain", classification_counts.get("uncertain", 0)),
+        ("Classification unknown", classification_counts.get("unknown", 0)),
+        ("Planned", placement_counts.get("planned", 0)),
+        ("Review", placement_counts.get("needs_review", 0)),
+        ("Blocked", blocked_count),
+        ("Conflict", placement_counts.get("conflict", 0)),
+    ]
+
+
+def _filter_organization_rows(
+    rows: list[dict[str, Any]],
+    *,
+    placement_status: str,
+    identity_status: str,
+    classification_status: str,
+    query: str,
+) -> list[dict[str, Any]]:
+    query_key = query.casefold().strip()
+    filtered = []
+    for row in rows:
+        if placement_status and row["placement_status"] != placement_status:
+            continue
+        if identity_status and row["identity_status"] != identity_status:
+            continue
+        if classification_status and row["classification_status"] != classification_status:
+            continue
+        if query_key and query_key not in " ".join(
+            str(row.get(key) or "")
+            for key in (
+                "original_relative_path",
+                "probable_artist",
+                "probable_album",
+                "probable_title",
+                "planned_relative_path",
+            )
+        ).casefold():
+            continue
+        filtered.append(row)
+    return filtered
+
+
+def _organization_tree_groups(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    groups = {
+        "OrganizedLibrary/Music": [],
+        "OrganizedLibrary/_Review": [],
+        "OrganizedLibrary/_Unresolved": [],
+        "Other": [],
+    }
+    for row in rows:
+        path = row.get("planned_relative_path")
+        if not path:
+            continue
+        groups.setdefault(_organization_zone(path), []).append(path)
+    return [
+        {
+            "zone": zone,
+            "count": len(paths),
+            "paths": sorted(paths, key=str.casefold),
+        }
+        for zone, paths in groups.items()
+        if paths or zone != "Other"
+    ]
+
+
+def _organization_zone(path: str | None) -> str:
+    if not path:
+        return "Other"
+    parts = str(path).split("/")
+    if len(parts) >= 2 and parts[0] == "OrganizedLibrary":
+        if parts[1] == "Music":
+            return "OrganizedLibrary/Music"
+        if parts[1] == "_Review":
+            return "OrganizedLibrary/_Review"
+        if parts[1] == "_Unresolved":
+            return "OrganizedLibrary/_Unresolved"
+    return "Other"
+
+
+def _status_options(rows: list[dict[str, Any]], key: str) -> list[str]:
+    return sorted({str(row[key]) for row in rows if row.get(key)})
+
+
+def _organization_filters(
+    *,
+    scan_run_id: int | None,
+    placement_status: str,
+    identity_status: str,
+    classification_status: str,
+    query: str,
+) -> dict[str, Any]:
+    return {
+        "scan_run_id": scan_run_id,
+        "placement_status": placement_status,
+        "identity_status": identity_status,
+        "classification_status": classification_status,
+        "query": query,
+    }
+
+
 def _album_browser_tracks(
     reports_dir: Path,
     rows: list[dict[str, str]],
@@ -1016,6 +1391,7 @@ def _nav_items() -> list[tuple[str, str]]:
         ("/library/albums", "Albums"),
         ("/library/genres", "Genres"),
         ("/library/tracks", "Tracks"),
+        ("/library/organization-preview", "Organization Preview"),
         ("/review", "Review"),
         ("/review/duplicates", "Duplicates"),
         ("/review/metadata", "Metadata"),

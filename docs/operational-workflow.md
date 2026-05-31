@@ -78,6 +78,9 @@ before/after proof. The placement planner emits artist/release/track paths
 under `OrganizedLibrary/Music/` for clean canonical rows and preserves original
 relative paths under `_Review/` or `_Unresolved/` for governance rows. Unsplit
 full-album single-file downloads route to `_Review/placement/` until reviewed.
+The local UI exposes `/library/organization-preview` and
+`/library/organization-preview/tree` as read-only proof views for the flow from
+messy source to system judgment to organized destination.
 Future profile layouts are preview/export views only and must not move files
 from a dropdown change.
 

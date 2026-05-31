@@ -285,6 +285,7 @@
     }
     form {
       display: flex;
+      flex-wrap: wrap;
       gap: 8px;
       margin-bottom: 14px;
     }
@@ -306,7 +307,7 @@
       width: 100%;
       min-width: 0;
     }
-    input {
+    input, select {
       min-width: 220px;
       flex: 1;
       padding: 8px 10px;
@@ -316,6 +317,7 @@
       color: var(--text);
       font: inherit;
     }
+    select { min-width: 180px; }
     button {
       padding: 8px 12px;
       border: 1px solid var(--accent);

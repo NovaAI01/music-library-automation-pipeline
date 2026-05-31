@@ -120,6 +120,8 @@ emits `OrganizedLibrary/Music/...` clean paths and `_Review/` or
 organization profile previews non-mutating. Do not build profile UI or dropdown
 switching in the proof phase. Unsplit full-album single-file downloads are
 routed to `_Review/placement/` and must not be treated as clean album tracks.
+The read-only UI route `/library/organization-preview` can inspect these
+decisions by scan run; it is a proof and review surface only.
 
 ## Docker runtime verification
 

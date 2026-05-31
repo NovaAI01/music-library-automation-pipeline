@@ -254,6 +254,11 @@ default physical owner. Unsplit full-album single-file sources are routed to
 `OrganizedLibrary/_Review/placement/<original relative path>` instead of clean
 artist album paths.
 
+The local UI includes a read-only organization preview at
+`/library/organization-preview`. It shows the proof flow from messy source path
+to system judgment to planned organized destination for a selected scan run, and
+it does not move, copy, delete, or retag files.
+
 Future organization profiles are preview/export views over canonical metadata.
 The future dropdown/profile UI must be preview-first and must not move files
 until explicit confirmation and an execution manifest exist.

@@ -234,6 +234,80 @@
       display: grid;
       gap: 5px;
     }
+    .proof-list {
+      display: grid;
+      gap: 14px;
+      margin-top: 14px;
+    }
+    .proof-card {
+      display: grid;
+      gap: 14px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px;
+      background: var(--panel);
+      box-shadow: 0 10px 24px rgba(0, 0, 0, .14);
+    }
+    .proof-flow {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 1.15fr);
+      gap: 12px;
+    }
+    .proof-section {
+      min-width: 0;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+      background: rgba(17, 24, 39, .58);
+    }
+    .proof-section h3 {
+      margin: 0 0 9px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .proof-path {
+      display: block;
+      width: 100%;
+      max-width: none;
+      padding: 10px;
+      border: 1px solid rgba(154, 167, 183, .16);
+      border-radius: 6px;
+      background: rgba(13, 17, 23, .55);
+      overflow-wrap: anywhere;
+      white-space: normal;
+      line-height: 1.45;
+    }
+    .proof-field {
+      display: grid;
+      gap: 3px;
+      margin-top: 8px;
+    }
+    .proof-field .label {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .proof-field .value {
+      color: var(--text);
+      overflow-wrap: anywhere;
+    }
+    .proof-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .reason-panel {
+      border-top: 1px solid var(--border);
+      padding-top: 12px;
+    }
+    @media (max-width: 940px) {
+      .proof-flow {
+        grid-template-columns: 1fr;
+      }
+    }
     .empty {
       color: var(--muted);
       text-align: center;

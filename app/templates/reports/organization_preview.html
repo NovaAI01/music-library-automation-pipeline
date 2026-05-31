@@ -65,51 +65,56 @@
     </div>
   {% endif %}
   <p class="meta">Showing {{ row_count }} of {{ total_row_count }} rows.</p>
-  <div class="table-scroll">
-    <table class="preview-table">
-      <thead>
-        <tr>
-          <th>Before</th>
-          <th>Judgment</th>
-          <th>After</th>
-          <th>Reason</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in rows %}
-          <tr>
-            <td class="preview-path-cell">
-              <span class="flow-label">Original Relative Path</span>
-              <code class="path path-nowrap">{{ row.original_relative_path }}</code>
-            </td>
-            <td>
-              <span class="flow-label">Identity + Classification</span>
-              <div class="judgment-grid">
-                <div class="judgment-block">
-                  <span class="badge status-{{ row.identity_status }}">{{ row.identity_status }}</span>
-                  <strong>{{ row.probable_artist or "Unknown Artist" }}</strong>
-                  <span class="muted">{{ row.probable_album or "Unknown Album" }}</span>
-                  <span>{{ row.probable_title or "Unknown Title" }}</span>
-                </div>
-                <div class="judgment-block">
-                  <span class="badge status-{{ row.classification_status }}">{{ row.classification_status }}</span>
-                  <strong>{{ row.primary_genre or "Unknown Genre" }}</strong>
-                  <span class="muted">{{ row.subgenre or "_Unsorted" }}</span>
-                </div>
-              </div>
-            </td>
-            <td class="preview-path-cell">
-              <span class="flow-label">Planned Relative Path</span>
+  <div class="proof-list">
+    {% for row in rows %}
+      <article class="proof-card">
+        <div class="proof-flow">
+          <section class="proof-section">
+            <h3>Before</h3>
+            <code class="proof-path">{{ row.original_relative_path }}</code>
+          </section>
+
+          <section class="proof-section">
+            <h3>Judgment</h3>
+            <div class="proof-badges">
+              <span class="badge status-{{ row.identity_status }}">{{ row.identity_status }}</span>
+              <span class="badge status-{{ row.classification_status }}">{{ row.classification_status }}</span>
+            </div>
+            <div class="proof-field">
+              <span class="label">Artist</span>
+              <span class="value">{{ row.probable_artist or "Unknown Artist" }}</span>
+            </div>
+            <div class="proof-field">
+              <span class="label">Album</span>
+              <span class="value">{{ row.probable_album or "Unknown Album" }}</span>
+            </div>
+            <div class="proof-field">
+              <span class="label">Title</span>
+              <span class="value">{{ row.probable_title or "Unknown Title" }}</span>
+            </div>
+            <div class="proof-field">
+              <span class="label">Genre</span>
+              <span class="value">{{ row.primary_genre or "Unknown Genre" }}{% if row.subgenre %} / {{ row.subgenre }}{% else %} / _Unsorted{% endif %}</span>
+            </div>
+          </section>
+
+          <section class="proof-section">
+            <h3>After</h3>
+            <div class="proof-badges">
               <span class="badge status-{{ row.placement_status }}">{{ row.placement_status }}</span>
-              <code class="path path-nowrap">{{ row.planned_relative_path or "No planned path" }}</code>
-            </td>
-            <td class="reason-cell">{{ row.reason_summary or "" }}</td>
-          </tr>
-        {% else %}
-          <tr><td class="empty" colspan="4">No organization preview rows available.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+            </div>
+            <code class="proof-path">{{ row.planned_relative_path or "No planned path" }}</code>
+          </section>
+        </div>
+
+        <section class="reason-panel">
+          <span class="flow-label">Reason</span>
+          <span>{{ row.reason_summary or "No additional reason." }}</span>
+        </section>
+      </article>
+    {% else %}
+      <div class="empty">No organization preview rows available.</div>
+    {% endfor %}
   </div>
 </section>
 

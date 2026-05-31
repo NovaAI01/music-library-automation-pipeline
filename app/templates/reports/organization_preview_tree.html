@@ -12,15 +12,17 @@
     {% for group in tree_groups %}
       <article class="group">
         <h2>{{ group.zone }} <span class="muted">({{ group.count }})</span></h2>
-        <table>
-          <tbody>
-            {% for path in group.paths %}
-              <tr><td class="path">{{ path }}</td></tr>
-            {% else %}
-              <tr><td class="empty">No planned paths in this zone.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
+        <div class="table-scroll">
+          <table>
+            <tbody>
+              {% for path in group.paths %}
+                <tr><td><code class="path path-nowrap">{{ path }}</code></td></tr>
+              {% else %}
+                <tr><td class="empty">No planned paths in this zone.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       </article>
     {% endfor %}
   </div>

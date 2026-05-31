@@ -184,6 +184,56 @@
       font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
       font-size: 13px;
     }
+    .path-nowrap {
+      display: block;
+      max-width: none;
+      white-space: nowrap;
+      overflow-wrap: normal;
+    }
+    .table-scroll {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--panel);
+    }
+    .table-scroll table {
+      min-width: 1180px;
+      border: 0;
+      border-radius: 0;
+    }
+    .preview-table th {
+      color: #f8fbff;
+      background: var(--panel-strong);
+    }
+    .preview-table td {
+      min-width: 220px;
+    }
+    .preview-table .preview-path-cell {
+      min-width: 420px;
+    }
+    .preview-table .reason-cell {
+      min-width: 260px;
+      max-width: 360px;
+    }
+    .flow-label {
+      display: block;
+      margin-bottom: 7px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .judgment-grid {
+      display: grid;
+      grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr);
+      gap: 14px;
+      min-width: 390px;
+    }
+    .judgment-block {
+      display: grid;
+      gap: 5px;
+    }
     .empty {
       color: var(--muted);
       text-align: center;
@@ -246,6 +296,26 @@
       background: rgba(255, 122, 122, .12);
       border: 1px solid rgba(255, 122, 122, .35);
     }
+    .status-planned, .status-identified, .status-classified {
+      color: var(--success);
+      background: rgba(83, 209, 139, .12);
+      border: 1px solid rgba(83, 209, 139, .4);
+    }
+    .status-needs_review, .status-partial, .status-uncertain {
+      color: var(--warning);
+      background: rgba(241, 196, 95, .12);
+      border: 1px solid rgba(241, 196, 95, .42);
+    }
+    .status-blocked_unknown_identity,
+    .status-blocked_unknown_classification,
+    .status-conflict,
+    .status-conflicting,
+    .status-unknown,
+    .status-not_planned {
+      color: var(--danger);
+      background: rgba(255, 122, 122, .12);
+      border: 1px solid rgba(255, 122, 122, .42);
+    }
     .decision-approved {
       color: var(--success);
       background: rgba(83, 209, 139, .12);
@@ -281,6 +351,26 @@
     .action:hover, .back-link:hover, .play-link:hover {
       background: var(--accent-soft);
       border-color: var(--accent);
+      color: var(--text);
+    }
+    .quick-filters {
+      margin: 14px 0;
+    }
+    .filter-link {
+      min-height: 34px;
+      padding: 6px 10px;
+      font-size: 13px;
+    }
+    .tree-cta {
+      display: grid;
+      gap: 10px;
+      border-color: rgba(73, 182, 255, .5);
+      background: linear-gradient(135deg, rgba(23, 50, 71, .95), rgba(28, 37, 48, .95));
+    }
+    .tree-cta .action {
+      width: fit-content;
+      border-color: var(--accent);
+      background: var(--accent-soft);
       color: var(--text);
     }
     form {

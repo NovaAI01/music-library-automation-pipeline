@@ -10,7 +10,7 @@
 </section>
 
 {% if scan_run %}
-  <section class="panel">
+  <section class="panel tree-cta">
     <h2>Latest Scan Run Summary</h2>
     <p class="meta">
       Selected scan run {{ scan_run.id }} from {{ scan_run.source_path }}.
@@ -20,7 +20,7 @@
       Started {{ scan_run.started_at }}{% if scan_run.completed_at %}, completed {{ scan_run.completed_at }}{% endif %}.
       Status: {{ scan_run.status }}.
     </p>
-    <div class="actions section">
+    <div class="actions">
       <a class="action" href="/library/organization-preview/tree?scan_run_id={{ scan_run.id }}">Open Folder Tree Preview</a>
     </div>
   </section>
@@ -55,43 +55,62 @@
     <input name="q" value="{{ filters.query }}" placeholder="Search path, title, artist, or album">
     <button type="submit">Filter</button>
   </form>
+  {% if scan_run %}
+    <div class="actions quick-filters" aria-label="Placement quick filters">
+      <a class="action filter-link" href="/library/organization-preview?scan_run_id={{ scan_run.id }}&placement_status=planned">Planned</a>
+      <a class="action filter-link" href="/library/organization-preview?scan_run_id={{ scan_run.id }}&placement_status=needs_review">Review</a>
+      <a class="action filter-link" href="/library/organization-preview?scan_run_id={{ scan_run.id }}&placement_status=blocked_unknown_identity">Blocked Identity</a>
+      <a class="action filter-link" href="/library/organization-preview?scan_run_id={{ scan_run.id }}&placement_status=blocked_unknown_classification">Blocked Classification</a>
+      <a class="action filter-link" href="/library/organization-preview?scan_run_id={{ scan_run.id }}&placement_status=conflict">Conflict</a>
+    </div>
+  {% endif %}
   <p class="meta">Showing {{ row_count }} of {{ total_row_count }} rows.</p>
-  <table>
-    <thead>
-      <tr>
-        <th>Original Relative Path</th>
-        <th>Identity</th>
-        <th>System Judgment</th>
-        <th>Placement</th>
-        <th>Reason</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in rows %}
+  <div class="table-scroll">
+    <table class="preview-table">
+      <thead>
         <tr>
-          <td class="path">{{ row.original_relative_path }}</td>
-          <td>
-            <span class="badge confidence-{{ row.identity_status }}">{{ row.identity_status }}</span>
-            <div>{{ row.probable_artist or "Unknown Artist" }}</div>
-            <div class="muted">{{ row.probable_album or "Unknown Album" }}</div>
-            <div>{{ row.probable_title or "Unknown Title" }}</div>
-          </td>
-          <td>
-            <span class="badge confidence-{{ row.classification_status }}">{{ row.classification_status }}</span>
-            <div>{{ row.primary_genre or "Unknown Genre" }}</div>
-            <div class="muted">{{ row.subgenre or "_Unsorted" }}</div>
-          </td>
-          <td>
-            <span class="badge confidence-{{ row.placement_status }}">{{ row.placement_status }}</span>
-            <div class="path">{{ row.planned_relative_path or "No planned path" }}</div>
-          </td>
-          <td>{{ row.reason_summary or "" }}</td>
+          <th>Before</th>
+          <th>Judgment</th>
+          <th>After</th>
+          <th>Reason</th>
         </tr>
-      {% else %}
-        <tr><td class="empty" colspan="5">No organization preview rows available.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td class="preview-path-cell">
+              <span class="flow-label">Original Relative Path</span>
+              <code class="path path-nowrap">{{ row.original_relative_path }}</code>
+            </td>
+            <td>
+              <span class="flow-label">Identity + Classification</span>
+              <div class="judgment-grid">
+                <div class="judgment-block">
+                  <span class="badge status-{{ row.identity_status }}">{{ row.identity_status }}</span>
+                  <strong>{{ row.probable_artist or "Unknown Artist" }}</strong>
+                  <span class="muted">{{ row.probable_album or "Unknown Album" }}</span>
+                  <span>{{ row.probable_title or "Unknown Title" }}</span>
+                </div>
+                <div class="judgment-block">
+                  <span class="badge status-{{ row.classification_status }}">{{ row.classification_status }}</span>
+                  <strong>{{ row.primary_genre or "Unknown Genre" }}</strong>
+                  <span class="muted">{{ row.subgenre or "_Unsorted" }}</span>
+                </div>
+              </div>
+            </td>
+            <td class="preview-path-cell">
+              <span class="flow-label">Planned Relative Path</span>
+              <span class="badge status-{{ row.placement_status }}">{{ row.placement_status }}</span>
+              <code class="path path-nowrap">{{ row.planned_relative_path or "No planned path" }}</code>
+            </td>
+            <td class="reason-cell">{{ row.reason_summary or "" }}</td>
+          </tr>
+        {% else %}
+          <tr><td class="empty" colspan="4">No organization preview rows available.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </section>
 
 <section class="section">
